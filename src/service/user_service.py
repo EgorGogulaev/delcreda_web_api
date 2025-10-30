@@ -1,0 +1,488 @@
+from typing import Any, Dict, List, Literal, Optional, Tuple
+from uuid import uuid4
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from config import SECRET_KEY
+from connection_module import SignalConnector
+from src.models.legal_entity_models import LegalEntity
+from src.service.legal_entity_service import LegalEntityService
+from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
+from security import encrypt
+from src.models.user_models import UserAccount
+from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
+from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
+from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
+from src.service.file_store_service import FileStoreService
+from src.utils.tz_converter import convert_tz
+
+
+class UserService:
+    @staticmethod
+    async def auth_user(
+        session: AsyncSession,
+        
+        login: str,
+        password: str,
+        for_flet: bool=False,
+    ) -> Dict[str, str] | ResponseAuth:
+        assert all([login, password,]), "Нужно заполнить поля Логина и Пароля!"
+        
+        user_token = await UserQueryAndStatementManager.get_user_token(
+            session=session,
+            
+            login=login,
+            password=password,
+        )
+        if not user_token:
+            raise AssertionError("Не верный Логин или Пароль!")
+        
+        user_data: UserSchema = await UserQueryAndStatementManager.get_current_user_data(            
+            token=user_token,
+        )
+        
+        if for_flet:
+            data = {
+                "encrypt_token": encrypt(plain_text=user_token, secret_key=SECRET_KEY),
+                "encrypt_user_id": encrypt(plain_text=str(user_data.user_id), secret_key=SECRET_KEY),
+                "encrypt_user_uuid": encrypt(plain_text=user_data.user_uuid, secret_key=SECRET_KEY),
+                "encrypt_user_dir_uuid": encrypt(plain_text=user_data.user_dir_uuid, secret_key=SECRET_KEY),
+                "encrypt_privilege_id": encrypt(plain_text=str(user_data.privilege_id), secret_key=SECRET_KEY),
+            }
+        else:
+            data = ResponseAuth(
+                token=user_token,
+                user_id=str(user_data.user_id),
+                user_uuid=user_data.user_uuid,
+                user_dir_uuid=user_data.user_dir_uuid,
+                privilege={v:k for k, v in PRIVILEGE_MAPPING.items()}[user_data.privilege_id],
+            )
+        
+        return data
+    
+    @classmethod  # TODO
+    async def create_user(
+        cls,
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+        login: str,
+        password: str,
+        privilege: Literal[2, 3],
+        new_user_uuid: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Создает нового пользователя"""
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise AssertionError("Вы не можете создать пользователя, у Вас недостаточно прав!")
+        if not new_user_uuid:
+            new_user_uuid_coro = await SignalConnector.generate_identifiers(target="Пользователь", count=1)
+            new_user_uuid = new_user_uuid_coro[0]
+        assert not await UserQueryAndStatementManager.check_user_account_by_field_value(
+            session=session,
+            
+            value=new_user_uuid,
+            field_type="uuid",
+        ), "Пользователь с таким uuid уже существует!"
+        assert not await UserQueryAndStatementManager.check_user_account_by_field_value(
+            session=session,
+            
+            value=login,
+            field_type="login",
+        ), "Пользователь с таким логином уже существует!"
+        
+        token_info: Dict[str, str|int] = await UserService.create_token(
+            session=session,
+        )
+        
+        new_user_contact_id: int = await cls.__create_user_contact(
+            session=session,
+        )
+        
+        new_user_id = await UserQueryAndStatementManager.register_user(
+            session=session,
+            
+            new_user_uuid=new_user_uuid,
+            token_id=token_info["token_id"],
+            login=login,
+            password=password,
+            privilege=privilege,
+            contact_id=new_user_contact_id,
+        )
+        
+        # Информация о созданной базовой директории
+        user_dir_info: Dict[str, Any] = await FileStoreService.create_directory(
+            session=session,
+            
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            owner_user_uuid=new_user_uuid,
+            directory_type=DIRECTORY_TYPE_MAPPING["Пользовательская директория"],
+        )
+        
+        return {
+            "id": new_user_id,
+            "uuid": new_user_uuid,
+            "login": login,
+            "token": token_info["value"],
+            "password": password,
+            "privilege": list(PRIVILEGE_MAPPING)[list(PRIVILEGE_MAPPING.values()).index(privilege)],
+            "user_dir": user_dir_info,
+        }
+        
+        
+    @staticmethod
+    async def create_token(session: AsyncSession,) -> Dict[str, str|int]:
+        gen_token = str(uuid4())
+        while await UserQueryAndStatementManager.check_user_account_by_field_value(
+            session=session,
+            
+            value=gen_token,
+            field_type="token",
+        ):  # До тех пор, пока не будет найден свободное значение токена
+            gen_token = str(uuid4())
+        
+        token_id: int = await UserQueryAndStatementManager.register_token(
+            session=session,
+            
+            token=gen_token
+        )
+        
+        return {
+            "token_id": token_id,
+            "value": gen_token,
+        }
+    
+    @staticmethod
+    async def get_users_info(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        privilege: Literal[2, 3] = None,
+        login: Optional[str] = None,
+        user_token: Optional[str] = None,
+        user_token_ilike: Optional[str] = None,
+        uuid: Optional[str] = None,
+        
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        
+        filter: Optional[FiltersUsersInfo] = None,
+        order: Optional[OrdersUsersInfo] = None,
+        
+        tz: Optional[str] = None,
+    ) -> ResponseGetUsersInfo:
+        if page or page_size:
+            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            if any([login, privilege, user_token, user_token_ilike]):
+                raise AssertionError("Вы не можете осуществлять поиск инфорамции о Пользователе по Правам, Логину или Токену (или по их комбинации)!")
+            if uuid is not None:
+                assert requester_user_uuid == uuid, "Вы не можете просмотреть данные о другом Пользователе!"
+        
+        response_content = ResponseGetUsersInfo(
+            data=[],
+            count=0,
+            total_records=None,
+            total_pages=None
+        )
+        
+        # Проверка по идентифицирующим полям
+        if user_token:
+            exists = await UserQueryAndStatementManager.check_user_account_by_field_value(
+                session=session,
+                
+                value=user_token,
+                field_type="token",
+            )
+            if not exists:
+                return response_content
+        if uuid:
+            exists = await UserQueryAndStatementManager.check_user_account_by_field_value(
+                session=session,
+                
+                value=uuid,
+                field_type="uuid",
+            )
+            if not exists:
+                return response_content
+        if login:
+            exists = await UserQueryAndStatementManager.check_user_account_by_field_value(
+                session=session,
+                
+                value=login,
+                field_type="login",
+            )
+            if not exists:
+                return response_content
+        
+        users_data: Dict[str, List[Optional[Tuple[str, UserAccount,]]]|Optional[int]] = await UserQueryAndStatementManager.get_users_info(
+            session=session,
+            
+            privilege=requester_user_privilege if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else privilege,
+            login=login,
+            user_token=user_token,
+            user_token_ilike=user_token_ilike,
+            uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else uuid,
+            
+            page=page,
+            page_size=page_size,
+            
+            filter=filter,
+            order=order,
+        )
+        
+        for user_data in users_data["data"]:
+            if len(user_data) >= 3 and user_data[1] and user_data[2]:  # Проверка на наличие данных
+                user_account = user_data[1]
+                user_contact = user_data[2]
+                privilege_name = list(PRIVILEGE_MAPPING)[
+                    list(PRIVILEGE_MAPPING.values()).index(user_account.privilege)
+                ]
+                
+                # Создаем UserInfo и добавляем в результат
+                response_content.data.append(
+                    UserInfo(
+                        uuid=user_account.uuid,
+                        token=user_data[0],
+                        login=user_account.login,
+                        password=user_account.password,
+                        privilege=privilege_name,
+                        is_active=user_account.is_active,
+                        contact_id=user_account.contact,
+                        
+                        email=user_contact.email,
+                        email_notification=user_contact.email_notification,
+                        telegram=user_contact.telegram,
+                        telegram_notification=user_contact.telegram_notification,
+                        
+                        last_auth=convert_tz(user_account.last_auth.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=tz) if user_account.last_auth else None,
+                        created_at=convert_tz(user_account.created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=tz) if user_account.created_at else None,
+                    )
+                )
+                response_content.count += 1
+        
+        
+        response_content.total_records = users_data.get("total_records")
+        response_content.total_pages = users_data.get("total_pages")
+        
+        return response_content
+    
+    @staticmethod
+    async def update_user_info(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        target_token: Optional[str],
+        target_user_uuid: Optional[str],
+        target_login: Optional[str],
+        
+        new_login: Optional[str],
+        new_password: Optional[str],
+        new_user_uuid: Optional[str],
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise AssertionError("Вы не можете обновить информацию пользователя, у Вас недостаточно прав!")
+        
+        assert new_login or new_password or new_user_uuid, "Нужно указать, что будем изменять!"
+        
+        user_account_id: Optional[int] = await UserQueryAndStatementManager.check_user_account(
+            session=session,
+            
+            token=target_token,
+            uuid=target_user_uuid,
+            login=target_login,
+        )
+        assert user_account_id, "По заданным параметрам, пользователь не найден!"
+        if new_login:
+            assert 255 >= len(new_login) >= 4, "Длина логина должна быть в диапазоне от 4 до 255 символов!"
+        if new_password:
+            assert 255 >= len(new_password) >= 4, "Длина пароля должна быть в диапазоне от 5 до 255 символов!"
+        if new_user_uuid:
+            assert len(new_user_uuid) == 36, f"Длина UUID должна составлять 36 символов! (Например {str(uuid4())})"
+        
+        await UserQueryAndStatementManager.update_user_info(
+            session=session,
+            
+            user_account_id=user_account_id,
+            
+            new_login=new_login,
+            new_password=new_password,
+            new_user_uuid=new_user_uuid,
+        )
+    
+    @classmethod
+    async def delete_users(
+        cls,
+        
+        session: AsyncSession,
+        
+        requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
+        
+        tokens: List[str],
+        uuids: List[str],
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise AssertionError("Вы не можете удалить пользователя, у Вас недостаточно прав!")
+        
+        user_uuids: List[str] = []
+        
+        for token in tokens:
+            user_data = await cls.get_users_info(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                
+                user_token=token,
+            )
+            assert user_data.count > 0, f'Информация о пользователе с токеном - "{token}" не была найдена!'
+            assert user_data.count == 1, f'Коллизия! Пользователей с токеном - "{token}" было найдено более одного!'
+            assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (токен - "{token}")'
+            user_uuids.append(user_data.data[0].uuid)
+        
+        for uuid in uuids:
+            user_data = await cls.get_users_info(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                
+                uuid=uuid,
+            )
+            assert user_data.count > 0, f'Информация о пользователе с UUID - "{uuid}" не была найдена!'
+            assert user_data.count == 1, f'Коллизия! Пользователей с UUID - "{uuid}" было найдено более одного!'
+            assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (UUID - "{uuid}")'
+            user_uuids.append(user_data.data[0].uuid)
+        
+        
+        dir_uuids: List[str] = []
+        for user_uuid in user_uuids:
+            dirs_info: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                owner_user_uuid=user_uuid
+            )
+            for dir_id in dirs_info["data"]:
+                if dirs_info["data"][dir_id]["parent"] is None:
+                    dir_uuids.append(dirs_info["data"][dir_id]["uuid"])
+            
+            le_uuids: List[str] = []
+            le_dct: Dict[str, List[Optional[LegalEntity]]|Optional[int]] = await LegalEntityService.get_legal_entities(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                user_uuid=user_uuid,
+            )
+            for le in le_dct["data"]:
+                le_uuids.append(le.uuid)
+            
+            try:
+                await LegalEntityService.delete_legal_entities(
+                    session=session,
+                    
+                    requester_user_id=requester_user_id,
+                    requester_user_uuid=requester_user_uuid,
+                    requester_user_privilege=requester_user_privilege,
+                    
+                    legal_entities_uuids=le_uuids,
+                )
+            except: ...  # noqa: E722
+        
+        for dir_uuid in dir_uuids:
+            try:
+                await FileStoreService.delete_doc_or_dir(
+                    session=session,
+                    
+                    requester_user_id=requester_user_id,
+                    requester_user_uuid=requester_user_uuid,
+                    requester_user_privilege=requester_user_privilege,
+                    uuid=dir_uuid,
+                    is_document=False,
+                )
+            except: ...  # noqa: E722
+        
+        await UserQueryAndStatementManager.delete_users(
+            session=session,
+            
+            user_uuids=user_uuids,
+        )
+    
+    @staticmethod
+    async def get_client_state(
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        user_uuid: str,
+    ) -> ClientState:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            assert user_uuid == requester_user_uuid, "Вы не можете получить состояние другого пользователя!"
+        
+        data: ClientState = await UserQueryAndStatementManager.get_client_state(
+            client_uuid=user_uuid,
+        )
+        
+        return data
+    
+    @staticmethod
+    async def record_client_states(
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        client_uuid,
+        new_state,
+        ttl,
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            assert requester_user_uuid == client_uuid, "Вы не можете менять состояние других клиентов, у Вас недостаточно прав!"
+        
+        await UserQueryAndStatementManager.record_client_states(
+            client_uuid=client_uuid,
+            new_state=new_state,
+            ttl=ttl,
+        )
+    
+    @staticmethod
+    async def __create_user_contact(
+        session: AsyncSession,
+    ) -> int:
+        new_user_contact_id: int = await UserQueryAndStatementManager.create_user_contact(
+            session=session,
+        )
+        
+        return new_user_contact_id
+    
+    @classmethod
+    async def update_user_contact(
+        cls,
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        new_user_contact_data: UpdateUserContactData,
+        user_uuid: Optional[str] = None,
+    ) -> None:
+        assert user_uuid, "Для обновление контактный данных пользователя нужно указать его UUID!"
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            if user_uuid:
+                assert requester_user_uuid == user_uuid, "Вы не можете обновлять контактные данные других пользователей!"
+        
+        user_info: ResponseGetUsersInfo = await cls.get_users_info(
+            session=session,
+            
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            
+            uuid=user_uuid,
+        )
+        
+        user_contact_id: int = user_info.data[0].contact_id
+        
+        await UserQueryAndStatementManager.update_user_contact(
+            session=session,
+            
+            user_contact_id=user_contact_id,
+            new_user_contact_data=new_user_contact_data,
+        )

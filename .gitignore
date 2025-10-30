@@ -1,0 +1,12 @@
+venv
+env
+.env
+__pycache__/
+*.pdf
+*.json
+*.xls
+*.xlsx
+*.csv
+*.log
+/file_store
+test_scripts.py
