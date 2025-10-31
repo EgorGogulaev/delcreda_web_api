@@ -1,3 +1,4 @@
+# FIXME Переделать под работу с S3
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 

@@ -2,9 +2,11 @@ from collections import defaultdict
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional, Set
 
 import aiohttp
+from aiohttp import FormData
 import aioredis
-from fastapi import WebSocket
+from fastapi import HTTPException, UploadFile, WebSocket
 from fastapi.concurrency import asynccontextmanager
+from fastapi.responses import StreamingResponse
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncSession
@@ -195,6 +197,8 @@ class SignalConnector:
         params: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, Any]] = None,
+        
+        streaming_response: bool = False,
     ) -> Dict[str, Any]:
         async with aiohttp.ClientSession(auth=cls.auth) as session:
             async with session.request(
@@ -208,7 +212,19 @@ class SignalConnector:
                 ssl=False,
             ) as response:
                 if response.status in range(200, 300):
-                    return await response.json()
+                    if streaming_response is False:
+                        return await response.json()
+                    else:
+                        headers_to_forward = {}
+                        content_disposition = response.headers.get("Content-Disposition")
+                        if content_disposition:
+                            headers_to_forward["Content-Disposition"] = content_disposition
+                        content_type = response.headers.get("Content-Type", "application/octet-stream")
+                        return StreamingResponse(
+                            content=response.content,      # это асинхронный итератор байтов
+                            media_type=content_type,
+                            headers=headers_to_forward
+                        )
                 elif response.status in range(500, 600):
                     raise SystemError("Серверная ошибка на стороне DELCREDA SIGNAL!")
                 else:
@@ -306,14 +322,50 @@ class SignalConnector:
     @classmethod
     async def upload_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        path: str,
+        files: List[UploadFile],
+    ) -> None:
+        data = FormData()
+        for file in files:
+            filename = file.filename
+            content_type = file.content_type or "application/octet-stream"
+            async with file:
+                content = await file.read()
+                data.add_field(
+                    name="files",
+                    value=content,
+                    filename=filename,
+                    content_type=content_type,
+                )
+        await cls.__http_request_signal(
+            method="POST",
+            endpoint_path="file_store/upload",
+            headers={"accept": "application/json"},
+            params={"path": path},
+            data=data,
+        )
     
     @classmethod
     async def download_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        path: str,
+    ) -> StreamingResponse:
+        streaming_data = await cls.__http_request_signal(
+            method="POST",
+            endpoint_path="file_store/download",
+            headers={
+                'accept': 'application/json',
+                'content-type': 'application/x-www-form-urlencoded',
+            },
+            params={
+                'path': path,
+            },
+            data=b"",
+            streaming_response=True,
+        )
+        return streaming_data
     
     @classmethod
     async def get_object_info_s3(

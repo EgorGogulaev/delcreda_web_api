@@ -1,6 +1,5 @@
+# FIXME Переделать под работу с S3
 import os
-import magic
-import olefile
 import zipfile
 import tempfile
 import posixpath
@@ -10,10 +9,8 @@ import urllib.parse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
-import pyclamd
 
-from config import SFTP_BASE_PATH
-from connection_module import AsyncSFTPClient, SignalConnector
+from connection_module import SignalConnector
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Directory, Document
 from src.query_and_statement.file_store_qas_manager import FileStoreQueryAndStatementManager
