@@ -370,18 +370,45 @@ class SignalConnector:
     @classmethod
     async def get_object_info_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        path: str,
+    ) -> Dict[str, str|int]:
+        data: Dict[str, str|int] = await cls.__http_request_signal(
+            method="GET",
+            endpoint_path="file_store/get_object_info",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'path': path,
+            },
+        )
+        
+        return data
     
     @classmethod
     async def delete_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        path: str,  # НЕ НУЖЕН ПРЕФИКС НАЗВАНИЯ БАКЕТА!
+    ) -> None:
+        await cls.__http_request_signal(
+            method="DELETE",
+            endpoint_path="file_store/delete",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'path': path,
+            }
+        )
     
     @classmethod
     async def create_user_s3(
         cls,
+        
+        username: str,
+        password: str,
     ):
         ...  # TODO
     
