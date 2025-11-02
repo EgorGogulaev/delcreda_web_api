@@ -26,6 +26,8 @@ class LegalEntityQueryAndStatementManager:
         directory_id: int,
         directory_uuid: str,
         
+        order_access_list_id: int,
+        
         country: int,
         registration_identifier_type: str,
         registration_identifier_value: str,
@@ -70,6 +72,7 @@ class LegalEntityQueryAndStatementManager:
             user_uuid=owner_user_uuid,
             directory_id=directory_id,
             directory_uuid=directory_uuid,
+            order_access_list_id=order_access_list_id,
             data_id=new_le_data.id,
         )
         session.add(new_le)
@@ -125,7 +128,7 @@ class LegalEntityQueryAndStatementManager:
         
         filter: Optional[FiltersLegalEntities] = None,
         order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity]]|Optional[int]]:
+    ) -> Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
         _filters = []
         
         if user_uuid:
@@ -191,8 +194,11 @@ class LegalEntityQueryAndStatementManager:
                     LegalEntityData.organizational_and_legal_form_national,
                     LegalEntityData.updated_at,
                     # TODO тут можно добавить вывод полей (согласовать с Юрием)
+                    
+                    OrderAccessList.mt,
                 )
                 .outerjoin(LegalEntityData, LegalEntity.data_id == LegalEntityData.id)
+                .outerjoin(OrderAccessList, LegalEntity.order_access_list == OrderAccessList.id)
                 .filter(and_(*_filters))
             )
             if legal_entity_name_ilike:
@@ -234,9 +240,11 @@ class LegalEntityQueryAndStatementManager:
                 "organizational_and_legal_form_national": item[4],
                 "updated_at": item[5],
                 # TODO тут можно добавить вывод полей (согласовать с Юрием)
+                
+                "mt": item[6],
             } for item in response.fetchall()]
         else:
-            data = [item[0] for item in response.fetchall()]
+            data = [(item[0], item[1]) for item in response.fetchall()]
         
         return {
             "data": data,
@@ -395,7 +403,6 @@ class LegalEntityQueryAndStatementManager:
         await session.execute(stmt)
         await session.commit()
     
-    # FIXME НУЖНО ИСПРАВИТЬ ЧАСТЬ С УДАЛЕНИЕМ ДАННЫХ ПО ПОРУЧЕНИЯМ !!!
     @staticmethod
     async def delete_legal_entities(
         session: AsyncSession,

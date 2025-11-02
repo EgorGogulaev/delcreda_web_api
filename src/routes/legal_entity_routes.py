@@ -233,7 +233,7 @@ async def get_legal_entities(
             )
         client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
         
-        legal_entities: Dict[str, List[Optional[LegalEntity]]|Optional[int]] = await LegalEntityService.get_legal_entities(
+        legal_entities: Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -262,7 +262,7 @@ async def get_legal_entities(
                 response_content.data.append(
                     ExtendedLegalEntity(
                         uuid=le["legal_entity"].uuid,
-                        country=list(COUNTRY_MAPPING)[list(COUNTRY_MAPPING.values()).index(le["legal_entity"].country)],
+                        country={v: k for k, v in COUNTRY_MAPPING.items()}[le["legal_entity"].country],
                         registration_identifier_type=le["legal_entity"].registration_identifier_type,
                         registration_identifier_value=le["legal_entity"].registration_identifier_value,
                         tax_identifier=le["legal_entity"].tax_identifier,
@@ -280,6 +280,7 @@ async def get_legal_entities(
                         is_active=le["legal_entity"].is_active,
                         data_id=le["legal_entity"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=le["legal_entity"].can_be_updated_by_user,
+                        mt=le["mt"],
                         order_access_list=le["legal_entity"].order_access_list,
                         updated_at=convert_tz(le["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].updated_at else None,
                         created_at=convert_tz(le["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].created_at else None,
@@ -288,22 +289,23 @@ async def get_legal_entities(
             else:
                 response_content.data.append(
                     BaseLegalEntity(
-                        uuid=le.uuid,
-                        country=list(COUNTRY_MAPPING)[list(COUNTRY_MAPPING.values()).index(le.country)],
-                        registration_identifier_type=le.registration_identifier_type,
-                        registration_identifier_value=le.registration_identifier_value,
-                        tax_identifier=le.tax_identifier,
+                        uuid=le[0].uuid,
+                        country={v: k for k, v in COUNTRY_MAPPING.items()}[le[0].country],
+                        registration_identifier_type=le[0].registration_identifier_type,
+                        registration_identifier_value=le[0].registration_identifier_value,
+                        tax_identifier=le[0].tax_identifier,
                         
-                        user_id=le.user_id,
-                        user_uuid=le.user_uuid,
-                        directory_id=le.directory_id,
-                        directory_uuid=le.directory_uuid,
-                        is_active=le.is_active,
-                        data_id=le.data_id,  # FIXME это возможно не стоит возвращать
-                        can_be_updated_by_user=le.can_be_updated_by_user,
-                        order_access_list=le.order_access_list,
-                        updated_at=convert_tz(le.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le.updated_at else None,
-                        created_at=convert_tz(le.created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le.created_at else None,
+                        user_id=le[0].user_id,
+                        user_uuid=le[0].user_uuid,
+                        directory_id=le[0].directory_id,
+                        directory_uuid=le[0].directory_uuid,
+                        is_active=le[0].is_active,
+                        data_id=le[0].data_id,  # FIXME это возможно не стоит возвращать
+                        can_be_updated_by_user=le[0].can_be_updated_by_user,
+                        mt=le[1],
+                        order_access_list=le[0].order_access_list,
+                        updated_at=convert_tz(le[0].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].updated_at else None,
+                        created_at=convert_tz(le[0].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].created_at else None,
                     )
                 )
             response_content.count += 1

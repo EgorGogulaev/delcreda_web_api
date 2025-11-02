@@ -87,6 +87,10 @@ class LegalEntityService:
             parent_directory_uuid=parent_directory_uuid,
         )
         
+        new_order_access_list_id: int = await cls.__create_order_access_list(
+            session=session,
+        )
+        
         new_le_uuid_coro = await SignalConnector.generate_identifiers(target="ЮЛ", count=1)
         new_le_uuid = new_le_uuid_coro[0]
         
@@ -98,6 +102,7 @@ class LegalEntityService:
             new_legal_entity_uuid=new_le_uuid,
             directory_id=new_le_dir_data["id"],
             directory_uuid=new_le_dir_data["uuid"],
+            order_access_list_id=new_order_access_list_id,
             
             country=country,
             registration_identifier_type=registration_identifier_type,
@@ -152,7 +157,7 @@ class LegalEntityService:
         
         filter: Optional[FiltersLegalEntities] = None,
         order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity]]|Optional[int]]:
+    ) -> Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
         if page or page_size:
             assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
         if extended_output is False:
@@ -161,7 +166,7 @@ class LegalEntityService:
             assert user_uuid, "Вы не можете просмотреть все ЮЛ - всех пользователей, не являясь Адмиинистратором!"
             assert user_uuid == requester_user_uuid, "Вы не можете просмотреть ЮЛ других пользователей!"
             
-        legal_entities: Dict[str, List[Optional[LegalEntity]]|Optional[int]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
+        legal_entities: Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
             session=session,
             
             user_uuid=user_uuid,
@@ -567,14 +572,14 @@ class LegalEntityService:
             legal_entity_uuid=legal_entity_uuid,
         )
         
-        legal_entitie: List[Optional[LegalEntity]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
+        legal_entitie: List[List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
             session=session,
             
             user_uuid=None,
             le_id_list=[le_check_access_response_object[0]],
         )
         
-        return legal_entitie["data"][0].uuid
+        return legal_entitie["data"][0][0].uuid
     
     @staticmethod
     async def delete_persons(
