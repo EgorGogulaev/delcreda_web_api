@@ -19,8 +19,9 @@ from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPIN
 
 
 class LegalEntityService:
-    @staticmethod
+    @classmethod
     async def create_legal_entity(
+        cls,
         session: AsyncSession,
         
         requester_user_uuid: str,
@@ -56,6 +57,10 @@ class LegalEntityService:
             
             uuid=owner_user_uuid,
         )
+        owner_s3_login: Optional[str] = await UserQueryAndStatementManager.get_user_s3_login(
+            user_id=owner_user_id,
+        )
+        assert owner_s3_login, "У пользователя отсутствует логин в S3!"
         user_dirs: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
             session=session,
             
@@ -74,7 +79,8 @@ class LegalEntityService:
             session=session,
             
             requester_user_uuid=requester_user_uuid,
-            requester_user_privilege=requester_user_privilege ,
+            requester_user_privilege=requester_user_privilege,
+            owner_s3_login=owner_s3_login,
             owner_user_uuid=owner_user_uuid,
             directory_type=DIRECTORY_TYPE_MAPPING["Директория ЮЛ"],
             new_directory_uuid=new_directory_uuid,

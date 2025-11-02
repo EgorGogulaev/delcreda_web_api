@@ -41,6 +41,31 @@ class UserQueryAndStatementManager:
         return result
     
     @staticmethod
+    async def get_user_s3_login(
+        session: AsyncSession,
+        
+        user_id: Optional[int] = None,
+        user_uuid: Optional[str] = None,
+    ) -> Optional[str]:
+        assert any([user_id, user_uuid]), "Для определения логина в S3, нужно указать либо ID, либо UUID пользователя!"
+        _filters = []
+        if user_id is not None:
+            _filters.append(UserAccount.id == user_id)
+        if user_uuid is not None:
+            _filters.append(UserAccount.uuid == user_uuid)
+        
+        query = (
+            select(UserAccount.s3_login)
+            .filter(
+                and_(*_filters)
+            )
+        )
+        response = await session.execute(query)
+        s3_login = response.scalar()
+        
+        return s3_login
+    
+    @staticmethod
     async def get_current_user_data(
         token: str,
     ) -> UserSchema:

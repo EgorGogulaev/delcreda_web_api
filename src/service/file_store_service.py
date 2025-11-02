@@ -345,6 +345,95 @@ class FileStoreService:
         return new_file_uuid
     # _____________________________________________________________________________________________________
     
+    # FIXME НУЖНО ИСПРАВИТЬ ЛОГИКУ НА РАБОТУ С S3
+    @staticmethod
+    async def create_directory(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+        
+        owner_s3_login: str,
+        owner_user_uuid: Optional[str]=None,
+        directory_type: Optional[int]=None,
+        new_directory_uuid: Optional[str]=None,
+        
+        parent_directory_uuid: Optional[str]=None,
+    ) -> Dict[str, Any]:
+        """Создает директорию и возвращает uuid и id нововой директории"""
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
+            
+            assert directory_type, "Вам обязательно нужно указать Тип Директории при создании!"
+            if owner_user_uuid:
+                assert owner_user_uuid == requester_user_uuid, "Вы не можете создать Директорию для другого Пользователя!"
+        
+        if parent_directory_uuid is not None:
+            parent_dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid, requester_user_privilege=requester_user_privilege,
+                owner_user_uuid=None if requester_user_privilege == PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
+                directory_uuids=[parent_directory_uuid],
+            )
+            
+            if parent_dir_data["count"] == 1:  # Если родительская директория (для записи) найдена
+                if new_directory_uuid is None:
+                    new_directory_uuid_coro = await SignalConnector.generate_identifiers(target="Директория", count=1)
+                    new_directory_uuid = new_directory_uuid_coro[0]
+                else:
+                    if await SignalConnector.check_identifier(
+                        target="Директория",
+                        uuid=new_directory_uuid,
+                    ) is not False:  # Если uuid занят
+                        raise AssertionError("Директория с данным uuid уже используется!")
+                new_directory_path = posixpath.normpath(posixpath.join(parent_dir_data["data"][list(parent_dir_data["data"])[0]]["path"], new_directory_uuid))
+                
+                dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
+                    session=session,
+                    
+                    dir_info_data={
+                        "uuid": new_directory_uuid,
+                        "parent_directory_uuid": parent_directory_uuid,
+                        "owner_user_uuid": owner_user_uuid,
+                        "uploader_user_uuid": requester_user_uuid,
+                        "path": new_directory_path,
+                        "type": directory_type,
+                    }
+                )
+            
+            else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
+                raise AssertionError(f'Родительская директория "{parent_directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!' if parent_dir_data["count"] == 0 else f'Целостность данных нарушена, существует более 1 записи о папке с uuid - "{parent_directory_uuid}"!')
+        
+        else:
+            if new_directory_uuid is None:
+                new_directory_uuid_coro = await SignalConnector.generate_identifiers(target="Директория", count=1)
+                new_directory_uuid = new_directory_uuid_coro[0]
+            else:
+                if await SignalConnector.check_identifier(
+                    target="Директория",
+                    uuid=new_directory_uuid,
+                ) is not False:  # Если uuid занят
+                    raise AssertionError("Директория с данным uuid уже используется!")
+            new_directory_path = posixpath.normpath(posixpath.join(owner_s3_login, new_directory_uuid))
+            
+            dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
+                session=session,
+                
+                dir_info_data={
+                    "uuid": new_directory_uuid,
+                    "parent_directory_uuid": parent_directory_uuid,
+                    "owner_user_uuid": owner_user_uuid,
+                    "uploader_user_uuid": requester_user_uuid,
+                    "path": new_directory_path,
+                    "type": directory_type,
+                }
+            )
+        
+        return {
+            "id": dir_id,
+            "uuid": new_directory_uuid,
+            "parent_uuid": parent_directory_uuid,
+        }
+    
     @staticmethod
     async def change_visibility(
         session: AsyncSession,
