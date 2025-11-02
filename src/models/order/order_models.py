@@ -24,7 +24,7 @@ class Order(Base):
     directory_uuid = Column(String(length=36), nullable=False)
     
     type = Column(SmallInteger, ForeignKey("order_type.id", ondelete="CASCADE", onupdate="CASCADE"))
-    data_id = Column(BigInteger, nullable=False)  # TODO нужно проработать логику создания данных под Поручение в зависимости от типа
+    data_id = Column(BigInteger, nullable=False)
     
     status = Column(SmallInteger, ForeignKey("order_status.id", ondelete="NO ACTION", onupdate="CASCADE"))
     

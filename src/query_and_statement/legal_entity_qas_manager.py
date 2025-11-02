@@ -5,12 +5,14 @@ from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
+from models.order.mt_models import MTOrderData
 from src.models.order.order_models import Order
 from src.schemas.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
 from src.models.bank_details_models import BankDetails
 from src.models.legal_entity_models import LegalEntity, LegalEntityData, OrderAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
+from src.utils.reference_mapping_data.order.mapping import ORDER_TYPE_MAPPING
 
 
 class LegalEntityQueryAndStatementManager:
@@ -88,9 +90,9 @@ class LegalEntityQueryAndStatementManager:
         )
         
         response = await session.execute(stmt)
-        new_order_list_access_key: int = response.scalar_one()
+        new_order_list_access_id: int = response.scalar_one()
         
-        return new_order_list_access_key
+        return new_order_list_access_id
     
     @staticmethod
     async def get_user_uuid_by_legal_entity_uuid(
@@ -404,14 +406,34 @@ class LegalEntityQueryAndStatementManager:
         le_ids = [le_id for le_id, _, _ in le_ids_with_le_data_ids_with_dir_uuid]
         le_data_ids = [le_data_id for _, le_data_id, _ in le_ids_with_le_data_ids_with_dir_uuid]
         
-        query_order_and_order_data_ids = (
+        order_ids = []
+        
+        # MT
+        query_order_and_order_data_ids_from_MT = (
             select(Order.id, Order.data_id)
-            .where(Order.legal_entity_id.in_(le_ids))
+            .where(
+                and_(
+                    Order.type == ORDER_TYPE_MAPPING["MT"],
+                    Order.legal_entity_id.in_(le_ids),
+                )
+            )
         )
-        result = await session.execute(query_order_and_order_data_ids)
-        order_and_order_data_ids: List[Tuple[int, int]] = [ids for ids in result.all()]
-        order_ids = [ids[0] for ids in order_and_order_data_ids]
-        order_data_ids = [ids[1] for ids in order_and_order_data_ids]  # FIXME
+        # ...  TODO тут будут другие бизнес-направления
+        
+        # MT
+        result_MT = await session.execute(query_order_and_order_data_ids_from_MT)
+        # ...  TODO тут будут другие бизнес-направления
+        
+        # MT
+        order_and_order_data_ids_MT: List[Tuple[int, int]] = [ids for ids in result_MT.all()]
+        # ...  TODO тут будут другие бизнес-направления
+        
+        # MT
+        order_ids_from_MT = [ids[0] for ids in order_and_order_data_ids_MT]
+        order_data_ids_from_MT = [ids[1] for ids in order_and_order_data_ids_MT]
+        # ...  TODO тут будут другие бизнес-направления
+        
+        order_ids.extend(order_ids_from_MT)
         
         stmt_delete_le_bank_details = (
             delete(BankDetails)
@@ -427,11 +449,14 @@ class LegalEntityQueryAndStatementManager:
             delete(Order)
             .where(Order.id.in_(order_ids))
         )
-        # FIXME
-        # stmt_delete_orders_data = (
-        #     delete(OrderData)
-        #     .where(OrderData.id.in_(order_data_ids))
-        # )
+        
+        # MT
+        if order_data_ids_from_MT:
+            stmt_delete_orders_data_from_MT = (
+                delete(MTOrderData)
+                .where(MTOrderData.id.in_(order_data_ids_from_MT))
+            )
+        # ...  TODO тут будут другие бизнес-направления
         
         stmt_delete_le_data = (
             delete(LegalEntityData)
@@ -445,7 +470,10 @@ class LegalEntityQueryAndStatementManager:
         await session.execute(stmt_delete_le_bank_details)
         await session.execute(stmt_delete_le_persons)
         await session.execute(stmt_delete_orders)
-        # FIXME await session.execute(stmt_delete_orders_data)
+        # MT
+        if order_data_ids_from_MT:
+            await session.execute(stmt_delete_orders_data_from_MT)
+        # ...  TODO тут будут другие бизнес-направления
         await session.execute(stmt_delete_le)
         await session.execute(stmt_delete_le_data)
         

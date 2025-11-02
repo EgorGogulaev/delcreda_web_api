@@ -345,7 +345,6 @@ class FileStoreService:
         return new_file_uuid
     # _____________________________________________________________________________________________________
     
-    # FIXME НУЖНО ИСПРАВИТЬ ЛОГИКУ НА РАБОТУ С S3
     @staticmethod
     async def create_directory(
         session: AsyncSession,
