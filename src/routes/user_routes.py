@@ -42,9 +42,9 @@ async def register(
     password: str = Query(
         ...,
         description="Пароль Пользователя. (не менее 5 и не более 255 символов)",
-        min_length=5,
+        min_length=8,
         max_length=255,
-        example="12345",
+        example="1234578",
     ),
     privilege: Literal["User", "Intermediary"] = Query(
         "User",

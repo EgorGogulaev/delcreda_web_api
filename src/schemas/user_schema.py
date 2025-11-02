@@ -9,8 +9,8 @@ class UserSchema(BaseModel):
     privilege_id: Optional[int] = Field(None, description="ID Прав пользователя.")
 
 class AuthData(BaseModel):
-    login: str = Field(..., description="Логин пользователя.")
-    password: str = Field(..., description="Пароль пользователя.")
+    login: str = Field(..., description="Логин пользователя.", min_length=4, max_length=255)
+    password: str = Field(..., description="Пароль пользователя.", min_length=8, max_length=255)
 
 
 # FILTERS
@@ -57,7 +57,6 @@ class OrdersUsersInfo(BaseModel):
     orders: List[OrderUsersInfo] = Field(..., description="Массив объектов, описывающих сотировку.")
 
 # RESPONSES
-
 # auth
 class ResponseAuth(BaseModel):
     token: str = Field(..., description="Идентифицирующий токен.")
@@ -75,6 +74,8 @@ class UserInfo(BaseModel):
     privilege: str = Field(..., description="ПРАВА пользователя.")
     is_active: bool = Field(..., description="СТАТУС АКТИВНОСТИ(возможности использовать сервис) пользователя.")
     contact_id: int = Field(..., description="Идентификатор в БД контактной информации(техническое поле, не для вывода).")
+    s3_login: str = Field(..., description="ЛОГИН пользователя в S3.")
+    s3_password: str = Field(..., description="ПАРОЛЬ пользователя в S3.")
     email: Optional[str] = Field(None, description="Email-адрес пользователя.")
     email_notification: bool = Field(..., description="Email используется для получения пользователем уведомлений? (True-да/False-нет)")
     telegram: Optional[str] = Field(..., description="Имя пользователя в telegram.")

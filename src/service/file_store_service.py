@@ -1,12 +1,11 @@
-# FIXME Переделать под работу с S3
+# FIXME ПРОТЕСТИРОВАТЬ
 import os
-import zipfile
-import tempfile
 import posixpath
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import urllib.parse
 
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 
@@ -104,9 +103,10 @@ class FileStoreService:
     @staticmethod
     async def get_dir_info_from_fs(
         dir_path: str,
-    ) -> Dict[str, Any]:
-        async with AsyncSFTPClient.get_client() as storage_client:
-            data = await storage_client.get_directory_info(dir_path=dir_path)
+    ) -> Dict[str, str]:
+        data: Dict[str, str] = await SignalConnector.get_object_info_s3(
+            path=dir_path if dir_path.endswith("/") else dir_path + "/"
+        )
         
         return data
     
@@ -217,9 +217,10 @@ class FileStoreService:
     @staticmethod
     async def get_doc_info_from_fs(
         doc_path: str,
-    ) -> Dict[str, Any]:
-        async with AsyncSFTPClient.get_client() as storage_client:
-            data = await storage_client.get_file_info(file_path=doc_path)
+    ) -> Dict[str, str|int]:
+        data: Dict[str, str|int] = await SignalConnector.get_object_info_s3(
+            path=doc_path if not doc_path.endswith("/") else doc_path[:-1]
+        )
         
         return data
     # _____________________________________________________________________________________________________
@@ -232,7 +233,7 @@ class FileStoreService:
         
         requester_user_uuid: str, requester_user_privilege: int,
         file_uuid: str,
-    ) -> Dict[str, Any]:
+    ) -> StreamingResponse:
         doc_info_dct: Dict[str, List[Optional[Document]]|Optional[int]] = await FileStoreQueryAndStatementManager.get_doc_info(
             session=session,
             
@@ -245,13 +246,11 @@ class FileStoreService:
                 assert document.visible is True, "Вы не можете скачать скрытый Документ!"
             assert not document.is_deleted, "Вы не можете скачать удаленный Документ!"
             
-            async with AsyncSFTPClient.get_client() as storage_client:
-                data: bytes = await storage_client.read_file(path=document.path)
+            data: StreamingResponse = await SignalConnector.download_s3(
+                path=document.path,
+            )
             
-            return {
-                "data": data,
-                "filename": document.name,
-            }
+            return data
         
         else:
             raise AssertionError(f'Файл с uuid - "{file_uuid}" не найден!' if not doc_info_dct["data"] else f'Целостность данных нарушена, существует более 1 записи о файле с uuid - "{file_uuid}"')
@@ -294,7 +293,6 @@ class FileStoreService:
                 ) is not False:  # Если uuid занят
                     raise AssertionError("Директория с данным uuid уже используется!")
             
-            await cls.__validate_file(file=file_object)
             if len(file_object.filename.split(".")) > 1:
                 file_name = file_object.filename.split(".")[0]
                 extension = file_object.filename.split(".")[1]
@@ -305,14 +303,13 @@ class FileStoreService:
             correct_name_with_extansion = correct_name + "." + extension
             new_file_path = posixpath.normpath(posixpath.join(dir_data["data"][list(dir_data["data"])[0]]["path"], correct_name_with_extansion))
             
-            async with AsyncSFTPClient.get_client() as storage_client:
-                original_path = new_file_path
-                counter = 1
-                while True:
-                    result = await storage_client.get_file_info(file_path=new_file_path)
-                    if not result["is_exist"]:
-                        break
-                        
+            original_path = new_file_path
+            counter = 1
+            while True:
+                try:
+                    await SignalConnector.get_object_info_s3(path=new_file_path)
+                    break
+                except:  # noqa: E722
                     # Разбираем путь
                     directory = os.path.dirname(original_path)
                     filename = os.path.basename(original_path)
@@ -322,8 +319,10 @@ class FileStoreService:
                     correct_name_with_extansion = f"{name} ({counter}){ext}"
                     new_file_path = posixpath.join(directory, correct_name_with_extansion)
                     counter += 1
-                
-                await storage_client.write_file(file_path=new_file_path, file_object=file_object)
+            await SignalConnector.upload_s3(
+                files=[file_object],
+                path=new_file_path,  # путь должен быть без префикса filestore/ (!)
+            )
             
             await FileStoreQueryAndStatementManager.create_doc_info(
                 session=session,
@@ -345,97 +344,6 @@ class FileStoreService:
         
         return new_file_uuid
     # _____________________________________________________________________________________________________
-    
-    @staticmethod
-    async def create_directory(
-        session: AsyncSession,
-        
-        requester_user_uuid: str, requester_user_privilege: int,
-        
-        owner_user_uuid: Optional[str]=None,
-        directory_type: Optional[int]=None,
-        new_directory_uuid: Optional[str]=None,
-        
-        parent_directory_uuid: Optional[str]=None,
-    ) -> Dict[str, Any]:
-        """Создает директорию и возвращает uuid и id нововой директории"""
-        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
-            
-            assert directory_type, "Вам обязательно нужно указать Тип Директории при создании!"
-            if owner_user_uuid:
-                assert owner_user_uuid == requester_user_uuid, "Вы не можете создать Директорию для другого Пользователя!"
-        
-        if parent_directory_uuid is not None:
-            parent_dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
-                session=session,
-                
-                requester_user_uuid=requester_user_uuid, requester_user_privilege=requester_user_privilege,
-                owner_user_uuid=None if requester_user_privilege == PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
-                directory_uuids=[parent_directory_uuid],
-            )
-            
-            if parent_dir_data["count"] == 1:  # Если родительская директория (для записи) найдена
-                if new_directory_uuid is None:
-                    new_directory_uuid_coro = await SignalConnector.generate_identifiers(target="Директория", count=1)
-                    new_directory_uuid = new_directory_uuid_coro[0]
-                else:
-                    if await SignalConnector.check_identifier(
-                        target="Директория",
-                        uuid=new_directory_uuid,
-                    ) is not False:  # Если uuid занят
-                        raise AssertionError("Директория с данным uuid уже используется!")
-                new_directory_path = posixpath.normpath(posixpath.join(parent_dir_data["data"][list(parent_dir_data["data"])[0]]["path"], new_directory_uuid))
-                async with AsyncSFTPClient.get_client() as storage_client:
-                    await storage_client.create_directory(new_directory_path)
-                
-                dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
-                    session=session,
-                    
-                    dir_info_data={
-                        "uuid": new_directory_uuid,
-                        "parent_directory_uuid": parent_directory_uuid,
-                        "owner_user_uuid": owner_user_uuid,
-                        "uploader_user_uuid": requester_user_uuid,
-                        "path": new_directory_path,
-                        "type": directory_type,
-                    }
-                )
-            
-            else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
-                raise AssertionError(f'Родительская директория "{parent_directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!' if parent_dir_data["count"] == 0 else f'Целостность данных нарушена, существует более 1 записи о папке с uuid - "{parent_directory_uuid}"!')
-        
-        else:
-            if new_directory_uuid is None:
-                new_directory_uuid_coro = await SignalConnector.generate_identifiers(target="Директория", count=1)
-                new_directory_uuid = new_directory_uuid_coro[0]
-            else:
-                if await SignalConnector.check_identifier(
-                    target="Директория",
-                    uuid=new_directory_uuid,
-                ) is not False:  # Если uuid занят
-                    raise AssertionError("Директория с данным uuid уже используется!")
-            new_directory_path = posixpath.normpath(posixpath.join(SFTP_BASE_PATH, new_directory_uuid))
-            async with AsyncSFTPClient.get_client() as storage_client:
-                await storage_client.create_directory(new_directory_path)
-            
-            dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
-                session=session,
-                
-                dir_info_data={
-                    "uuid": new_directory_uuid,
-                    "parent_directory_uuid": parent_directory_uuid,
-                    "owner_user_uuid": owner_user_uuid,
-                    "uploader_user_uuid": requester_user_uuid,
-                    "path": new_directory_path,
-                    "type": directory_type,
-                }
-            )
-        
-        return {
-            "id": dir_id,
-            "uuid": new_directory_uuid,
-            "parent_uuid": parent_directory_uuid,
-        }
     
     @staticmethod
     async def change_visibility(
@@ -527,9 +435,10 @@ class FileStoreService:
         if is_deleted:
             raise AssertionError(f'{"Файл" if is_document else "Директория"} c uuid "{uuid}" уже удален{"" if is_document else "а"}!')
         else:
-            path = object_info["data"][list(object_info["data"])[0]]["path"]
-            async with AsyncSFTPClient.get_client() as storage_client:
-                await storage_client.remove(path=path, is_document=is_document)
+            path: str = object_info["data"][list(object_info["data"])[0]]["path"]
+            await SignalConnector.delete_s3(
+                path=path.replace("filestore/", ""),
+            )
             
             await FileStoreQueryAndStatementManager.change_deletion_status(
                 session=session,
@@ -538,62 +447,3 @@ class FileStoreService:
                 uuid=uuid,
                 is_document=is_document,
             )
-    
-    @staticmethod
-    def __check_office_file(file_path: str) -> None:
-        if file_path.endswith(('.docx', '.xlsx')):
-            with zipfile.ZipFile(file_path, 'r') as z:
-                if 'word/vbaProject.bin' in z.namelist():
-                    raise HTTPException(status_code=400, detail="Макросы обнаружены в файле Office!")
-        elif file_path.endswith(('.doc', '.xls')):
-            if olefile.isOleFile(file_path):
-                ole = olefile.OleFileIO(file_path)
-                if ole.exists('Macros'):
-                    raise HTTPException(status_code=400, detail="Макросы обнаружены в файле Office!")
-    
-    @classmethod
-    async def __validate_file(
-        cls,
-        file: UploadFile
-    ) -> None:
-        # 1. Проверка MIME-типа
-        ALLOWED_MIME_TYPES = {
-                'application/pdf',
-                'image/jpeg',
-                'image/png',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
-        if file.content_type not in ALLOWED_MIME_TYPES:
-            raise HTTPException(status_code=415, detail="Неподдерживаемый тип файла")
-        
-        # 2. Сохранение во временный файл
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
-            content = await file.read()
-            temp.write(content)
-            temp_path = temp.name
-            
-            try:
-                # 3. Проверка реального типа (magic)
-                real_file_type = magic.from_file(temp_path, mime=True)
-                if real_file_type not in ALLOWED_MIME_TYPES:
-                    raise HTTPException(status_code=415, detail="Неподдерживаемый тип файла!")
-                
-                # 4. Проверка на PHP/JS
-                if b'<?php' in content or b'<script' in content.lower():
-                    raise HTTPException(status_code=400, detail="Потенциально вредоносный контент!")
-                
-                # 5. Проверка антивирусом (опционально)
-                try:
-                    cd = pyclamd.ClamdUnixSocket()
-                    scan_result = cd.scan_file(temp_path)
-                    if scan_result is not None:
-                        raise HTTPException(status_code=400, detail="Обнаружен вредоносный файл!")
-                except pyclamd.ConnectionError: ...
-                
-                # 6. Проверка макросов в Office (если нужно)
-                if file.filename.endswith(('.docx', '.xlsx', '.doc', '.xls')):
-                    cls.__check_office_file(temp_path)
-            except: ...  # noqa: E722

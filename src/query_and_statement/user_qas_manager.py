@@ -232,6 +232,8 @@ class UserQueryAndStatementManager:
         login: str,
         password: str,
         contact_id: int,
+        s3_login: str,
+        s3_password: str,
         privilege: Literal[2, 3] = 2,
     ) -> int:
         """Заводит нового пользователя и возвращает его id"""
@@ -245,6 +247,8 @@ class UserQueryAndStatementManager:
                 privilege=privilege,
                 is_active=True,
                 contact=contact_id,
+                s3_login=s3_login,
+                s3_password=s3_password,
             )
             .returning(UserAccount.id)
         )

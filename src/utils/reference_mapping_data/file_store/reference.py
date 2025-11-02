@@ -1,8 +1,5 @@
-import datetime
-import posixpath
+# FIXME Это нужно разобрать с Юрием(! Ответственным лицом от бизнеса)
 from typing import List, Tuple
-
-from config import ADMIN_DIRECTORY_UUID, ADMIN_UUID, SFTP_BASE_PATH
 
 
 DOCUMENT_TYPE: List[Tuple] = [
@@ -27,10 +24,4 @@ DIRECTORY_TYPE: List[Tuple] = [
     (1, "Пользовательская директория", "Директория документов, относящихся к Пользователю"),
     (2, "Директория ЮЛ", "Директория для документов, касающихся ЮЛ"),
     (3, "Директория поручения", "Директория документов для Поручения"),
-]
-
-ADMIN_DIRECTORY: List[Tuple] = [
-    (
-        1, ADMIN_DIRECTORY_UUID, None, posixpath.normpath(posixpath.join(SFTP_BASE_PATH, ADMIN_DIRECTORY_UUID)), 1, 1, ADMIN_UUID, 1, ADMIN_UUID, True, None, None, None, False, None, None, None, datetime.datetime.now(tz=datetime.timezone.utc),
-    )
 ]

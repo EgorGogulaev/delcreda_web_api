@@ -1,8 +1,6 @@
 # FIXME ПЕРЕДЕЛАТЬ ПОД РАБОТУ С S3
-import io
 import traceback
 from typing import Any, Dict, List, Literal, Optional
-from urllib.parse import quote
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
@@ -19,7 +17,7 @@ from src.schemas.file_store_schema import AdminDirInfo, AdminFileInfo, BaseDirIn
 from src.service.notification_service import NotificationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.service.file_store_service import FileStoreService
-from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING, DOCUMENT_TYPE_MAPPING, FILE_STORE_SUBJECT_MAPPING
+from src.utils.reference_mapping_data.file_store.mapping import DOCUMENT_TYPE_MAPPING, FILE_STORE_SUBJECT_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING 
 
 
@@ -49,7 +47,7 @@ async def download_file(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        file_data: Dict[str, Any] = await FileStoreService.download(
+        response: StreamingResponse = await FileStoreService.download(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -57,11 +55,6 @@ async def download_file(
             file_uuid=file_uuid,
         )
         
-        file_stream = io.BytesIO(file_data["data"])
-        response = StreamingResponse(file_stream, media_type="application/octet-stream")
-        filename = file_data["filename"]
-        quoted_filename = quote(filename, safe="")
-        response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quoted_filename}"
         return response
     except AssertionError as e:
         error_message = str(e)
@@ -223,89 +216,6 @@ async def upload_file(
                     "new_file_uuid": new_file_uuid,
                     "owner_user_uuid": owner_user_uuid,
                     "file": f"{file.filename} (size: {file.size})" if file else None,
-                },
-                msg=f"{error_message}\n{formatted_traceback}",
-                user_uuid=user_data["user_uuid"],
-            )
-            
-            response_content = {"msg": f"ОШИБКА! #{log_id}"}
-            return JSONResponse(content=response_content)
-
-@router.post(
-    "/create_dir",
-    description="""
-    Создание директории (НЕ ИСПОЛЬЗУЕТСЯ В React-приложении).
-    """,
-    dependencies=[Depends(check_app_auth)],
-)
-@limiter.limit("3/second")
-async def create_dir(
-    request: Request,
-    parent_directory_uuid: Optional[str] = Query(
-        None,
-        description="UUID родительской Директории. (той, в которую будет вложена новая)"
-    ),
-    directory_type: Optional[Literal[
-        "Пользовательская директория",
-        "Директория ЮЛ",
-        "Директория поручения",
-    ]] = Query(
-        None,
-        description="Тип новой Директории."
-    ),
-    new_directory_uuid: Optional[str] = Query(
-        None,
-        description="(Опиционально) Ручное выставление нового UUID для Директории. (нужно для интеграции в другие системы)",
-        min_length=36,
-        max_length=36
-    ),
-    owner_user_uuid: Optional[str] = Query(
-        None,
-        description="UUID владельца Директории.",
-        min_length=36,
-        max_length=36
-    ),
-    
-    token: str = Depends(UserQaSM.get_current_user_data),
-    
-    session: AsyncSession = Depends(get_async_session),
-) -> JSONResponse:
-    try:
-        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
-        
-        await FileStoreService.create_directory(
-            session=session,
-            
-            requester_user_uuid=user_data["user_uuid"],
-            requester_user_privilege=user_data["privilege_id"],
-            owner_user_uuid=owner_user_uuid,
-            directory_type=DIRECTORY_TYPE_MAPPING[directory_type] if directory_type else None,
-            new_directory_uuid=new_directory_uuid,
-            parent_directory_uuid=parent_directory_uuid,
-        )
-        
-        return JSONResponse(content={"msg": "Директория создана."})
-    except AssertionError as e:
-        error_message = str(e)
-        formatted_traceback = traceback.format_exc()
-        
-        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
-        return JSONResponse(content=response_content)
-    
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        else:
-            error_message = str(e)
-            formatted_traceback = traceback.format_exc()
-            
-            log_id = await ReferenceService.create_errlog(
-                endpoint="create_dir",
-                params={
-                    "parent_directory_uuid": parent_directory_uuid,
-                    "directory_type": directory_type,
-                    "new_directory_uuid": new_directory_uuid,
-                    "owner_user_uuid": owner_user_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],

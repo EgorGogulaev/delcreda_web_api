@@ -3,18 +3,18 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from security import encrypt
 from config import SECRET_KEY
 from connection_module import SignalConnector
 from src.models.legal_entity_models import LegalEntity
 from src.service.legal_entity_service import LegalEntityService
 from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
-from security import encrypt
 from src.models.user_models import UserAccount
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
-from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.service.file_store_service import FileStoreService
 from src.utils.tz_converter import convert_tz
+from src.utils.sanitazer_s3_username import sanitize_s3_username
 
 
 class UserService:
@@ -60,7 +60,7 @@ class UserService:
         
         return data
     
-    @classmethod  # TODO
+    @classmethod
     async def create_user(
         cls,
         session: AsyncSession,
@@ -74,9 +74,14 @@ class UserService:
         """Создает нового пользователя"""
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise AssertionError("Вы не можете создать пользователя, у Вас недостаточно прав!")
+        
+        assert len(login) >= 3, "Длина логина должна быть больше 2 символов!"
+        assert len(password) >= 8, "Длина пароля должна быть больше 7 символов!"
+        
         if not new_user_uuid:
             new_user_uuid_coro = await SignalConnector.generate_identifiers(target="Пользователь", count=1)
             new_user_uuid = new_user_uuid_coro[0]
+        
         assert not await UserQueryAndStatementManager.check_user_account_by_field_value(
             session=session,
             
@@ -90,6 +95,16 @@ class UserService:
             field_type="login",
         ), "Пользователь с таким логином уже существует!"
         
+        # Создание пользователя в S3
+        s3_login_sanitized: str = sanitize_s3_username(login + new_user_uuid)
+        
+        s3_login = s3_login_sanitized[:64]
+        s3_password = password[:64]
+        await SignalConnector.create_user_s3(
+            username=s3_login,
+            password=s3_password,
+        )
+        
         token_info: Dict[str, str|int] = await UserService.create_token(
             session=session,
         )
@@ -98,7 +113,7 @@ class UserService:
             session=session,
         )
         
-        new_user_id = await UserQueryAndStatementManager.register_user(
+        new_user_id: int = await UserQueryAndStatementManager.register_user(
             session=session,
             
             new_user_uuid=new_user_uuid,
@@ -107,26 +122,21 @@ class UserService:
             password=password,
             privilege=privilege,
             contact_id=new_user_contact_id,
-        )
-        
-        # Информация о созданной базовой директории
-        user_dir_info: Dict[str, Any] = await FileStoreService.create_directory(
-            session=session,
             
-            requester_user_uuid=requester_user_uuid,
-            requester_user_privilege=requester_user_privilege,
-            owner_user_uuid=new_user_uuid,
-            directory_type=DIRECTORY_TYPE_MAPPING["Пользовательская директория"],
+            s3_login=s3_login,
+            s3_password=s3_password,
         )
         
         return {
             "id": new_user_id,
             "uuid": new_user_uuid,
-            "login": login,
             "token": token_info["value"],
-            "password": password,
             "privilege": list(PRIVILEGE_MAPPING)[list(PRIVILEGE_MAPPING.values()).index(privilege)],
-            "user_dir": user_dir_info,
+            
+            "login": login,
+            "password": password,
+            "s3_login": s3_login,
+            "s3_password": s3_password,
         }
         
         
@@ -250,6 +260,9 @@ class UserService:
                         privilege=privilege_name,
                         is_active=user_account.is_active,
                         contact_id=user_account.contact,
+                        
+                        s3_login=user_account.s3_login,
+                        s3_password=user_account.s3_password,
                         
                         email=user_contact.email,
                         email_notification=user_contact.email_notification,

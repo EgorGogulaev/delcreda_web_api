@@ -38,7 +38,7 @@ class OrderType(Base):
     
     id = Column(SmallInteger, primary_key=True, autoincrement=True)
     
-    name = Column(String)
+    name = Column(String, nullable=False)
     description = Column(Text)
 
 class OrderStatus(Base):

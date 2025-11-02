@@ -31,6 +31,9 @@ class UserAccount(Base):
     is_active = Column(Boolean, server_default="true", nullable=False)
     contact = Column(BigInteger, ForeignKey("user_contact.id", ondelete="NO ACTION", onupdate="CASCADE"))
     
+    s3_login = Column(String(length=64), nullable=False)
+    s3_password = Column(String(length=64), nullable=False)
+    
     last_auth = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)
     

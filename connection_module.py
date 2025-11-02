@@ -1,10 +1,10 @@
 from collections import defaultdict
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional, Set
 
+import aioredis
 import aiohttp
 from aiohttp import FormData
-import aioredis
-from fastapi import HTTPException, UploadFile, WebSocket
+from fastapi import HTTPException, UploadFile, WebSocket, status
 from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import StreamingResponse
 from sqlalchemy import create_engine, URL
@@ -199,7 +199,7 @@ class SignalConnector:
         data: Optional[Dict[str, Any]] = None,
         
         streaming_response: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Any] | StreamingResponse:
         async with aiohttp.ClientSession(auth=cls.auth) as session:
             async with session.request(
                 method=method,
@@ -231,9 +231,11 @@ class SignalConnector:
                     text = await response.text()
                     raise Exception(f"Ошибка {response.status}: {text}")
     
+    
     @classmethod
     async def check_identifier(
         cls,
+        
         target: str,
         uuid: str,
     ) -> bool:
@@ -272,6 +274,7 @@ class SignalConnector:
         )
         
         return [identifier["uuid"] for identifier in response["identifiers"]]
+    
     
     @classmethod
     async def notify_email(
@@ -318,7 +321,8 @@ class SignalConnector:
             }
         )
     
-    # TODO РЕАЛИЗОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ
+    
+    # FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ
     @classmethod
     async def upload_s3(
         cls,
@@ -352,7 +356,7 @@ class SignalConnector:
         
         path: str,
     ) -> StreamingResponse:
-        streaming_data = await cls.__http_request_signal(
+        streaming_data: StreamingResponse = await cls.__http_request_signal(
             method="POST",
             endpoint_path="file_store/download",
             headers={
@@ -365,6 +369,7 @@ class SignalConnector:
             data=b"",
             streaming_response=True,
         )
+        
         return streaming_data
     
     @classmethod
@@ -409,36 +414,104 @@ class SignalConnector:
         
         username: str,
         password: str,
-    ):
-        ...  # TODO
+    ) -> None:
+        if password and len(password) < 8:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Пароль пользователя S3-хранилища не должен быть более 8 символов!")
+        
+        await cls.__http_request_signal(
+            method="POST",
+            endpoint_path="file_store/create_user",
+            headers={
+                'accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            params={
+                'username': username,
+                'password': password,
+            },
+        )
     
     @classmethod
     async def get_users_s3(
         cls,
-    ):
-        ...  # TODO
+    ) -> List[Optional[Dict[str, str]]]:
+        data: List[Optional[Dict[str, str]]] = await cls.__http_request_signal(
+            method="GET",
+            endpoint_path="file_store/get_users",
+            headers={
+                'accept': 'application/json',
+            },
+        )
+        
+        return data
     
     @classmethod
     async def change_user_password_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        username: str,
+        new_password: str,
+    ) -> None:
+        await cls.__http_request_signal(
+            method="PUT",
+            endpoint_path="file_store/change_user_password",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'username': username,
+                'new_password': new_password,
+            },
+        )
     
     @classmethod
     async def enable_user_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        username: str,
+    ) -> None:
+        await cls.__http_request_signal(
+            method="PUT",
+            endpoint_path="file_store/enable_user",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'username': username,
+            }
+        )
     
     @classmethod
     async def disable_user_s3(
         cls,
-    ):
-        ...  # TODO
+        
+        username: str,
+    ) -> None:
+        await cls.__http_request_signal(
+            method="PUT",
+            endpoint_path="file_store/disable_user",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'username': username,
+            }
+        )
     
     @classmethod
     async def remove_user_s3(
         cls,
-    ):
-        ...  # TODO
-    # TODO РЕАЛИЗОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ
+        
+        username: str,
+    ) -> None:
+        await cls.__http_request_signal(
+            method="DELETE",
+            endpoint_path="file_store/remove_user",
+            headers={
+                'accept': 'application/json',
+            },
+            params={
+                'username': username,
+            },
+        )
+    # FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ
