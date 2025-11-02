@@ -333,6 +333,8 @@ class UserService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
+        with_documents: bool,
+        
         tokens: List[str],
         uuids: List[str],
     ) -> None:
@@ -406,18 +408,19 @@ class UserService:
                 )
             except: ...  # noqa: E722
         
-        for dir_uuid in dir_uuids:
-            try:
-                await FileStoreService.delete_doc_or_dir(
-                    session=session,
-                    
-                    requester_user_id=requester_user_id,
-                    requester_user_uuid=requester_user_uuid,
-                    requester_user_privilege=requester_user_privilege,
-                    uuid=dir_uuid,
-                    is_document=False,
-                )
-            except: ...  # noqa: E722
+        if with_documents is True:
+            for dir_uuid in dir_uuids:
+                try:
+                    await FileStoreService.delete_doc_or_dir(
+                        session=session,
+                        
+                        requester_user_id=requester_user_id,
+                        requester_user_uuid=requester_user_uuid,
+                        requester_user_privilege=requester_user_privilege,
+                        uuid=dir_uuid,
+                        is_document=False,
+                    )
+                except: ...  # noqa: E722
         
         await UserQueryAndStatementManager.delete_users(
             session=session,

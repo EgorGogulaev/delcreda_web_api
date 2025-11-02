@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from src.models.order.order_models import Order
 from src.schemas.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
 from src.models.bank_details_models import BankDetails
-from src.models.legal_entity_models import LegalEntity, LegalEntityData, Person
+from src.models.legal_entity_models import LegalEntity, LegalEntityData, OrderAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
@@ -77,6 +77,20 @@ class LegalEntityQueryAndStatementManager:
         await session.refresh(new_le_data)
         
         return (new_le, new_le_data)
+    
+    @staticmethod
+    async def create_order_access_list(
+        session: AsyncSession,
+    ) -> int:
+        stmt = (
+            insert(OrderAccessList)
+            .returning(OrderAccessList.id)
+        )
+        
+        response = await session.execute(stmt)
+        new_order_list_access_key: int = response.scalar_one()
+        
+        return new_order_list_access_key
     
     @staticmethod
     async def get_user_uuid_by_legal_entity_uuid(

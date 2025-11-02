@@ -1,4 +1,4 @@
-# FIXME Переделать под работу с S3
+# FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -255,7 +255,7 @@ class FileStoreQueryAndStatementManager:
                 size=doc_info_data.get("size"),
                 type=doc_info_data.get("type"),
                 directory_id=dir_id,
-                directory_uuid=doc_info_data["directory_uuid"],  # TODO Нужно подтягивать эти данные
+                directory_uuid=doc_info_data["directory_uuid"],
                 path=doc_info_data.get("path"),
                 owner_user_id=owner_user_id,
                 owner_user_uuid=doc_info_data.get("owner_user_uuid"),

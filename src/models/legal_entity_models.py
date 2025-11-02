@@ -68,7 +68,6 @@ class OrderAccessList(Base):
     
     mt = Column(Boolean, server_default="false", nullable=False)  # перевод денежных средств
     # TODO Реализовать список услуг
-    
 
 class Person(Base):
     __tablename__ = "person"
@@ -81,7 +80,8 @@ class Person(Base):
     gender = Column(String)
     
     job_title = Column(String)
-    basic_action_signatory = Column(String)  # Устав/Доверенность/Иное
+    basic_action_signatory = Column(String, nullable=True)  # Устав/Доверенность/Иное
+    
     power_of_attorney_number = Column(String, nullable=True,)  # Если доверенность
     power_of_attorney_date = Column(Date, nullable=True,)  # Если доверенность
     

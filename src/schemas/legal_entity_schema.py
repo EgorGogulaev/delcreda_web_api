@@ -170,6 +170,7 @@ class BaseLegalEntity(BaseModel):
     directory_uuid: str = Field(..., description="UUID директории.")
     data_id: Optional[int] = Field(None, description="ID подробных данных о ЮЛ.")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем (true - да/false - нет).")
+    order_access_list: int = Field(..., description="ID перечня доступных услуг для данного ЮЛ.")
     is_active: bool = Field(..., description="Активно ли юридическое лицо.")
     updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о ЮЛ (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
     created_at: Optional[str] = Field(None, description="Дата-время создания записи (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")

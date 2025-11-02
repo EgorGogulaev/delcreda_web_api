@@ -280,6 +280,7 @@ async def get_legal_entities(
                         is_active=le["legal_entity"].is_active,
                         data_id=le["legal_entity"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=le["legal_entity"].can_be_updated_by_user,
+                        order_access_list=le["legal_entity"].order_access_list,
                         updated_at=convert_tz(le["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].updated_at else None,
                         created_at=convert_tz(le["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].created_at else None,
                     )
@@ -300,6 +301,7 @@ async def get_legal_entities(
                         is_active=le.is_active,
                         data_id=le.data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=le.can_be_updated_by_user,
+                        order_access_list=le.order_access_list,
                         updated_at=convert_tz(le.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le.updated_at else None,
                         created_at=convert_tz(le.created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le.created_at else None,
                     )
@@ -501,6 +503,10 @@ async def update_legal_entity(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+
+@router.put("/change_order_access_list")
+async def change_order_access_list():
+    ...  # TODO
 
 @router.post(
     "/get_legal_entities_data",

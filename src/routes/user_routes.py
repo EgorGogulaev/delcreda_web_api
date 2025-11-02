@@ -61,7 +61,6 @@ async def register(
     
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
-    # TODO ПРИ РЕГИСТРАЦИИ ПОЛЬЗОВАТЕЛЯ, ЕМУ НУЖНО ЗАВОДИТЬ ОТДЕЛЬНЫЙ АККАУНТ В S3-ХРАНИЛИЩЕ
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
@@ -427,6 +426,11 @@ async def delete_users(
         description="Массив UUID'ов пользователей к удалению."
     ),
     
+    with_documents: bool = Query(
+        False,
+        description="Нужно ли удалять документы пользователей? (true-да / false-нет)"
+    ),
+    
     token: str = Depends(UserQaSM.get_current_user_data),
     
     session: AsyncSession = Depends(get_async_session),
@@ -440,6 +444,8 @@ async def delete_users(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            
+            with_documents=with_documents,
             
             tokens=tokens,
             uuids=uuids,
@@ -467,6 +473,7 @@ async def delete_users(
                 params={
                     "tokens": tokens,
                     "uuids": uuids,
+                    "with_documents": with_documents,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],

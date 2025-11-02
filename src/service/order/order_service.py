@@ -68,6 +68,7 @@ class OrderService:
             status=ORDER_STATUS_MAPPING[status_dict[status]],
         )
     
+    # FIXME НУЖНО ПЕРЕДЕЛАТЬ ПОД ЛОГИКУ МНОЖЕСТВА ВИДОВ БИЗНЕС-УСЛУГ
     @staticmethod
     async def delete_orders(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
         session: AsyncSession,

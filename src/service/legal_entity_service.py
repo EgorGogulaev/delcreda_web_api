@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from src.service.order.order_service import OrderService
 from src.models.order.order_models import Order
 from src.service.order.mt_order_service import MTOrderService
 from src.schemas.legal_entity_schema import FiltersLegalEntities, FiltersPersons, OrdersLegalEntities, OrdersPersons, CreatePersonsSchema
@@ -119,8 +120,14 @@ class LegalEntityService:
         return new_le_with_data, new_chat
     
     @staticmethod
-    async def __create_order_access_list():
-        ...  # TODO Реализовать создание списка доступа к услугам при создании ЮЛ
+    async def __create_order_access_list(
+        session: AsyncSession,
+    ) -> int:
+        new_order_access_list_id: int = await LegalEntityQueryAndStatementManager.create_order_access_list(
+            session=session
+        )
+        
+        return new_order_access_list_id
     
     @staticmethod
     async def get_legal_entities(
@@ -234,6 +241,13 @@ class LegalEntityService:
             legal_entity_uuids=legal_entity_uuids,
             edit_status=edit_status,
         )
+    
+    @staticmethod
+    async def update_order_access_list(
+        session: AsyncSession,
+        
+    ) -> None:
+        ...  # TODO Реализовать
     
     @staticmethod
     async def get_legal_enities_data(
@@ -383,7 +397,7 @@ class LegalEntityService:
                 )
             except: ...  # noqa: E722
         try:
-            await MTOrderService.delete_orders(
+            await OrderService.delete_orders(
                 session=session,
                 
                 requester_user_id=requester_user_id,
@@ -400,6 +414,13 @@ class LegalEntityService:
             legal_entities_uuids=legal_entities_uuids,
             le_ids_with_le_data_ids_with_dir_uuid=le_ids_with_le_data_ids_with_dir_uuid,
         )
+    
+    @staticmethod
+    async def __delete_orders_access_lists(
+        session: AsyncSession,
+        
+    ) -> None:
+        ...  # TODO Реализовать
     
     @staticmethod
     async def create_persons(
