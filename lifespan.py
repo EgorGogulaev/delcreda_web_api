@@ -5,7 +5,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from connection_module import Base, sync_engine_without_bouncer, RedisConnector
-from models.order.mt_models import MTOrderType
+from src.models.order.mt_models import MTOrderType
 from src.models.order.order_models import OrderStatus, OrderType
 from src.models.chat_models import ChatSubject
 from src.models.notification_models import NotificationSubject
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=sync_engine_without_bouncer)
     
     redis_conns = aioredis.create_connection(RedisConnector.DSN_CONN)
-    # TODO Сюда надо внести типы поручений OrderType !!!
+    
     for idx, (table, referense) in enumerate(
         zip(
             [

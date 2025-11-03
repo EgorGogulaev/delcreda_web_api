@@ -19,7 +19,7 @@ from src.schemas.order.mt_order_schema import ExtendedMTOrder,  CreateMTOrderDat
 from src.service.notification_service import NotificationService
 from src.models.order.order_models import Order
 from src.models.order.mt_models import MTOrderData
-from service.order.mt_order_service import MTOrderService
+from src.service.order.mt_order_service import MTOrderService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
 from src.utils.reference_mapping_data.order.order.mt_mapping import MT_ORDER_TYPE_MAPPING

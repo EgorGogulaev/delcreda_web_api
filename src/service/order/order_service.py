@@ -2,7 +2,7 @@ from typing import List, Literal, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from service.file_store_service import FileStoreService
+from src.service.file_store_service import FileStoreService
 from src.query_and_statement.order.order_qas_manager import OrderQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.order.mapping import ORDER_STATUS_MAPPING

@@ -157,7 +157,7 @@ class LegalEntityService:
         
         filter: Optional[FiltersLegalEntities] = None,
         order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
+    ) -> Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
         if page or page_size:
             assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
         if extended_output is False:
@@ -166,7 +166,7 @@ class LegalEntityService:
             assert user_uuid, "Вы не можете просмотреть все ЮЛ - всех пользователей, не являясь Адмиинистратором!"
             assert user_uuid == requester_user_uuid, "Вы не можете просмотреть ЮЛ других пользователей!"
             
-        legal_entities: Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
+        legal_entities: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
             session=session,
             
             user_uuid=user_uuid,

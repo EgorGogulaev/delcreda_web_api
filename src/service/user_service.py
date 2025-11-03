@@ -386,7 +386,7 @@ class UserService:
                     dir_uuids.append(dirs_info["data"][dir_id]["uuid"])
             
             le_uuids: List[str] = []
-            le_dct: Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
+            le_dct: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,

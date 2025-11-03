@@ -233,7 +233,7 @@ async def get_legal_entities(
             )
         client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
         
-        legal_entities: Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
+        legal_entities: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],

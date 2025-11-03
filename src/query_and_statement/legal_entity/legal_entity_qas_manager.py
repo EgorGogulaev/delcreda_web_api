@@ -128,7 +128,7 @@ class LegalEntityQueryAndStatementManager:
         
         filter: Optional[FiltersLegalEntities] = None,
         order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity], Optional[int], Optional[bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
+    ) -> Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
         _filters = []
         
         if user_uuid:

@@ -14,7 +14,6 @@ from src.query_and_statement.user_qas_manager import UserQueryAndStatementManage
 
 
 router = APIRouter(
-    prefix="/",
     tags=["Order"],
 )
 

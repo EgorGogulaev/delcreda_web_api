@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user_models import UserAccount
 from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData
-from schemas.order.order_schema import FiltersOrders, OrdersOrders
+from src.schemas.order.order_schema import FiltersOrders, OrdersOrders
 from src.models.order.order_models import Order
 from src.models.order.mt_models import MTOrderData
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING

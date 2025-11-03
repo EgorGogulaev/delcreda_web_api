@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.comment_subject_models import CommentSubject
-from query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
+from src.query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
 from src.query_and_statement.comment_subject_qas_manager import CommentSubjectQueryAndStatementManager
 from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
