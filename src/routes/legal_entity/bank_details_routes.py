@@ -107,7 +107,7 @@ async def create_banks_details(
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("3/second")
-async def get_banks_details(  # FIXME тут скорее всего нужно будет добавить фильтр по полю "from_customer"
+async def get_banks_details(
     request: Request,
     legal_entity_uuid: Optional[str] = Query(
         None,
@@ -156,7 +156,6 @@ async def get_banks_details(  # FIXME тут скорее всего нужно 
                 {
                     "id": bank_details.id,
                     "user_uuid": bank_details.user_uuid,
-                    "from_customer": bank_details.from_customer,
                     "legal_entity_uuid": bank_details.legal_entity_uuid,
                     "name_latin": bank_details.name_latin,
                     "name_national": bank_details.name_national,
@@ -240,7 +239,6 @@ async def update_bank_details(
             
             bank_details_id=bank_details_id,
             user_uuid=data_for_update.user_uuid,
-            from_customer=data_for_update.from_customer,
             legal_entity_uuid=data_for_update.legal_entity_uuid,
             name_latin=data_for_update.name_latin,
             name_national=data_for_update.name_national,

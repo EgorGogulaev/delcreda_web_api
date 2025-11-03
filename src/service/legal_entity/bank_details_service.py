@@ -77,7 +77,6 @@ class BankDetailsService:
         
         bank_details_id: int,
         user_uuid: Optional[str],
-        from_customer: Optional[str | bool],
         legal_entity_uuid: Optional[str],
         name_latin: Optional[str],
         name_national: Optional[str],
@@ -116,7 +115,7 @@ class BankDetailsService:
             filter(
                 lambda x: x != "~",
                 [
-                    user_uuid, from_customer, legal_entity_uuid,
+                    user_uuid, legal_entity_uuid,
                     name_latin, name_national,
                     organizational_and_legal_form,
                     SWIFT, BIC, IBAN, banking_messaging_system, CIPS,
@@ -132,7 +131,6 @@ class BankDetailsService:
             bank_details_id=bank_details_id,
             
             user_uuid=user_uuid,
-            from_customer=from_customer,
             legal_entity_uuid=legal_entity_uuid,
             name_latin=name_latin,
             name_national=name_national,
