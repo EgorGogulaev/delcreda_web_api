@@ -342,7 +342,7 @@ class UserService:
             raise AssertionError("Вы не можете удалить пользователя, у Вас недостаточно прав!")
         
         user_uuids: List[str] = []
-        user_contact_ids: List[int] = []
+        user_s3_logins: List[str] = []
         
         for token in tokens:
             user_data = await cls.get_users_info(
@@ -357,7 +357,7 @@ class UserService:
             assert user_data.count == 1, f'Коллизия! Пользователей с токеном - "{token}" было найдено более одного!'
             assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (токен - "{token}")'
             user_uuids.append(user_data.data[0].uuid)
-            user_contact_ids.append(user_data.data[0].contact_id)
+            user_s3_logins.append(user_data.data[0].s3_login)
         
         for uuid in uuids:
             user_data = await cls.get_users_info(
@@ -429,6 +429,12 @@ class UserService:
             
             user_uuids=user_uuids,
         )
+        
+        # TODO тут нужно удалять пользователей из S3 (нужна опция "С удалением" аккаунта-хранилища или "без удаления")
+        for s3_login in user_s3_logins:
+            await SignalConnector.remove_user_s3(
+                username=s3_login,
+            )
     
     @staticmethod
     async def get_client_state(
