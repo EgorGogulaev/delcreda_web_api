@@ -547,17 +547,3 @@ class UserQueryAndStatementManager:
         
         await session.execute(stmt)
         await session.commit()
-    
-    @staticmethod
-    async def delete_users_contacts(
-        session: AsyncSession,
-        
-        user_contact_ids: List[int],
-    ) -> None:
-        stmt = (
-            delete(UserContact)
-            .filter(UserContact.id.in_(user_contact_ids))
-        )
-        
-        await session.execute(stmt)
-        await session.commit()
