@@ -495,7 +495,7 @@ class UserQueryAndStatementManager:
             )
             stmt_delete_contact = (
                 delete(UserContact)
-                .filter(UserAccount.contact == user_account_id_token_id_contact_id[2])
+                .filter(UserContact.id == user_account_id_token_id_contact_id[2])
             )
             
             await session.execute(stmt_delete_docs)
