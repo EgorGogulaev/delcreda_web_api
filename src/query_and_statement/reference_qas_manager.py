@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import APP_LOGIN, APP_PASSWORD
 from connection_module import async_session_maker
 from src.schemas.reference_schema import FiltersServiceNote, OrdersServiceNote
-from src.models.legal_entity_models import LegalEntity
+from src.models.legal_entity.legal_entity_models import LegalEntity
 from src.models.order.order_models import Order
 from src.models.notification_models import Notification
 from src.models.file_store_models import Document, Directory

@@ -16,11 +16,14 @@ from src.routes.file_store_routes import router as docs_router
 from src.routes.reference_router import router as reference_router
 from src.routes.chat_routes import router as chat_router
 from src.routes.notification_routes import router as notification_router
-from src.routes.legal_entity_routes import router as legal_entity_router
+from src.routes.comment_subject_routes import router as comment_subject_router
+
+from src.routes.legal_entity.legal_entity_routes import router as legal_entity_router
+from src.routes.legal_entity.bank_details_routes import router as bank_details_router
+
 from src.routes.order.order_routes import router as order_router
 from src.routes.order.mt_order_routes import router as mt_order_router
-from src.routes.bank_details_routes import router as bank_details_router
-from src.routes.comment_subject_routes import router as comment_subject_router
+
 
 
 app = FastAPI(

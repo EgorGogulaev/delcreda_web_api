@@ -7,11 +7,11 @@ from connection_module import SignalConnector
 from src.service.order.order_service import OrderService
 from src.models.order.order_models import Order
 from src.service.order.mt_order_service import MTOrderService
-from src.schemas.legal_entity_schema import FiltersLegalEntities, FiltersPersons, OrdersLegalEntities, OrdersPersons, CreatePersonsSchema
+from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, FiltersPersons, OrdersLegalEntities, OrdersPersons, CreatePersonsSchema
 from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
-from src.models.legal_entity_models import LegalEntity, LegalEntityData, Person
-from src.query_and_statement.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, Person
+from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING

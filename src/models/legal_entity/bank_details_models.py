@@ -8,14 +8,12 @@ from sqlalchemy import (
 from connection_module import Base
 
 
-# FIXME
 class BankDetails(Base):
     __tablename__ = "bank_detail"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
     user_uuid = Column(String(length=36), nullable=False)
-    from_customer = Column(Boolean, nullable=False)  # True, если реквизиты принадлежат ЮЛ пользователя MT
     legal_entity_uuid = Column(String(length=36))  # Поле должно быть НЕ нулевым, если from_customer == True
     
     name_latin = Column(String)

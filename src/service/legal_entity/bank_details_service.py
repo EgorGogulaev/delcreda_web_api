@@ -2,11 +2,11 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.bank_details_models import BankDetails
-from src.query_and_statement.bank_details_qas_manager import BankDetailsQueryAndStatementManager
-from src.query_and_statement.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.models.legal_entity.bank_details_models import BankDetails
+from src.query_and_statement.legal_entity.bank_details_qas_manager import BankDetailsQueryAndStatementManager
+from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
-from src.schemas.bank_details_schema import CreateBanksDetailsSchema
+from src.schemas.legal_entity.bank_details_schema import CreateBanksDetailsSchema
 
 
 class BankDetailsService:

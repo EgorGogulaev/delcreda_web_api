@@ -9,18 +9,18 @@ from fastapi.responses import JSONResponse
 from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
-from src.query_and_statement.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
-from src.schemas.legal_entity_schema import (
+from src.schemas.legal_entity.legal_entity_schema import (
     BaseLegalEntity, ExtendedLegalEntity, FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, PersonData, RegistrationIdentifierType,
     CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdatePerson,
 )
 from src.schemas.reference_schema import CountryKey
 from src.service.notification_service import NotificationService
-from src.models.legal_entity_models import LegalEntity, LegalEntityData, Person
-from src.service.legal_entity_service import LegalEntityService
+from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, Person
+from src.service.legal_entity.legal_entity_service import LegalEntityService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING

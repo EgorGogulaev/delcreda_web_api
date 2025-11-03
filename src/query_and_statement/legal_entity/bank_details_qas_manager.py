@@ -5,8 +5,8 @@ from sqlalchemy import and_, select, update, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.bank_details_models import BankDetails
-from src.schemas.bank_details_schema import CreateBanksDetailsSchema
+from src.models.legal_entity.bank_details_models import BankDetails
+from src.schemas.legal_entity.bank_details_schema import CreateBanksDetailsSchema
 
 
 class BankDetailsQueryAndStatementManager:

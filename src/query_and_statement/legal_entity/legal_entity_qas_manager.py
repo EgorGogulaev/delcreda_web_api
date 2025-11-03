@@ -5,11 +5,11 @@ from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
-from models.order.mt_models import MTOrderData
+from src.models.order.mt_models import MTOrderData
 from src.models.order.order_models import Order
-from src.schemas.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
-from src.models.bank_details_models import BankDetails
-from src.models.legal_entity_models import LegalEntity, LegalEntityData, OrderAccessList, Person
+from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
+from src.models.legal_entity.bank_details_models import BankDetails
+from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, OrderAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.order.mapping import ORDER_TYPE_MAPPING

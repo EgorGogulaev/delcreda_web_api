@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from connection_module import async_session_maker
 from src.models.chat_models import Chat, Message
-from src.models.legal_entity_models import LegalEntity
+from src.models.legal_entity.legal_entity_models import LegalEntity
 from src.models.order.order_models import Order
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 

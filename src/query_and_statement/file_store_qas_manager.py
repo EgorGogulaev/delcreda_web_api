@@ -6,7 +6,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.legal_entity_models import LegalEntity
+from src.models.legal_entity.legal_entity_models import LegalEntity
 from src.models.order.order_models import Order
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Document, Directory

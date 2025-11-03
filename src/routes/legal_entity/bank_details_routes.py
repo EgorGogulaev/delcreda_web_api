@@ -12,10 +12,10 @@ from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
 from src.service.notification_service import NotificationService
-from src.models.bank_details_models import BankDetails
-from src.service.bank_details_service import BankDetailsService
+from src.models.legal_entity.bank_details_models import BankDetails
+from src.service.legal_entity.bank_details_service import BankDetailsService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
-from src.schemas.bank_details_schema import CreateBanksDetailsSchema, UpdateBankDetailsSchema
+from src.schemas.legal_entity.bank_details_schema import CreateBanksDetailsSchema, UpdateBankDetailsSchema
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.tz_converter import convert_tz
 

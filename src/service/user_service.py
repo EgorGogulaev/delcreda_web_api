@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from security import encrypt
 from config import SECRET_KEY
 from connection_module import SignalConnector
-from src.models.legal_entity_models import LegalEntity
-from src.service.legal_entity_service import LegalEntityService
+from src.models.legal_entity.legal_entity_models import LegalEntity
+from src.service.legal_entity.legal_entity_service import LegalEntityService
 from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
 from src.models.user_models import UserAccount
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager

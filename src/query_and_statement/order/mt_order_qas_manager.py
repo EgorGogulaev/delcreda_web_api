@@ -6,7 +6,7 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user_models import UserAccount
-from src.models.legal_entity_models import LegalEntity, LegalEntityData
+from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData
 from schemas.order.order_schema import FiltersOrders, OrdersOrders
 from src.models.order.order_models import Order
 from src.models.order.mt_models import MTOrderData

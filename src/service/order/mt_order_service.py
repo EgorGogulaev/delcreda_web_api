@@ -10,7 +10,7 @@ from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
 from src.models.order.order_models import Order
 from src.models.order.mt_models import MTOrderData
-from src.query_and_statement.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
