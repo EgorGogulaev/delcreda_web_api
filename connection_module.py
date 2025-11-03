@@ -226,6 +226,8 @@ class SignalConnector:
                             headers=headers_to_forward
                         )
                 elif response.status in range(500, 600):
+                    print(response.status)
+                    print(await response.text())
                     raise SystemError("Серверная ошибка на стороне DELCREDA SIGNAL!")
                 else:
                     text = await response.text()

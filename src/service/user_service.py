@@ -342,6 +342,7 @@ class UserService:
             raise AssertionError("Вы не можете удалить пользователя, у Вас недостаточно прав!")
         
         user_uuids: List[str] = []
+        user_contact_ids: List[int] = []
         
         for token in tokens:
             user_data = await cls.get_users_info(
@@ -356,6 +357,7 @@ class UserService:
             assert user_data.count == 1, f'Коллизия! Пользователей с токеном - "{token}" было найдено более одного!'
             assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (токен - "{token}")'
             user_uuids.append(user_data.data[0].uuid)
+            user_contact_ids.append(user_data.data[0].contact_id)
         
         for uuid in uuids:
             user_data = await cls.get_users_info(

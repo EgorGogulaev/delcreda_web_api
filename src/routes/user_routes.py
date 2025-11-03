@@ -97,7 +97,6 @@ async def register(
                     "password": password,
                     "privilege": privilege,
                     "new_user_uuid": new_user_uuid,
-                    "token": token,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],

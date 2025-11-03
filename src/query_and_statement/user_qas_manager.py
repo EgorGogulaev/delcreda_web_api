@@ -495,7 +495,7 @@ class UserQueryAndStatementManager:
             )
             stmt_delete_contact = (
                 delete(UserContact)
-                .filter(UserAccount.id == user_account_id_token_id_contact_id[2])
+                .filter(UserAccount.contact == user_account_id_token_id_contact_id[2])
             )
             
             await session.execute(stmt_delete_docs)
@@ -543,6 +543,20 @@ class UserQueryAndStatementManager:
             update(UserContact)
             .filter(UserContact.id == user_contact_id)
             .values(**new_values)
+        )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def delete_users_contacts(
+        session: AsyncSession,
+        
+        user_contact_ids: List[int],
+    ) -> None:
+        stmt = (
+            delete(UserContact)
+            .filter(UserContact.id.in_(user_contact_ids))
         )
         
         await session.execute(stmt)

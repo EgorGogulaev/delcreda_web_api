@@ -1,4 +1,5 @@
 import datetime
+import posixpath
 from typing import List, Tuple
 
 from config import ADMIN_LOGIN, ADMIN_PASSWORD, ADMIN_TOKEN as token, ADMIN_UUID
@@ -12,6 +13,12 @@ PRIVILEGE: List[Tuple] = [
 
 ADMIN: List[Tuple] = [
     (1, ADMIN_UUID, 1, ADMIN_LOGIN, ADMIN_PASSWORD, 1, True, None, "-", "-", None, datetime.datetime.now(tz=datetime.timezone.utc),),
+]
+
+ADMIN_DIRECTORY: List[Tuple] = [
+    (
+        1, ADMIN_UUID, None, "-", 1, 1, ADMIN_UUID, 1, ADMIN_UUID, True, None, None, None, False, None, None, None, datetime.datetime.now(tz=datetime.timezone.utc),
+    )
 ]
 
 ADMIN_TOKEN: List[Tuple] = [
