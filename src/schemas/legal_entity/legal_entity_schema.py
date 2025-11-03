@@ -37,6 +37,10 @@ class UpdateLegalEntityDataSchema(BaseModel):
     postal_address: Optional[str] = Field("~", description="Почтовый адрес. (значение '~' == оставить без изменений)")
     additional_address: Optional[str] = Field("~", description="Дополнительный адрес. (значение '~' == оставить без изменений)")
 
+class UpdateOrderAccessList(BaseModel):
+    mt: str|bool = Field("~", description="Доступ к переводам денежных средств (MT). (значение '~' == оставить без изменений)")
+    # TODO ... тут будут иные бизнес направления
+
 class CreatePersonSchema(BaseModel):
     surname: str = Field(..., description="Фамилия.")
     name: str = Field(..., description="Имя.")

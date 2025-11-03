@@ -257,8 +257,30 @@ class LegalEntityService:
     async def update_order_access_list(
         session: AsyncSession,
         
+        requester_user_privilege: int,
+        
+        legal_entity_uuid: str,
+        
+        mt: str|bool,
+        # TODO тут будут иные бизнес процессы
     ) -> None:
-        ...  # TODO Реализовать
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise AssertionError("У Вас недостаточно прав для изменения списка доступных типов Поручений!")
+        order_type_dict: Dict[str, str|bool] = {
+            "MT": mt,
+            # TODO тут будут иные бизнес процессы
+        }
+        assert any([order_type_dict[o_t] !="~" for o_t in order_type_dict]), "Для изменения списка доступных типов Поручений, нужно указать хотя бы одно значение к изменению!"
+        order_access_list_id: int = await LegalEntityQueryAndStatementManager.get_order_access_list_id_by_legal_entity_uuid(
+            session=session,
+            legal_entity_uuid=legal_entity_uuid,
+        )
+        assert order_access_list_id, "Список доступных типов ПР не был найден!"
+        await LegalEntityQueryAndStatementManager.update_order_access_list(
+            session=session,
+            order_access_list_id=order_access_list_id,
+            order_type_dict=order_type_dict,
+        )
     
     @staticmethod
     async def get_legal_enities_data(
@@ -353,8 +375,9 @@ class LegalEntityService:
             additional_address=additional_address,
         )
     
-    @staticmethod
+    @classmethod
     async def delete_legal_entities(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
+        cls,
         session: AsyncSession,
         
         requester_user_id: int,
@@ -369,6 +392,7 @@ class LegalEntityService:
         
         le_ids_with_le_data_ids_with_dir_uuid: List[Tuple[int, int, str]] = [] # type: ignore
         order_uuids: List[str] = []
+        orders_access_lists_ids: List[int] = []
         for le_uuid in legal_entities_uuids:
             le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                 session=session,
@@ -380,6 +404,13 @@ class LegalEntityService:
             )
             assert le_check_access_response_object, "Вы не можете удалять информацию ЮЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!"
             le_ids_with_le_data_ids_with_dir_uuid.append(le_check_access_response_object)
+            
+            order_access_list_id: Optional[int] = await LegalEntityQueryAndStatementManager.get_order_access_list_id_by_legal_entity_uuid(
+                session=session,
+                legal_entity_uuid=le_uuid,
+            )
+            if order_access_list_id is not None:
+                orders_access_lists_ids.append(order_access_list_id)
             
             le_orders: Dict[str, List[Optional[Order]]|Optional[int]] = await MTOrderService.get_orders(
                 session=session,
@@ -418,7 +449,10 @@ class LegalEntityService:
                 orders_uuids=order_uuids,
             )
         except: ...  # noqa: E722
-        
+        cls.__delete_orders_access_lists(
+            session=session,
+            orders_access_lists_ids=orders_access_lists_ids,
+        )
         await LegalEntityQueryAndStatementManager.delete_legal_entities(
             session=session,
             
@@ -430,8 +464,12 @@ class LegalEntityService:
     async def __delete_orders_access_lists(
         session: AsyncSession,
         
+        orders_access_lists_ids: List[int],
     ) -> None:
-        ...  # TODO Реализовать
+        await LegalEntityQueryAndStatementManager.delete_orders_access_lists(
+            session=session,
+            orders_access_lists_ids=orders_access_lists_ids,
+        )
     
     @staticmethod
     async def create_persons(

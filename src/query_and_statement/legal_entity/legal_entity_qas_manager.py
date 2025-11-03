@@ -253,6 +253,21 @@ class LegalEntityQueryAndStatementManager:
         }
     
     @staticmethod
+    async def get_order_access_list_id_by_legal_entity_uuid(
+        session: AsyncSession,
+        
+        legal_entity_uuid: str,
+    ) -> Optional[int]:
+        query = (
+            select(LegalEntity.order_access_list)
+            .filter(LegalEntity.uuid == legal_entity_uuid)
+        )
+        response = await session.execute(query)
+        order_access_list_id: Optional[int] = response.scalar()
+        
+        return order_access_list_id
+    
+    @staticmethod
     async def update_legal_entity(
         session: AsyncSession,
         
@@ -301,6 +316,26 @@ class LegalEntityQueryAndStatementManager:
         await session.execute(stmt)
         await session.commit()
     
+    @staticmethod
+    async def update_order_access_list(
+        session: AsyncSession,
+        
+        order_access_list_id: int,
+        order_type_dict: Dict[str, str|bool],
+    ) -> None:
+        values_for_update = {
+            "mt": order_type_dict["MT"],
+            # TODO тут будут другие бизнес процессы
+        }
+        new_values = {k: v for k, v in values_for_update.items() if v != "~"}
+        stmt = (
+            update(OrderAccessList)
+            .filter(OrderAccessList.id == order_access_list_id)
+            .values(**new_values)
+        )
+        await session.execute(stmt)
+        await session.commit()
+        
     @staticmethod
     async def get_legal_entities_data(
         session: AsyncSession,
@@ -484,6 +519,20 @@ class LegalEntityQueryAndStatementManager:
         await session.execute(stmt_delete_le)
         await session.execute(stmt_delete_le_data)
         
+        await session.commit()
+    
+    @staticmethod
+    async def delete_orders_access_lists(
+        session: AsyncSession,
+        
+        orders_access_lists_ids: List[int],
+    ) -> None:
+        stmt = (
+            delete(OrderAccessList)
+            .filter(OrderAccessList.id.in_(orders_access_lists_ids))
+        )
+        
+        await session.execute(stmt)
         await session.commit()
     
     @staticmethod

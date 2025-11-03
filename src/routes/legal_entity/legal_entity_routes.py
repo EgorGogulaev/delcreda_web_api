@@ -15,7 +15,7 @@ from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
 from src.schemas.legal_entity.legal_entity_schema import (
     BaseLegalEntity, ExtendedLegalEntity, FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, PersonData, RegistrationIdentifierType,
-    CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdatePerson,
+    CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdateOrderAccessList, UpdatePerson,
 )
 from src.schemas.reference_schema import CountryKey
 from src.service.notification_service import NotificationService
@@ -506,9 +506,69 @@ async def update_legal_entity(
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
 
-@router.put("/change_order_access_list")
-async def change_order_access_list():
-    ...  # TODO
+@router.put(
+    "/update_order_access_list",
+    description="""
+    Изменение списка доступных к созданию типов ПР.
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+async def update_order_access_list(
+    request: Request,
+    
+    data_for_update: UpdateOrderAccessList,
+    legal_entity_uuid: str = Query(
+        ...,
+        description="UUID ЮЛ, в котором планируется изменение списка доступных к созданию типов ПР.",
+        min_length=36,
+        max_length=36
+    ),
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        
+        await LegalEntityService.update_order_access_list(
+            session=session,
+            
+            requester_user_privilege=user_data["privilege_id"],
+            legal_entity_uuid=legal_entity_uuid,
+            
+            mt=data_for_update.mt,
+            # TODO тут будут другие бизнес процессы
+        )
+        response_content = {"msg": f'Список доступов к ПР для ЮЛ с UUID - "{legal_entity_uuid}" успешно изменен.'}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="update_order_access_list",
+                params={
+                    "data_for_update": data_for_update.model_dump() if data_for_update else data_for_update,
+                    "legal_entity_uuid": legal_entity_uuid,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
 
 @router.post(
     "/get_legal_entities_data",
