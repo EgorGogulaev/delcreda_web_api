@@ -72,7 +72,7 @@ class LegalEntityQueryAndStatementManager:
             user_uuid=owner_user_uuid,
             directory_id=directory_id,
             directory_uuid=directory_uuid,
-            order_access_list_id=order_access_list_id,
+            order_access_list=order_access_list_id,
             data_id=new_le_data.id,
         )
         session.add(new_le)

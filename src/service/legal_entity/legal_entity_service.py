@@ -58,6 +58,8 @@ class LegalEntityService:
             uuid=owner_user_uuid,
         )
         owner_s3_login: Optional[str] = await UserQueryAndStatementManager.get_user_s3_login(
+            session=session,
+            
             user_id=owner_user_id,
         )
         assert owner_s3_login, "У пользователя отсутствует логин в S3!"

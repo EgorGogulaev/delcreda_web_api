@@ -191,7 +191,7 @@ async def auth_v2(
 @limiter.limit("3/second")
 async def get_users_info(
     request: Request,
-    privilege: Literal["User", "Admin", "Intermediary", "all"] = Query(
+    privilege: Literal["User", "Admin", "all"] = Query(
         "all",
         description="Фильтр для поиска по Правам пользователей.",
         min_length=3,

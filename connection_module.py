@@ -1,3 +1,4 @@
+import urllib.parse
 from collections import defaultdict
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional, Set
 
@@ -330,20 +331,20 @@ class SignalConnector:
         cls,
         
         path: str,
+        filenames: List[str],  # Название файлов нужно располагать в том же порядке что и файлы!
         files: List[UploadFile],
     ) -> None:
         data = FormData()
-        for file in files:
-            filename = file.filename
+        for idx, file in enumerate(files):
+            filename = urllib.parse.unquote(filenames[idx])
             content_type = file.content_type or "application/octet-stream"
-            async with file:
-                content = await file.read()
-                data.add_field(
-                    name="files",
-                    value=content,
-                    filename=filename,
-                    content_type=content_type,
-                )
+            content = await file.read()
+            data.add_field(
+                name="files",
+                value=content,
+                filename=filename,
+                content_type=content_type,
+            )
         await cls.__http_request_signal(
             method="POST",
             endpoint_path="file_store/upload",

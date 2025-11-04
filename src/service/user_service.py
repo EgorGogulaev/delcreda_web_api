@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Literal, Optional, Tuple
 from uuid import uuid4
 
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from security import encrypt
@@ -15,6 +16,7 @@ from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.service.file_store_service import FileStoreService
 from src.utils.tz_converter import convert_tz
 from src.utils.sanitazer_s3_username import sanitize_s3_username
+from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 
 
 class UserService:
@@ -126,12 +128,21 @@ class UserService:
             s3_login=s3_login,
             s3_password=s3_password,
         )
-        
+        user_dir_info: Dict[str, Any] = await FileStoreService.create_directory(
+            session=session,
+            
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            owner_s3_login=s3_login,
+            owner_user_uuid=new_user_uuid,
+            directory_type=DIRECTORY_TYPE_MAPPING["Пользовательская директория"],
+        )
         return {
             "id": new_user_id,
             "uuid": new_user_uuid,
             "token": token_info["value"],
             "privilege": list(PRIVILEGE_MAPPING)[list(PRIVILEGE_MAPPING.values()).index(privilege)],
+            "user_dir": user_dir_info,
             
             "login": login,
             "password": password,
@@ -501,7 +512,8 @@ class UserService:
             
             uuid=user_uuid,
         )
-        
+        if user_info.count == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="У пользователя отсутствует запись о контактах!")
         user_contact_id: int = user_info.data[0].contact_id
         
         await UserQueryAndStatementManager.update_user_contact(

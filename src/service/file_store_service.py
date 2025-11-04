@@ -302,13 +302,17 @@ class FileStoreService:
             correct_name = urllib.parse.unquote(file_name)
             correct_name_with_extansion = correct_name + "." + extension
             new_file_path = posixpath.normpath(posixpath.join(dir_data["data"][list(dir_data["data"])[0]]["path"], correct_name_with_extansion))
+            new_file_path_without_filename = posixpath.normpath(posixpath.join(dir_data["data"][list(dir_data["data"])[0]]["path"]))
             
             original_path = new_file_path
             counter = 1
             while True:
                 try:
-                    await SignalConnector.get_object_info_s3(path=new_file_path)
-                    break
+                    object_info: Dict[str, str|int] = await SignalConnector.get_object_info_s3(path=new_file_path)
+                    if object_info.get("size") is None:
+                        break
+                    else:
+                        raise
                 except:  # noqa: E722
                     # Разбираем путь
                     directory = os.path.dirname(original_path)
@@ -319,9 +323,11 @@ class FileStoreService:
                     correct_name_with_extansion = f"{name} ({counter}){ext}"
                     new_file_path = posixpath.join(directory, correct_name_with_extansion)
                     counter += 1
+            
             await SignalConnector.upload_s3(
+                path=new_file_path_without_filename,  # путь должен быть без префикса filestore/ (!)
+                filenames=[correct_name_with_extansion],
                 files=[file_object],
-                path=new_file_path,  # путь должен быть без префикса filestore/ (!)
             )
             
             await FileStoreQueryAndStatementManager.create_doc_info(
