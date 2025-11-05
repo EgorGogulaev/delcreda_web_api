@@ -63,11 +63,11 @@ app.add_middleware(
 )
 
 # Подключение GZipMiddleware
-app.add_middleware(
-    GZipMiddleware,
-    minimum_size=500,
-    compresslevel=6
-)
+# app.add_middleware(
+#     GZipMiddleware,
+#     minimum_size=500,
+#     compresslevel=6
+# )
 
 # ___________
 app.include_router(user_router)

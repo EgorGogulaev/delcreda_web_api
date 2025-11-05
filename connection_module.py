@@ -198,8 +198,6 @@ class SignalConnector:
         params: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, Any]] = None,
-        
-        streaming_response: bool = False,
     ) -> Dict[str, Any] | StreamingResponse:
         async with aiohttp.ClientSession(auth=cls.auth) as session:
             async with session.request(
@@ -213,19 +211,7 @@ class SignalConnector:
                 ssl=False,
             ) as response:
                 if response.status in range(200, 300):
-                    if streaming_response is False:
-                        return await response.json()
-                    else:
-                        headers_to_forward = {}
-                        content_disposition = response.headers.get("Content-Disposition")
-                        if content_disposition:
-                            headers_to_forward["Content-Disposition"] = content_disposition
-                        content_type = response.headers.get("Content-Type", "application/octet-stream")
-                        return StreamingResponse(
-                            content=response.content,      # это асинхронный итератор байтов
-                            media_type=content_type,
-                            headers=headers_to_forward
-                        )
+                    return await response.json()
                 elif response.status in range(500, 600):
                     print(response.status)
                     print(await response.text())
@@ -359,21 +345,42 @@ class SignalConnector:
         
         path: str,
     ) -> StreamingResponse:
-        streaming_data: StreamingResponse = await cls.__http_request_signal(
-            method="POST",
-            endpoint_path="file_store/download",
-            headers={
-                'accept': 'application/json',
-                'content-type': 'application/x-www-form-urlencoded',
-            },
-            params={
-                'path': path,
-            },
-            data=b"",
-            streaming_response=True,
+        auth = aiohttp.BasicAuth(login=SIGNAL_LOGIN, password=SIGNAL_PASSWORD)
+        url = (SIGNAL_URL if SIGNAL_URL.endswith("/") else SIGNAL_URL + "/") + "file_store/download"
+        
+        session = aiohttp.ClientSession(auth=auth)
+        
+        response = await session.post(
+            url,
+            params={"path": path},
+            headers={"accept": "application/json"},
+            ssl=False,
         )
         
-        return streaming_data
+        if response.status != 200:
+            error_text = await response.text()
+            await session.close()
+            raise HTTPException(status_code=response.status, detail=error_text[:200])
+        
+        headers = {}
+        if "Content-Disposition" in response.headers:
+            headers["Content-Disposition"] = response.headers["Content-Disposition"]
+        content_type = response.headers.get("Content-Type", "application/octet-stream")
+        
+        async def file_stream():
+            try:
+                async for chunk in response.content.iter_chunked(1_048_576):
+                    yield chunk
+            finally:
+                # Закрытие соединения после стриминга данных
+                await response.release()
+                await session.close()
+        
+        return StreamingResponse(
+            content=file_stream(),
+            media_type=content_type,
+            headers=headers
+        )
     
     @classmethod
     async def get_object_info_s3(

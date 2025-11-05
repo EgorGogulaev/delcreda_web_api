@@ -294,8 +294,8 @@ class FileStoreService:
                     raise AssertionError("Директория с данным uuid уже используется!")
             
             if len(file_object.filename.split(".")) > 1:
-                file_name = file_object.filename.split(".")[0]
-                extension = file_object.filename.split(".")[1]
+                file_name = ".".join(file_object.filename.split(".")[:-1])
+                extension = file_object.filename.split(".")[-1]
             else:
                 file_name = file_object.filename
                 extension = ""
