@@ -191,7 +191,7 @@ class ExtendedMTApplication(BaseApplication):
     legal_entity_name_latin: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (латиница).")
     legal_entity_name_national: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (национальное написание).")
     data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных ПР (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
-    order_name: Optional[str] = Field(None, "Номер Поручения.")
+    order_name: Optional[str] = Field(None, description="Номер Поручения.")
 
 class ResponseGetMTApplications(BaseModel):
     data: List[Optional[Union[BaseApplication, ExtendedMTApplication]]] = Field([], description="Массив Заявок по MT.")
