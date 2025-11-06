@@ -278,6 +278,7 @@ class MTOrderQueryAndStatementManager:
                     MTOrderData.type,
                     MTOrderData.priority,
                     MTOrderData.updated_at,
+                    MTOrderData.order_name,
                     
                     UserAccount.login,
                     

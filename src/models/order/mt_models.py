@@ -8,6 +8,8 @@ class MTOrderData(Base):
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
+    order_name = Column(String, nullable=True)
+    
     payment_deadline_not_earlier_than = Column(Date)
     payment_deadline_no_later_than = Column(Date)
     invoice_date = Column(Date)

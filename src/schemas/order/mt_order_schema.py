@@ -12,6 +12,8 @@ MTOrderTypeKey: type = Literal[*MT_ORDER_TYPE_MAPPING]
 
 
 class CreateMTOrderDataSchema(BaseModel):
+    order_name: Optional[str] = None  # Номер Поручения  (Это поле будет присутствовать во всех order-data)
+    
     payment_deadline_not_earlier_than: Optional[str]
     payment_deadline_no_later_than: Optional[str]
     invoice_date: Optional[str] = None
@@ -102,6 +104,8 @@ amount_credited
 vat_amount
 """
 class UpdateMTOrderDataSchema(BaseModel):
+    order_name: Optional[str] = "~"                                                                                               # Номер Поручения
+    
     payment_deadline_not_earlier_than: Optional[str] = "~"                # 1.1, 1.2, 1.3, 1.4,  - , 2.1,  - ,  - ,  -            # Срок оплаты не раньше V
     payment_deadline_no_later_than: Optional[str] = "~"                   # 1.1, 1.2, 1.3, 1.4,  - , 2.1,  - ,  - ,  -            # Срок оплаты не позже V
     invoice_date: Optional[str] = "~"                                     # 1.1, 1.2, 1.3, 1.4,  - , 2.1,  - ,  - ,  -            # Дата cчёта на оплату V
@@ -187,6 +191,7 @@ class ExtendedMTOrder(BaseOrder):
     legal_entity_name_latin: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (латиница).")
     legal_entity_name_national: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (национальное написание).")
     data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных ПР (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
+    order_name: Optional[str] = Field(None, "Номер Поручения.")
 
 class ResponseGetMTOrders(BaseModel):
     data: List[Optional[Union[BaseOrder, ExtendedMTOrder]]] = Field([], description="Массив Поручений по MT.")

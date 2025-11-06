@@ -13,7 +13,7 @@ class Order(Base):
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     uuid = Column(String(length=36), unique=True, nullable=False)
-    name = Column(String(length=50), unique=True, nullable=False)  # TODO тут нужна связь с Delcredix
+    name = Column(String(length=50), unique=True, nullable=False)
     
     user_id = Column(Integer, ForeignKey("user_account.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     user_uuid = Column(String(length=36), nullable=False)

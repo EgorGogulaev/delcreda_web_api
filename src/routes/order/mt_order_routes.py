@@ -322,6 +322,7 @@ async def get_orders(
                         legal_entity_name_latin=order_["name_latin"],
                         legal_entity_name_national=order_["name_national"],
                         data_updated_at=convert_tz(order_["updated_at"].strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if order_["updated_at"] else None,
+                        order_name=order_["order_name"],
                         # TODO тут можно добавить вывод полей (согласовать с Юрием)
                         
                         user_id=order_["order"].user_id,

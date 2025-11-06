@@ -47,8 +47,8 @@ class OrdersOrders(BaseModel):
 
 # RESPONSES
 class BaseOrder(BaseModel):
-    uuid: str = Field(..., description="UUID поручения.")
-    name: str = Field(..., description="Человекочитаемое уникальное название поручения.")
+    uuid: str = Field(..., description="UUID заявки.")
+    name: str = Field(..., description="Человекочитаемое уникальное название заявки.")
     user_id: int = Field(..., description="ID пользователя.")
     user_uuid: str = Field(..., description="UUID пользователя.")
     legal_entity_id: int = Field(..., description="ID юридического лица.")
