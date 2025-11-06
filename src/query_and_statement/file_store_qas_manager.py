@@ -1,4 +1,3 @@
-# FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -7,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.legal_entity.legal_entity_models import LegalEntity
-from src.models.order.order_models import Order
+from src.models.application.application_models import Application
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Document, Directory
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
@@ -35,15 +34,15 @@ class FileStoreQueryAndStatementManager:
         if subject_uuid:
             return FILE_STORE_SUBJECT_MAPPING["ЮЛ"], subject_uuid
         
-        query_order = (
-            select(Order.uuid)
-            .filter(Order.directory_uuid == directory_uuid)
+        query_application = (
+            select(Application.uuid)
+            .filter(Application.directory_uuid == directory_uuid)
         )
-        response_order = await session.execute(query_order)
-        subject_uuid = response_order.scalar_one_or_none()
+        response_application = await session.execute(query_application)
+        subject_uuid = response_application.scalar_one_or_none()
         
         if subject_uuid:
-            return FILE_STORE_SUBJECT_MAPPING["Поручение"], subject_uuid
+            return FILE_STORE_SUBJECT_MAPPING["Заявка"], subject_uuid
         
         raise AssertionError("По данному UUID-директории не найдены субъекты!")
     

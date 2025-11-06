@@ -1,4 +1,3 @@
-# FIXME ПЕРЕДЕЛАТЬ ПОД РАБОТУ С S3
 import traceback
 from typing import Any, Dict, List, Literal, Optional
 
@@ -13,7 +12,14 @@ from src.query_and_statement.file_store_qas_manager import FileStoreQueryAndStat
 from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
-from src.schemas.file_store_schema import AdminDirInfo, AdminFileInfo, BaseDirInfo, BaseFileInfo, DirInfoFromFS, FileInfoFromFS, FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo, ResponseGetUserDirsInfo, ResponseGetUserFilesInfo
+from src.schemas.file_store_schema import (
+    AdminDirInfo, AdminFileInfo,
+    BaseDirInfo, BaseFileInfo,
+    DirInfoFromFS, FileInfoFromFS,
+    FiltersUserDirsInfo, FiltersUserFilesInfo,
+    OrdersUserDirsInfo, OrdersUserFilesInfo,
+    ResponseGetUserDirsInfo, ResponseGetUserFilesInfo,
+)
 from src.service.notification_service import NotificationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.service.file_store_service import FileStoreService

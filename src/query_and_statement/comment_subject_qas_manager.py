@@ -112,7 +112,7 @@ class CommentSubjectQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def delete_comment_subject(  # TODO нужно пробросить удаление, на endpoint'ы с удалением субъектов (ЮЛ/Поручений)
+    async def delete_comment_subject(  # TODO нужно пробросить удаление, на endpoint'ы с удалением субъектов (ЮЛ/Заявок)
         session: AsyncSession,
         
         subject_id: int,

@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from src.service.order.order_service import OrderService
-from src.models.order.order_models import Order
-from src.service.order.mt_order_service import MTOrderService
+from src.service.application.application_service import ApplicationService
+from src.models.application.application_models import Application
+from src.service.application.mt_application_service import MTApplicationService
 from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, FiltersPersons, OrdersLegalEntities, OrdersPersons, CreatePersonsSchema
 from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
@@ -89,7 +89,7 @@ class LegalEntityService:
             parent_directory_uuid=parent_directory_uuid,
         )
         
-        new_order_access_list_id: int = await cls.__create_order_access_list(
+        new_application_access_list_id: int = await cls.__create_application_access_list(
             session=session,
         )
         
@@ -104,7 +104,7 @@ class LegalEntityService:
             new_legal_entity_uuid=new_le_uuid,
             directory_id=new_le_dir_data["id"],
             directory_uuid=new_le_dir_data["uuid"],
-            order_access_list_id=new_order_access_list_id,
+            application_access_list_id=new_application_access_list_id,
             
             country=country,
             registration_identifier_type=registration_identifier_type,
@@ -133,14 +133,14 @@ class LegalEntityService:
         return new_le_with_data, new_chat
     
     @staticmethod
-    async def __create_order_access_list(
+    async def __create_application_access_list(
         session: AsyncSession,
     ) -> int:
-        new_order_access_list_id: int = await LegalEntityQueryAndStatementManager.create_order_access_list(
+        new_application_access_list_id: int = await LegalEntityQueryAndStatementManager.create_application_access_list(
             session=session
         )
         
-        return new_order_access_list_id
+        return new_application_access_list_id
     
     @staticmethod
     async def get_legal_entities(
@@ -256,7 +256,7 @@ class LegalEntityService:
         )
     
     @staticmethod
-    async def update_order_access_list(
+    async def update_application_access_list(
         session: AsyncSession,
         
         requester_user_privilege: int,
@@ -267,21 +267,21 @@ class LegalEntityService:
         # TODO тут будут иные бизнес процессы
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("У Вас недостаточно прав для изменения списка доступных типов Поручений!")
-        order_type_dict: Dict[str, str|bool] = {
+            raise AssertionError("У Вас недостаточно прав для изменения списка доступных типов Заявок!")
+        application_type_dict: Dict[str, str|bool] = {
             "MT": mt,
             # TODO тут будут иные бизнес процессы
         }
-        assert any([order_type_dict[o_t] !="~" for o_t in order_type_dict]), "Для изменения списка доступных типов Поручений, нужно указать хотя бы одно значение к изменению!"
-        order_access_list_id: int = await LegalEntityQueryAndStatementManager.get_order_access_list_id_by_legal_entity_uuid(
+        assert any([application_type_dict[o_t] !="~" for o_t in application_type_dict]), "Для изменения списка доступных типов Заявок, нужно указать хотя бы одно значение к изменению!"
+        application_access_list_id: int = await LegalEntityQueryAndStatementManager.get_application_access_list_id_by_legal_entity_uuid(
             session=session,
             legal_entity_uuid=legal_entity_uuid,
         )
-        assert order_access_list_id, "Список доступных типов ПР не был найден!"
-        await LegalEntityQueryAndStatementManager.update_order_access_list(
+        assert application_access_list_id, "Список доступных типов ПР не был найден!"
+        await LegalEntityQueryAndStatementManager.update_application_access_list(
             session=session,
-            order_access_list_id=order_access_list_id,
-            order_type_dict=order_type_dict,
+            application_access_list_id=application_access_list_id,
+            application_type_dict=application_type_dict,
         )
     
     @staticmethod
@@ -393,8 +393,8 @@ class LegalEntityService:
         #     raise AssertionError("Вы не можете удалять ЮЛ. Недостаточно прав!")
         
         le_ids_with_le_data_ids_with_dir_uuid: List[Tuple[int, int, str]] = [] # type: ignore
-        order_uuids: List[str] = []
-        orders_access_lists_ids: List[int] = []
+        application_uuids: List[str] = []
+        applications_access_lists_ids: List[int] = []
         for le_uuid in legal_entities_uuids:
             le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                 session=session,
@@ -407,14 +407,14 @@ class LegalEntityService:
             assert le_check_access_response_object, "Вы не можете удалять информацию ЮЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!"
             le_ids_with_le_data_ids_with_dir_uuid.append(le_check_access_response_object)
             
-            order_access_list_id: Optional[int] = await LegalEntityQueryAndStatementManager.get_order_access_list_id_by_legal_entity_uuid(
+            application_access_list_id: Optional[int] = await LegalEntityQueryAndStatementManager.get_application_access_list_id_by_legal_entity_uuid(
                 session=session,
                 legal_entity_uuid=le_uuid,
             )
-            if order_access_list_id is not None:
-                orders_access_lists_ids.append(order_access_list_id)
+            if application_access_list_id is not None:
+                applications_access_lists_ids.append(application_access_list_id)
             
-            le_orders: Dict[str, List[Optional[Order]]|Optional[int]] = await MTOrderService.get_orders(
+            le_applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationService.get_applications(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
@@ -422,9 +422,9 @@ class LegalEntityService:
                 user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else None,
                 legal_entity_uuid=le_uuid,
             )
-            for order in le_orders["data"]:
-                if order and order.uuid:
-                    order_uuids.append(order.uuid)
+            for application in le_applications["data"]:
+                if application and application.uuid:
+                    application_uuids.append(application.uuid)
         
         for _, _, dir_uuid in le_ids_with_le_data_ids_with_dir_uuid:
             try:
@@ -441,19 +441,19 @@ class LegalEntityService:
                 )
             except: ...  # noqa: E722
         try:
-            await OrderService.delete_orders(
+            await ApplicationService.delete_applications(
                 session=session,
                 
                 requester_user_id=requester_user_id,
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 
-                orders_uuids=order_uuids,
+                applications_uuids=application_uuids,
             )
         except: ...  # noqa: E722
-        cls.__delete_orders_access_lists(
+        cls.__delete_applications_access_lists(
             session=session,
-            orders_access_lists_ids=orders_access_lists_ids,
+            applications_access_lists_ids=applications_access_lists_ids,
         )
         await LegalEntityQueryAndStatementManager.delete_legal_entities(
             session=session,
@@ -463,14 +463,14 @@ class LegalEntityService:
         )
     
     @staticmethod
-    async def __delete_orders_access_lists(
+    async def __delete_applications_access_lists(
         session: AsyncSession,
         
-        orders_access_lists_ids: List[int],
+        applications_access_lists_ids: List[int],
     ) -> None:
-        await LegalEntityQueryAndStatementManager.delete_orders_access_lists(
+        await LegalEntityQueryAndStatementManager.delete_applications_access_lists(
             session=session,
-            orders_access_lists_ids=orders_access_lists_ids,
+            applications_access_lists_ids=applications_access_lists_ids,
         )
     
     @staticmethod

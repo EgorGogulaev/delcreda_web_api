@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import Tuple
 
 
-MT_ORDER_TYPE: List[Tuple] = [
+MT_APPLICATION_TYPE: List[Tuple] = [
     (1, "ПР1.1", 
     """
         1.Получение и анализ заявки Принципала по форме Агента

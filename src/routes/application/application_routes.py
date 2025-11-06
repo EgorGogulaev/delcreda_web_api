@@ -9,25 +9,25 @@ from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
 from src.service.reference_service import ReferenceService
-from src.service.order.order_service import OrderService
+from src.service.application.application_service import ApplicationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 
 
 router = APIRouter(
-    tags=["Order"],
+    tags=["Application"],
 )
 
 
 @router.put(
-    "/change_orders_status",
+    "/change_applications_status",
     description="""
-    Изменение статуса Поручения.
+    Изменение статуса Заявки.
     (Доступно только Админу)
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("3/second")
-async def change_orders_status(
+async def change_applications_status(
     request: Request,
     status: Literal[
         "Requested",
@@ -38,9 +38,9 @@ async def change_orders_status(
         "Completed_successfully",
         "Completed_unsuccessfully",
     ],
-    order_uuids: List[str] = Query(
+    application_uuids: List[str] = Query(
         [],
-        description="Массив UUID-Поручений к изменению Cтатуса Поручение."
+        description="Массив UUID-Заявок к изменению Cтатуса."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -50,19 +50,19 @@ async def change_orders_status(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await OrderService.change_orders_status(
+        await ApplicationService.change_applications_status(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
             status=status,
-            order_uuids=order_uuids,
+            application_uuids=application_uuids,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача)
         
-        response_content = {"msg": "Статус/ы Поручения/ий успешно изменен/ы."}
+        response_content = {"msg": "Статус/ы Заявки/ок успешно изменен/ы."}
         return JSONResponse(content=response_content)
     except AssertionError as e:
         error_message = str(e)
@@ -79,10 +79,10 @@ async def change_orders_status(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="change_orders_status",
+                endpoint="change_applications_status",
                 params={
                     "status": status,
-                    "order_uuids": order_uuids,
+                    "application_uuids": application_uuids,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -92,24 +92,24 @@ async def change_orders_status(
             return JSONResponse(content=response_content)
 
 @router.put(
-    "/change_orders_edit_status",
+    "/change_applications_edit_status",
     description="""
-    Изменение возможности Пользователем редактировать данные Поручении.
+    Изменение возможности Пользователем редактировать данные Заявок.
     (Может вызвать только Админ)
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("3/second")
-async def change_orders_edit_status(
+async def change_applications_edit_status(
     request: Request,
-    order_uuids: List[str] = Query(
+    application_uuids: List[str] = Query(
         [],
-        description="Массив UUID-Поручений к изменению возможности редактировать Поручение Пользователем."
+        description="Массив UUID-Заявок к изменению возможности редактировать Заявок Пользователем."
     ),
     
     edit_status: bool = Query(
         ...,
-        description="Значение на которое будет изменен возможности редактировать Поручение Пользователем.",
+        description="Значение на которое будет изменен статус возможности редактировать Заявки Пользователем.",
         example=False
     ),
     
@@ -120,19 +120,19 @@ async def change_orders_edit_status(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await OrderService.change_orders_edit_status(
+        await ApplicationService.change_applications_edit_status(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            order_uuids=order_uuids,
+            application_uuids=application_uuids,
             edit_status=edit_status,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача)
         
-        return JSONResponse(content={"msg": f"Возможность редактирования Поручения/ий изменена на {edit_status}."})
+        return JSONResponse(content={"msg": f"Возможность редактирования Заявки/ок изменена на {edit_status}."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -148,9 +148,9 @@ async def change_orders_edit_status(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="change_orders_edit_status",
+                endpoint="change_applications_edit_status",
                 params={
-                    "order_uuids": order_uuids,
+                    "application_uuids": application_uuids,
                     "edit_status": edit_status,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
@@ -162,18 +162,18 @@ async def change_orders_edit_status(
 
 
 @router.delete(
-    "/delete_orders",
+    "/delete_applications",
     description="""
-    Удаление Поручений.
+    Удаление Заявок.
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("3/second")
-async def delete_orders(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов
+async def delete_applications(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов
     request: Request,
-    orders_uuids: List[str] = Query(
+    applications_uuids: List[str] = Query(
         [],
-        description="Массив UUID-Поручений к удалению."
+        description="Массив UUID-Заявок к удалению."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -183,19 +183,19 @@ async def delete_orders(  # TODO Нужно предусмотреть пара�
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await OrderService.delete_orders(
+        await ApplicationService.delete_applications(
             session=session,
             
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            orders_uuids=orders_uuids,
+            applications_uuids=applications_uuids,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача)
         
-        return JSONResponse(content={"msg": "Поручения успешно удалено/ы."})
+        return JSONResponse(content={"msg": "Заявка/и успешно удалена/ы."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -211,9 +211,9 @@ async def delete_orders(  # TODO Нужно предусмотреть пара�
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="delete_orders",
+                endpoint="delete_applications",
                 params={
-                    "orders_uuids": orders_uuids,
+                    "applications_uuids": applications_uuids,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],

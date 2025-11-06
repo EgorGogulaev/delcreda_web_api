@@ -8,7 +8,7 @@ from config import APP_LOGIN, APP_PASSWORD
 from connection_module import async_session_maker
 from src.schemas.reference_schema import FiltersServiceNote, OrdersServiceNote
 from src.models.legal_entity.legal_entity_models import LegalEntity
-from src.models.order.order_models import Order
+from src.models.application.application_models import Application
 from src.models.notification_models import Notification
 from src.models.file_store_models import Document, Directory
 from src.models.reference_models import ErrLog, ServiceNote
@@ -30,9 +30,9 @@ class ReferenceQueryAndStatementManager:
         session: AsyncSession,
         
         uuid: str,
-        object_type: Literal["Directory", "Document", "Notification", "Legal entity", "Order",]
+        object_type: Literal["Directory", "Document", "Notification", "Legal entity", "Application",]
     ) -> bool:
-        """Проверка наличия uuid для файла/директории/уведомления/ЮЛ/ПР. Возвращает Fasle если uuid свободен."""
+        """Проверка наличия uuid для Файла/Директории/Уведомления/ЮЛ/Заявки. Возвращает Fasle если uuid свободен."""
         match object_type:
             case "Document":
                 table = Document
@@ -42,8 +42,8 @@ class ReferenceQueryAndStatementManager:
                 table = Notification
             case "Legal entity":
                 table = LegalEntity
-            case "Order":
-                table = Order
+            case "Application":
+                table = Application
         query = (
             select(table.id)
             .filter(table.uuid == uuid)

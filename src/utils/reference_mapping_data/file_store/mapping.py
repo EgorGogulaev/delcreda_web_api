@@ -28,13 +28,13 @@ DOCUMENT_TYPE_FOR_KEYS: List[int] = list(range(1, 16))
 DIRECTORY_TYPE_MAPPING: Dict[str, int] = {
     "Пользовательская директория": 1,
     "Директория ЮЛ": 2,
-    "Директория поручения": 3,
+    "Директория заявки": 3,
 }
 
 DIRECTORY_TYPE_FOR_KEYS:  List[int] = list(range(1, 4))
 # ______________________________________________________________________
 
 FILE_STORE_SUBJECT_MAPPING: Dict[str, int] = {
-    "Поручение": 1,
+    "Заявка": 1,
     "ЮЛ": 2,
 }

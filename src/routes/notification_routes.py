@@ -43,9 +43,9 @@ async def notify(
         ...,
         description="Кому предназначается Уведомление? (true-Админу/false-Пользователю)",
     ),
-    subject: Literal["Order", "Legal_entity", "Preliminary_calculation", "Other",] = Query(
+    subject: Literal["Application", "Legal_entity", "Preliminary_calculation", "Other",] = Query(
         ...,
-        description="На какую тему Уведомление? (ЮЛ/ПР/Прочее/Предварительный расчет)",
+        description="На какую тему Уведомление? (ЮЛ/Заявка/Прочее/Предварительный расчет)",
     ),
     
     subject_uuid: Optional[str] = Query(
@@ -87,8 +87,8 @@ async def notify(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="Поручение" if subject == "Order" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее",
-            subject_uuid=subject_uuid if subject == "Order" else subject_uuid if subject == "Legal_entity" else None,
+            subject="Заявка" if subject == "Application" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее",
+            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Legal_entity" else None,
             for_admin=for_admin,
             data=data.model_dump()["data"],
             recipient_user_uuid=recipient_user_uuid,
@@ -149,13 +149,13 @@ async def get_notifications(
         True,
         description="Фильтр по назначению Уведомлений. (true-для Админа/false-для Пользователя)"
     ),
-    subject: Literal["Order", "Legal_entity", "Preliminary_calculation", "Other", "All"] = Query(
+    subject: Literal["Application", "Legal_entity", "Preliminary_calculation", "Other", "All"] = Query(
         "All",
-        description="Фильтр по теме Уведомлений (ЮЛ/ПР/Предварительный расчет/Прочее/Все) (Для ЮЛ дополнительно отдает уведомления по его ПР)."
+        description="Фильтр по теме Уведомлений (ЮЛ/Заявка/Предварительный расчет/Прочее/Все) (Для ЮЛ дополнительно отдает уведомления по его Заявкам)."
     ),
     subject_uuid: Optional[str] = Query(
         None,
-        description="(None, если subject='All') Фильтр по UUID сущности по которой отправлены Уведомления (Для ЮЛ дополнительно отдает уведомления по его ПР).",
+        description="(None, если subject='All') Фильтр по UUID сущности по которой отправлены Уведомления (Для ЮЛ дополнительно отдает уведомления по его Заявкам).",
         min_length=36,
         max_length=36
     ),
@@ -212,8 +212,8 @@ async def get_notifications(
             requester_user_privilege=user_data["privilege_id"],
             
             for_admin=for_admin,
-            subject="Поручение" if subject == "Order" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
-            subject_uuid=subject_uuid if subject == "Order" else subject_uuid if subject == "Legal_entity" else None,
+            subject="Заявка" if subject == "Application" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
+            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Legal_entity" else None,
             initiator_user_uuid=initiator_user_uuid,
             recipient_user_uuid=recipient_user_uuid,
             
@@ -303,9 +303,9 @@ async def get_count_notifications(
         "Yes",
         description="Только непрочитанные? ('Yes'/'No')"
     ),
-    notification_subject: Literal["Order", "Legal_entity", "Other", "Preliminary_calculation", "All"] = Query(
+    notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"] = Query(
         "All",
-        description="Категория по которой получаем количество Уведомлений. (ЮЛ/ПР/Прочие/Все)"
+        description="Категория по которой получаем количество Уведомлений. (ЮЛ/Заявки/Прочие/Все)"
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),

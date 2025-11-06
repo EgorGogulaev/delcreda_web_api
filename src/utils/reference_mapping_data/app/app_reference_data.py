@@ -430,7 +430,7 @@ CURRENCY: List[Tuple] = [
 #     (4, "Частное лицо"),
 # ]
 
-# ORDER_STATUS_MT: List[Tuple] = [
+# APPLICATION_STATUS_MT: List[Tuple] = [
 #     (1, "Запрошен"),
 #     (2, "Создан заказ"),
 #     (3, "Заказ подтвержден"),

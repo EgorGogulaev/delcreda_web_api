@@ -2,8 +2,8 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.comment_subject_models import CommentSubject
-from src.query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
 from src.query_and_statement.comment_subject_qas_manager import CommentSubjectQueryAndStatementManager
 from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -24,7 +24,7 @@ class CommentSubjectService:
         data: Optional[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете создавать Комментарии для {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"}!')
+            raise AssertionError(f'Вы не можете создавать Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
         
         is_exists: bool = await CommentSubjectQueryAndStatementManager.check_exist(
             session=session,
@@ -32,7 +32,7 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert not is_exists, f'Комментарий для данного {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"} уже создан, его можно обновить или удалить!'
+        assert not is_exists, f'Комментарий для данного/й {"Заяявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} уже создан, его можно обновить или удалить!'
         
         await CommentSubjectQueryAndStatementManager.create_comment_subject(
             session=session,
@@ -54,15 +54,15 @@ class CommentSubjectService:
         subject_uuid: str,
     ) -> List[Optional[CommentSubject]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение":
-                order_check_access_response_object: Optional[Tuple[int, int, str]] = await MTOrderQueryAndStatementManager.check_access(
+            if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка":
+                application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
-                    order_uuid=subject_uuid,
+                    application_uuid=subject_uuid,
                 )
-                assert order_check_access_response_object, "Вы не можете делать Уведомления для по данному uuid-Поручения!"
+                assert application_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-Заявки!"
             
             else:
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
@@ -72,7 +72,7 @@ class CommentSubjectService:
                     requester_user_privilege=requester_user_privilege,
                     legal_entity_uuid=subject_uuid,
                 )
-                assert le_check_access_response_object, "Вы не можете делать Уведомления для по данному uuid-ЮЛ!"
+                assert le_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-ЮЛ!"
         
         comment: List[Optional[CommentSubject]] = await CommentSubjectQueryAndStatementManager.get_comment_subject(
             session=session,
@@ -96,7 +96,7 @@ class CommentSubjectService:
         new_data: Optional[str] = "~",
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"}!')
+            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
         
         assert new_data != "~", "Нужен какой-то контент для изменения Комментария"
         
@@ -106,7 +106,7 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert is_exists, f'Комментарий для данного {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"} еще не создан!'
+        assert is_exists, f'Комментарий для данного {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} еще не создан!'
         
         await CommentSubjectQueryAndStatementManager.update_comment_subject(
             session=session,
@@ -128,7 +128,7 @@ class CommentSubjectService:
         subject_uuid: str,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"}!')
+            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
         
         is_exists: bool = await CommentSubjectQueryAndStatementManager.check_exist(
             session=session,
@@ -136,7 +136,7 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert is_exists, f'Комментарий для данного {"Поручения" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Поручение" else "ЮЛ"} отсутствует!'
+        assert is_exists, f'Комментарий для данного {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} отсутствует!'
         
         await CommentSubjectQueryAndStatementManager.delete_comment_subject(
             session=session,

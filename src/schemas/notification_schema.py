@@ -54,7 +54,7 @@ class OrdersNotifications(BaseModel):
 class NotificationData(BaseModel):
     uuid: str = Field(..., description="UUID уведомления.")
     for_admin: bool = Field(..., description="Является ли уведомление для администратора.")
-    subject: Optional[str] = Field(None, description="Тип субъекта уведомления (Поручение/ЮЛ).")
+    subject: Optional[str] = Field(None, description="Тип субъекта уведомления (Заявка/ЮЛ).")
     subject_uuid: Optional[str] = Field(None, description="UUID субъекта уведомления.")
     initiator_user_id: int = Field(..., description="ID инициатора уведомления.")
     initiator_user_uuid: str = Field(..., description="UUID инициатора уведомления.")

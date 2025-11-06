@@ -2,23 +2,23 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from src.schemas.order.order_schema import BaseOrder
-from src.utils.reference_mapping_data.order.order.mt_mapping import MT_ORDER_TYPE_MAPPING
+from src.schemas.application.application_schema import BaseApplication
+from src.utils.reference_mapping_data.application.application.mt_mapping import MT_APPLICATION_TYPE_MAPPING
 from src.schemas.reference_schema import CountryKey
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
 
-MTOrderTypeKey: type = Literal[*MT_ORDER_TYPE_MAPPING]
+MTApplicationTypeKey: type = Literal[*MT_APPLICATION_TYPE_MAPPING]
 
 
-class CreateMTOrderDataSchema(BaseModel):
-    order_name: Optional[str] = None  # Номер Поручения  (Это поле будет присутствовать во всех order-data)
+class CreateMTApplicationDataSchema(BaseModel):
+    order_name: Optional[str] = None  # Номер Поручения  (Это поле будет присутствовать во всех application-data)
     
     payment_deadline_not_earlier_than: Optional[str]
     payment_deadline_no_later_than: Optional[str]
     invoice_date: Optional[str] = None
     
-    type: MTOrderTypeKey  # type: ignore  Тип поручения
+    type: MTApplicationTypeKey  # type: ignore  Тип заявки по переводу ДС
     
     invoice_currency: Optional[str] = None  # Валюта счета
     invoice_amount: Optional[str] = None  # Сумма счета
@@ -89,7 +89,7 @@ class CreateMTOrderDataSchema(BaseModel):
     sender_company_legal_form: Optional[str] = None  # Организационно-правовая форма компании - отправителя платежа
     sender_country: Optional[CountryKey] = None # type: ignore  Страна отправителя платежа
     
-    comment: Optional[str] = None  # Комментарий к Поручению
+    comment: Optional[str] = None  # Комментарий к Заявке
 """
 поля НЕ используемы для предзаполнения:
 
@@ -103,7 +103,7 @@ amount_to_principal
 amount_credited
 vat_amount
 """
-class UpdateMTOrderDataSchema(BaseModel):
+class UpdateMTApplicationDataSchema(BaseModel):
     order_name: Optional[str] = "~"                                                                                               # Номер Поручения
     
     payment_deadline_not_earlier_than: Optional[str] = "~"                # 1.1, 1.2, 1.3, 1.4,  - , 2.1,  - ,  - ,  -            # Срок оплаты не раньше V
@@ -181,20 +181,20 @@ class UpdateMTOrderDataSchema(BaseModel):
     sender_company_legal_form: Optional[str] = "~"                        #  - , 1.2,  - , 1.4,  - ,  - , 2.2,  - ,  -            # Организационно-правовая форма компании - отправителя платежа V
     sender_country: Literal[*COUNTRY_MAPPING, "~"] = "~" # type: ignore      - , 1.2,  - , 1.4,  - ,  - , 2.2,  - ,  -              Страна отправителя платежа V
     
-    comment: Optional[str] = "~"                                          # 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 3.1, 3.2           # Особенности проведения поручения V
+    comment: Optional[str] = "~"                                          # 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 3.1, 3.2           # Особенности проведения заявки V
 
 
-class ExtendedMTOrder(BaseOrder):
-    type: Optional[str] = Field(None, description="Тип поручения по MT.")
-    priority: Optional[str] = Field(None, description="Приоритет поручения.")
+class ExtendedMTApplication(BaseApplication):
+    type: Optional[str] = Field(None, description="Тип заявки по MT.")
+    priority: Optional[str] = Field(None, description="Приоритет заявки.")
     user_login: Optional[str] = Field(None, description="Логин Пользователя, который создал ПР.")
     legal_entity_name_latin: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (латиница).")
     legal_entity_name_national: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (национальное написание).")
     data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных ПР (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
     order_name: Optional[str] = Field(None, "Номер Поручения.")
 
-class ResponseGetMTOrders(BaseModel):
-    data: List[Optional[Union[BaseOrder, ExtendedMTOrder]]] = Field([], description="Массив Поручений по MT.")
+class ResponseGetMTApplications(BaseModel):
+    data: List[Optional[Union[BaseApplication, ExtendedMTApplication]]] = Field([], description="Массив Заявок по MT.")
     count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
     total_records: Optional[int] = Field(None, description="Всего записей (нужно для реализации пагинации в таблице).")
     total_pages: Optional[int] = Field(None, description="Всего страниц, с текущим размером страницы(page_size).")

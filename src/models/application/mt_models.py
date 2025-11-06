@@ -3,8 +3,8 @@ from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, ForeignKey, 
 from connection_module import Base
 
 
-class MTOrderData(Base):
-    __tablename__ = "mt_order_data"
+class MTApplicationData(Base):
+    __tablename__ = "mt_application_data"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
@@ -14,7 +14,7 @@ class MTOrderData(Base):
     payment_deadline_no_later_than = Column(Date)
     invoice_date = Column(Date)
     
-    type = Column(SmallInteger, ForeignKey("mt_order_type.id", ondelete="CASCADE", onupdate="CASCADE"))
+    type = Column(SmallInteger, ForeignKey("mt_application_type.id", ondelete="CASCADE", onupdate="CASCADE"))
     
     invoice_currency = Column(SmallInteger, ForeignKey("currency.id", ondelete="CASCADE", onupdate="CASCADE"), comment="Валюта счета")
     invoice_amount = Column(Numeric, comment="Сумма счета")
@@ -89,8 +89,8 @@ class MTOrderData(Base):
     
     updated_at = Column(DateTime(timezone=True))
 
-class MTOrderType(Base):
-    __tablename__ = "mt_order_type"
+class MTApplicationType(Base):
+    __tablename__ = "mt_application_type"
     
     id = Column(SmallInteger, primary_key=True, autoincrement=True)
     

@@ -2,7 +2,7 @@
 from typing import Dict, List
 
 
-MT_ORDER_TYPE_MAPPING: Dict[str, int] = {
+MT_APPLICATION_TYPE_MAPPING: Dict[str, int] = {
     "ПР1.1": 1,
     "ПР1.2": 2,
     "ПР1.3": 3,
@@ -14,5 +14,5 @@ MT_ORDER_TYPE_MAPPING: Dict[str, int] = {
     "ПР3.2": 9,
 }
 
-MT_ORDER_TYPE_FOR_KEYS: List[int] = list(range(1, 10))
+MT_APPLICATION_TYPE_FOR_KEYS: List[int] = list(range(1, 10))
 # ______________________________________________________________________

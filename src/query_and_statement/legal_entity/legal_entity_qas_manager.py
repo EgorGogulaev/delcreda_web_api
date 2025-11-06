@@ -5,14 +5,14 @@ from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
-from src.models.order.mt_models import MTOrderData
-from src.models.order.order_models import Order
+from src.models.application.mt_models import MTApplicationData
+from src.models.application.application_models import Application
 from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
 from src.models.legal_entity.bank_details_models import BankDetails
-from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, OrderAccessList, Person
+from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, ApplicationAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
-from src.utils.reference_mapping_data.order.mapping import ORDER_TYPE_MAPPING
+from src.utils.reference_mapping_data.application.mapping import APPLICATION_TYPE_MAPPING
 
 
 class LegalEntityQueryAndStatementManager:
@@ -26,7 +26,7 @@ class LegalEntityQueryAndStatementManager:
         directory_id: int,
         directory_uuid: str,
         
-        order_access_list_id: int,
+        application_access_list_id: int,
         
         country: int,
         registration_identifier_type: str,
@@ -72,7 +72,7 @@ class LegalEntityQueryAndStatementManager:
             user_uuid=owner_user_uuid,
             directory_id=directory_id,
             directory_uuid=directory_uuid,
-            order_access_list=order_access_list_id,
+            application_access_list=application_access_list_id,
             data_id=new_le_data.id,
         )
         session.add(new_le)
@@ -84,18 +84,18 @@ class LegalEntityQueryAndStatementManager:
         return (new_le, new_le_data)
     
     @staticmethod
-    async def create_order_access_list(
+    async def create_application_access_list(
         session: AsyncSession,
     ) -> int:
         stmt = (
-            insert(OrderAccessList)
-            .returning(OrderAccessList.id)
+            insert(ApplicationAccessList)
+            .returning(ApplicationAccessList.id)
         )
         
         response = await session.execute(stmt)
-        new_order_list_access_id: int = response.scalar_one()
+        new_application_list_access_id: int = response.scalar_one()
         
-        return new_order_list_access_id
+        return new_application_list_access_id
     
     @staticmethod
     async def get_user_uuid_by_legal_entity_uuid(
@@ -195,10 +195,10 @@ class LegalEntityQueryAndStatementManager:
                     LegalEntityData.updated_at,
                     # TODO тут можно добавить вывод полей (согласовать с Юрием)
                     
-                    OrderAccessList.mt,
+                    ApplicationAccessList.mt,
                 )
                 .outerjoin(LegalEntityData, LegalEntity.data_id == LegalEntityData.id)
-                .outerjoin(OrderAccessList, LegalEntity.order_access_list == OrderAccessList.id)
+                .outerjoin(ApplicationAccessList, LegalEntity.application_access_list == ApplicationAccessList.id)
                 .filter(and_(*_filters))
             )
             if legal_entity_name_ilike:
@@ -253,19 +253,19 @@ class LegalEntityQueryAndStatementManager:
         }
     
     @staticmethod
-    async def get_order_access_list_id_by_legal_entity_uuid(
+    async def get_application_access_list_id_by_legal_entity_uuid(
         session: AsyncSession,
         
         legal_entity_uuid: str,
     ) -> Optional[int]:
         query = (
-            select(LegalEntity.order_access_list)
+            select(LegalEntity.application_access_list)
             .filter(LegalEntity.uuid == legal_entity_uuid)
         )
         response = await session.execute(query)
-        order_access_list_id: Optional[int] = response.scalar()
+        application_access_list_id: Optional[int] = response.scalar()
         
-        return order_access_list_id
+        return application_access_list_id
     
     @staticmethod
     async def update_legal_entity(
@@ -317,20 +317,20 @@ class LegalEntityQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def update_order_access_list(
+    async def update_application_access_list(
         session: AsyncSession,
         
-        order_access_list_id: int,
-        order_type_dict: Dict[str, str|bool],
+        application_access_list_id: int,
+        application_type_dict: Dict[str, str|bool],
     ) -> None:
         values_for_update = {
-            "mt": order_type_dict["MT"],
+            "mt": application_type_dict["MT"],
             # TODO тут будут другие бизнес процессы
         }
         new_values = {k: v for k, v in values_for_update.items() if v != "~"}
         stmt = (
-            update(OrderAccessList)
-            .filter(OrderAccessList.id == order_access_list_id)
+            update(ApplicationAccessList)
+            .filter(ApplicationAccessList.id == application_access_list_id)
             .values(**new_values)
         )
         await session.execute(stmt)
@@ -369,7 +369,7 @@ class LegalEntityQueryAndStatementManager:
         
         legal_entity_uuid: str,
         
-        for_create_order: bool = False,
+        for_create_application: bool = False,
         for_update_or_delete_legal_entity: bool = False,
     ) -> Optional[Tuple[int, int, str]]:
         _filters = [LegalEntity.uuid == legal_entity_uuid]
@@ -379,7 +379,7 @@ class LegalEntityQueryAndStatementManager:
             if for_update_or_delete_legal_entity:
                 _filters.append(LegalEntity.can_be_updated_by_user == True)  # noqa: E712
         
-        if for_create_order:
+        if for_create_application:
             _filters.append(LegalEntity.is_active == True)  # noqa: E712
         
         
@@ -448,34 +448,34 @@ class LegalEntityQueryAndStatementManager:
         le_ids = [le_id for le_id, _, _ in le_ids_with_le_data_ids_with_dir_uuid]
         le_data_ids = [le_data_id for _, le_data_id, _ in le_ids_with_le_data_ids_with_dir_uuid]
         
-        order_ids = []
+        application_ids = []
         
         # MT
-        query_order_and_order_data_ids_from_MT = (
-            select(Order.id, Order.data_id)
+        query_application_and_application_data_ids_from_MT = (
+            select(Application.id, Application.data_id)
             .where(
                 and_(
-                    Order.type == ORDER_TYPE_MAPPING["MT"],
-                    Order.legal_entity_id.in_(le_ids),
+                    Application.type == APPLICATION_TYPE_MAPPING["MT"],
+                    Application.legal_entity_id.in_(le_ids),
                 )
             )
         )
         # ...  TODO тут будут другие бизнес-направления
         
         # MT
-        result_MT = await session.execute(query_order_and_order_data_ids_from_MT)
+        result_MT = await session.execute(query_application_and_application_data_ids_from_MT)
         # ...  TODO тут будут другие бизнес-направления
         
         # MT
-        order_and_order_data_ids_MT: List[Tuple[int, int]] = [ids for ids in result_MT.all()]
+        application_and_application_data_ids_MT: List[Tuple[int, int]] = [ids for ids in result_MT.all()]
         # ...  TODO тут будут другие бизнес-направления
         
         # MT
-        order_ids_from_MT = [ids[0] for ids in order_and_order_data_ids_MT]
-        order_data_ids_from_MT = [ids[1] for ids in order_and_order_data_ids_MT]
+        application_ids_from_MT = [ids[0] for ids in application_and_application_data_ids_MT]
+        application_data_ids_from_MT = [ids[1] for ids in application_and_application_data_ids_MT]
         # ...  TODO тут будут другие бизнес-направления
         
-        order_ids.extend(order_ids_from_MT)
+        application_ids.extend(application_ids_from_MT)
         
         stmt_delete_le_bank_details = (
             delete(BankDetails)
@@ -487,16 +487,16 @@ class LegalEntityQueryAndStatementManager:
             .where(Person.legal_entity_uuid.in_(legal_entities_uuids))
         )
         
-        stmt_delete_orders = (
-            delete(Order)
-            .where(Order.id.in_(order_ids))
+        stmt_delete_applications = (
+            delete(Application)
+            .where(Application.id.in_(application_ids))
         )
         
         # MT
-        if order_data_ids_from_MT:
-            stmt_delete_orders_data_from_MT = (
-                delete(MTOrderData)
-                .where(MTOrderData.id.in_(order_data_ids_from_MT))
+        if application_data_ids_from_MT:
+            stmt_delete_applications_data_from_MT = (
+                delete(MTApplicationData)
+                .where(MTApplicationData.id.in_(application_data_ids_from_MT))
             )
         # ...  TODO тут будут другие бизнес-направления
         
@@ -511,10 +511,10 @@ class LegalEntityQueryAndStatementManager:
         
         await session.execute(stmt_delete_le_bank_details)
         await session.execute(stmt_delete_le_persons)
-        await session.execute(stmt_delete_orders)
+        await session.execute(stmt_delete_applications)
         # MT
-        if order_data_ids_from_MT:
-            await session.execute(stmt_delete_orders_data_from_MT)
+        if application_data_ids_from_MT:
+            await session.execute(stmt_delete_applications_data_from_MT)
         # ...  TODO тут будут другие бизнес-направления
         await session.execute(stmt_delete_le)
         await session.execute(stmt_delete_le_data)
@@ -522,14 +522,14 @@ class LegalEntityQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def delete_orders_access_lists(
+    async def delete_applications_access_lists(
         session: AsyncSession,
         
-        orders_access_lists_ids: List[int],
+        applications_access_lists_ids: List[int],
     ) -> None:
         stmt = (
-            delete(OrderAccessList)
-            .filter(OrderAccessList.id.in_(orders_access_lists_ids))
+            delete(ApplicationAccessList)
+            .filter(ApplicationAccessList.id.in_(applications_access_lists_ids))
         )
         
         await session.execute(stmt)

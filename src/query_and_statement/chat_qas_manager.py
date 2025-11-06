@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from connection_module import async_session_maker
 from src.models.chat_models import Chat, Message
 from src.models.legal_entity.legal_entity_models import LegalEntity
-from src.models.order.order_models import Order
+from src.models.application.application_models import Application
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 
 
@@ -35,11 +35,11 @@ class ChatQueryAndStatementManager:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        chat_subject: Literal["Поручение", "ЮЛ"],
+        chat_subject: Literal["Заявка", "ЮЛ"],
         subject_uuid: str,
     ) -> Optional[int]:
         async def __do(session: AsyncSession):
-            subject_table = LegalEntity if chat_subject == "ЮЛ" else Order
+            subject_table = LegalEntity if chat_subject == "ЮЛ" else Application
             
             _filters = [subject_table.uuid == subject_uuid]
             

@@ -26,7 +26,7 @@ router = APIRouter(
 @router.post(
     "/create_comment_subject",
     description="""
-    Создание Комментария для ЮЛ/ПР.
+    Создание Комментария для ЮЛ/Заявки.
     (Доступно только Админу)
     """,
     dependencies=[Depends(check_app_auth)],
@@ -34,13 +34,13 @@ router = APIRouter(
 @limiter.limit("3/second")
 async def create_comment_subject(
     request: Request,
-    comment_subject: Literal["Order", "Legal_entity"] = Query(
+    comment_subject: Literal["Application", "Legal_entity"] = Query(
         ...,
-        description="К чему будет прикреплен Коммент (ЮЛ/ПР)."
+        description="К чему будет прикреплен Коммент (ЮЛ/Заявка)."
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР к которому будет прикреплен Комментарий.",
+        description="UUID ЮЛ/Заявки к которому/ой будет прикреплен Комментарий.",
         min_length=36,
         max_length=36
     ),
@@ -64,13 +64,13 @@ async def create_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Поручение"] if comment_subject == "Order" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
             subject_uuid=subject_uuid,
             
             data=data,
         )
         
-        return JSONResponse(content={"msg": f'Комментарий для {"Поручения" if comment_subject == "Order" else "ЮЛ"} успешно создан.'})
+        return JSONResponse(content={"msg": f'Комментарий для {"Заявки" if comment_subject == "Application" else "ЮЛ"} успешно создан.'})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -102,7 +102,7 @@ async def create_comment_subject(
 @router.get(
     "/get_comment_subject",
     description="""
-    Получение Комментария для ЮЛ/ПР.
+    Получение Комментария для ЮЛ/Заявки.
     
     state: ClientState
     """,
@@ -111,13 +111,13 @@ async def create_comment_subject(
 @limiter.limit("3/second")
 async def get_comment_subject(
     request: Request,
-    comment_subject: Literal["Order", "Legal_entity"] = Query(
+    comment_subject: Literal["Application", "Legal_entity"] = Query(
         ...,
-        description="К чему прикреплен Коммент (ЮЛ/ПР)."
+        description="К чему прикреплен Коммент (ЮЛ/Заявка)."
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР к которому прикреплен Комментарий.",
+        description="UUID ЮЛ/Заявки к которому/ой прикреплен Комментарий.",
         min_length=36,
         max_length=36
     ),
@@ -145,7 +145,7 @@ async def get_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Поручение"] if comment_subject == "Order" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "application" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
             subject_uuid=subject_uuid,
         )
         if comments:
@@ -200,7 +200,7 @@ async def get_comment_subject(
 @router.put(
     "/update_comment_subject",
     description="""
-    Обновление Комментария для ЮЛ/ПР.
+    Обновление Комментария для ЮЛ/Заявки.
     (Доступно только Админу)
     """,
     dependencies=[Depends(check_app_auth)],
@@ -208,13 +208,13 @@ async def get_comment_subject(
 @limiter.limit("3/second")
 async def update_comment_subject(
     request: Request,
-    comment_subject: Literal["Order", "Legal_entity"] = Query(
+    comment_subject: Literal["Application", "Legal_entity"] = Query(
         ...,
-        description="К чему прикреплен Комментарий, в котором планируется обновление (ЮЛ/ПР)."
+        description="К чему прикреплен Комментарий, в котором планируется обновление (ЮЛ/Заявка)."
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР к которому прикреплен Комментарий, в котором планируется обновление.",
+        description="UUID ЮЛ/Заявки к которому/ой прикреплен Комментарий, в котором планируется обновление.",
         min_length=36,
         max_length=36
     ),
@@ -234,7 +234,7 @@ async def update_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Поручение"] if comment_subject == "Order" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
             subject_uuid=subject_uuid,
             
             new_data=new_data
@@ -272,7 +272,7 @@ async def update_comment_subject(
 @router.delete(
     "/delete_comment_subject",
     description="""
-    Удаление комментария для ЮЛ/ПР.
+    Удаление комментария для ЮЛ/Заявки.
     (Доступно только Админу)
     """,
     dependencies=[Depends(check_app_auth)],
@@ -280,13 +280,13 @@ async def update_comment_subject(
 @limiter.limit("3/second")
 async def delete_comment_subject(
     request: Request,
-    comment_subject: Literal["Order", "Legal_entity"] = Query(
+    comment_subject: Literal["Application", "Legal_entity"] = Query(
         ...,
-        description="К чему прикреплен Комментарий, который планируется удалить (ЮЛ/ПР)."
+        description="К чему прикреплен Комментарий, который планируется удалить (ЮЛ/Заявка)."
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР к которому прикреплен Комментарий, который планируется удалить.",
+        description="UUID ЮЛ/Заявки к которому прикреплен Комментарий, который планируется удалить.",
         min_length=36,
         max_length=36
     ),
@@ -304,7 +304,7 @@ async def delete_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Поручение"] if comment_subject == "Order" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["ЮЛ"],
             subject_uuid=subject_uuid,
         )
         

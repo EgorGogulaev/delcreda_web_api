@@ -28,7 +28,7 @@ class LegalEntity(Base):
     data_id = Column(BigInteger, ForeignKey("legal_entity_data.id", ondelete="CASCADE", onupdate="CASCADE"))
     can_be_updated_by_user = Column(Boolean, server_default="true")
     
-    order_access_list = Column(BigInteger, ForeignKey("order_access_list.id", ondelete="CASCADE", onupdate="CASCADE"))
+    application_access_list = Column(BigInteger, ForeignKey("application_access_list.id", ondelete="CASCADE", onupdate="CASCADE"))
     
     updated_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)
@@ -61,8 +61,8 @@ class LegalEntityData(Base):
     
     updated_at = Column(DateTime(timezone=True))
 
-class OrderAccessList(Base):
-    __tablename__ = "order_access_list"
+class ApplicationAccessList(Base):
+    __tablename__ = "application_access_list"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     

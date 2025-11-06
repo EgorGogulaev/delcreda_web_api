@@ -4,10 +4,11 @@ from typing import Dict, List, Literal, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.user_models import UserContact
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
 from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
-from src.query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
+from src.query_and_statement.application.mt_application_qas_manager import MTApplicationQueryAndStatementManager
 from src.models.notification_models import Notification
 from src.query_and_statement.notification_qas_manager import NotificationQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
@@ -22,7 +23,7 @@ class NotificationService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        subject: Literal["Поручение", "ЮЛ", "Прочее", "Предварительный расчет"],
+        subject: Literal["Заявка", "ЮЛ", "Прочее", "Предварительный расчет"],
         subject_uuid: Optional[str],
         for_admin: bool,
         data: str,
@@ -36,18 +37,18 @@ class NotificationService:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             assert not recipient_user_uuid, "Вы не можете делать Уведомления конкретному Пользователю!"
             
-            if subject == "Поручение":
-                order_check_access_response_object: Optional[Tuple[int, int, str]] = await MTOrderQueryAndStatementManager.check_access(  # FIXME нужно вынести из MT
+            if subject == "Заявка":
+                application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
-                    order_uuid=subject_uuid,
+                    application_uuid=subject_uuid,
                 )
-                assert order_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-Поручения!"
+                assert application_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-Заявки!"
             
             elif subject == "ЮЛ":
-                le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(  # FIXME нужно вынести из MT
+                le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
@@ -134,7 +135,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         for_admin: bool,
-        subject: Literal["Поручение", "ЮЛ", "Прочее", "Предварительный расчет", "Все"],
+        subject: Literal["Заявка", "ЮЛ", "Прочее", "Предварительный расчет", "Все"],
         subject_uuid: Optional[str],
         initiator_user_uuid: Optional[str],
         recipient_user_uuid: Optional[str],
@@ -172,15 +173,15 @@ class NotificationService:
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # TODO тут надо предусмотреть предварительные расчеты (только Админы) (!)
             if subject_uuid:
-                if subject == "Поручение":
-                    order_check_access_response_object: Optional[Tuple[int, int, str]] = await MTOrderQueryAndStatementManager.check_access(  # FIXME нужно вынести из MT
+                if subject == "Заявка":
+                    application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
                         session=session,
                         
                         requester_user_uuid=requester_user_uuid,
                         requester_user_privilege=requester_user_privilege,
-                        order_uuid=subject_uuid,
+                        application_uuid=subject_uuid,
                     )
-                    assert order_check_access_response_object, "Вы не можете просмотреть Уведомления по данному Поручению!"
+                    assert application_check_access_response_object, "Вы не можете просмотреть Уведомления по данной Заявке!"
                 
                 elif subject == "ЮЛ":
                     le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
@@ -219,7 +220,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Order", "Legal_entity", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"],
     ) -> int:
         count_unread_notifications = await NotificationQueryAndStatementManager.get_count_notifications(
             session=session,

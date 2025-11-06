@@ -7,29 +7,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user_models import UserAccount
 from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData
-from src.schemas.order.order_schema import FiltersOrders, OrdersOrders
-from src.models.order.order_models import Order
-from src.models.order.mt_models import MTOrderData
+from src.schemas.application.application_schema import FiltersApplications, OrdersApplications
+from src.models.application.application_models import Application
+from src.models.application.mt_models import MTApplicationData
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
-from src.utils.reference_mapping_data.order.mapping import ORDER_STATUS_MAPPING
+from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING
 from src.utils.bool_converter import bool_converter
 
 
-class MTOrderQueryAndStatementManager:
+class MTApplicationQueryAndStatementManager:
     @staticmethod
-    async def create_order(
+    async def create_application(
         session: AsyncSession,
         
         user_id: int,
         user_uuid: str,
         name: Optional[str],
-        new_order_uuid: str,
+        new_application_uuid: str,
         legal_entity_id: int,
         legal_entity_uuid: str,
         directory_id: int,
         directory_uuid: str,
         
-        # MTOrderData
+        # MTApplicationData
         payment_deadline_not_earlier_than: Optional[datetime.date],
         payment_deadline_no_later_than: Optional[datetime.date],
         invoice_date: Optional[datetime.date],
@@ -101,9 +101,9 @@ class MTOrderQueryAndStatementManager:
         sender_country: Optional[int],
         
         comment: Optional[str],
-    ) -> Tuple[Order, MTOrderData]:
-        # MTOrderData
-        new_mt_order_data = MTOrderData(
+    ) -> Tuple[Application, MTApplicationData]:
+        # MTApplicationData
+        new_mt_application_data = MTApplicationData(
             payment_deadline_not_earlier_than=payment_deadline_not_earlier_than,
             payment_deadline_no_later_than=payment_deadline_no_later_than,
             invoice_date=invoice_date,
@@ -168,13 +168,13 @@ class MTOrderQueryAndStatementManager:
             sender_country=sender_country,
             comment=comment,
         )
-        session.add(new_mt_order_data)
-        await session.flush()  # Генерируем ID для MTOrderData
+        session.add(new_mt_application_data)
+        await session.flush()  # Генерируем ID для MTApplicationData
         
-        # Order
-        new_order = Order(
-            uuid=new_order_uuid,
-            name=name if name else f"{datetime.datetime.now().year}-{legal_entity_id}-{new_mt_order_data.id}",  # TODO тут нужна интеграция с Delcredix
+        # Application
+        new_application = Application(
+            uuid=new_application_uuid,
+            name=name if name else f"{datetime.datetime.now().year}-{legal_entity_id}-{new_mt_application_data.id}",
             user_id=user_id,
             user_uuid=user_uuid,
             legal_entity_id=legal_entity_id,
@@ -182,25 +182,25 @@ class MTOrderQueryAndStatementManager:
             directory_id=directory_id,
             directory_uuid=directory_uuid,
             type="MT",
-            status=ORDER_STATUS_MAPPING["Запрошен"],
-            data_id=new_mt_order_data.id  # Используем сгенерированный ID
+            status=APPLICATION_STATUS_MAPPING["Запрошен"],
+            data_id=new_mt_application_data.id  # Используем сгенерированный ID
         )
         
-        session.add(new_order)
+        session.add(new_application)
         await session.commit()
         
-        await session.refresh(new_order)
-        await session.refresh(new_mt_order_data)
+        await session.refresh(new_application)
+        await session.refresh(new_mt_application_data)
         
-        return (new_order, new_mt_order_data)
+        return (new_application, new_mt_application_data)
     
     @staticmethod
-    async def get_orders(
+    async def get_applications(
         session: AsyncSession,
         
         user_uuid: Optional[str],
         legal_entity_uuid: Optional[str],
-        order_uuid_list: List[Optional[str]] = [],
+        application_uuid_list: List[Optional[str]] = [],
         
         extended_output: bool = False,
         
@@ -210,23 +210,23 @@ class MTOrderQueryAndStatementManager:
         page: Optional[int] = None,
         page_size: Optional[int] = None,
         
-        filter: Optional[FiltersOrders] = None,
-        order: Optional[OrdersOrders] = None,
-    ) -> Dict[str, List[Optional[Order]]|Optional[int]]:
+        filter: Optional[FiltersApplications] = None,
+        order: Optional[OrdersApplications] = None,
+    ) -> Dict[str, List[Optional[Application]]|Optional[int]]:
         _filters = []
         
         if user_uuid:
-            _filters.append(Order.user_uuid == user_uuid)
+            _filters.append(Application.user_uuid == user_uuid)
         
         if legal_entity_uuid:
-            _filters.append(Order.legal_entity_uuid == legal_entity_uuid)
+            _filters.append(Application.legal_entity_uuid == legal_entity_uuid)
         
-        if order_uuid_list:
-            _filters.append(Order.uuid.in_(order_uuid_list))
+        if application_uuid_list:
+            _filters.append(Application.uuid.in_(application_uuid_list))
         
         if filter is not None and filter.filters:
             for filter_item in filter.filters:
-                column = getattr(Order, filter_item.field)
+                column = getattr(Application, filter_item.field)
                 if filter_item.operator == "eq":
                     cond = column == filter_item.value
                 elif filter_item.operator == "ne":
@@ -258,7 +258,7 @@ class MTOrderQueryAndStatementManager:
         if order is not None and order.orders:
             for order_item in order.orders:
                 # Получаем атрибут модели для сортировки
-                column = getattr(Order, order_item.field)
+                column = getattr(Application, order_item.field)
                 
                 # Добавляем условие сортировки в зависимости от направления
                 if order_item.direction == "asc":
@@ -267,18 +267,18 @@ class MTOrderQueryAndStatementManager:
                     _order_clauses.append(column.desc().nulls_last())
         
         if not _order_clauses:
-            _order_clauses.append(Order.id.asc())
+            _order_clauses.append(Application.id.asc())
         # ===== КОНЕЦ блока сортировки =====
         
         if extended_output:
             query = (
                 select(
-                    Order,
+                    Application,
                     
-                    MTOrderData.type,
-                    MTOrderData.priority,
-                    MTOrderData.updated_at,
-                    MTOrderData.order_name,
+                    MTApplicationData.type,
+                    MTApplicationData.priority,
+                    MTApplicationData.updated_at,
+                    MTApplicationData.order_name,
                     
                     UserAccount.login,
                     
@@ -286,9 +286,9 @@ class MTOrderQueryAndStatementManager:
                     LegalEntityData.name_national,
                     # TODO тут можно добавить вывод полей (согласовать с Юрием)
                 )
-                .outerjoin(MTOrderData, Order.data_id == MTOrderData.id)
-                .outerjoin(UserAccount, Order.user_id == UserAccount.id)
-                .outerjoin(LegalEntity, Order.legal_entity_id == LegalEntity.id)
+                .outerjoin(MTApplicationData, Application.data_id == MTApplicationData.id)
+                .outerjoin(UserAccount, Application.user_id == UserAccount.id)
+                .outerjoin(LegalEntity, Application.legal_entity_id == LegalEntity.id)
                 .outerjoin(LegalEntityData, LegalEntity.data_id == LegalEntityData.id)
                 .filter(and_(*_filters))
                 .order_by(*_order_clauses)
@@ -304,7 +304,7 @@ class MTOrderQueryAndStatementManager:
                 )
         else:
             query = (
-                select(Order)
+                select(Application)
                 .filter(and_(*_filters))
                 .order_by(*_order_clauses)
             )
@@ -318,7 +318,7 @@ class MTOrderQueryAndStatementManager:
             page_size = 50
             
         query = query.limit(page_size).offset((page - 1) * page_size)
-        count_query = select(func.count()).select_from(Order).filter(and_(*_filters))
+        count_query = select(func.count()).select_from(Application).filter(and_(*_filters))
         
         total_records = (await session.execute(count_query)).scalar()
         total_pages = (total_records + page_size - 1) // page_size if total_records else 0
@@ -327,15 +327,16 @@ class MTOrderQueryAndStatementManager:
         
         if extended_output:
             data = [{
-                "order": item[0],
+                "application": item[0],
                 
                 "type": item[1],
                 "priority": item[2],
                 "updated_at": item[3],
+                "order_name": item[4],
                 
-                "login": item[4],
-                "name_latin": item[5],
-                "name_national": item[6],
+                "login": item[5],
+                "name_latin": item[6],
+                "name_national": item[7],
                 
                 # TODO тут можно добавить вывод полей (согласовать с Юрием)
             } for item in response.fetchall()]
@@ -349,24 +350,24 @@ class MTOrderQueryAndStatementManager:
         }
     
     @staticmethod
-    async def get_orders_data(
+    async def get_applications_data(
         session: AsyncSession,
         
-        order_uuid_list: List[Optional[int]],
+        application_uuid_list: List[Optional[int]],
         legal_entity_uuid: Optional[str],
-    ) -> List[Optional[MTOrderData]]:
+    ) -> List[Optional[MTApplicationData]]:
         _filters = []
         
-        if order_uuid_list:
-            _filters.append(Order.uuid.in_(order_uuid_list))
+        if application_uuid_list:
+            _filters.append(Application.uuid.in_(application_uuid_list))
         
         if legal_entity_uuid:
-            _filters.append(Order.legal_entity_uuid == legal_entity_uuid)
+            _filters.append(Application.legal_entity_uuid == legal_entity_uuid)
         
         query = (
-            select(MTOrderData)
-            .select_from(MTOrderData)
-            .outerjoin(Order, Order.data_id == MTOrderData.id)
+            select(MTApplicationData)
+            .select_from(MTApplicationData)
+            .outerjoin(Application, Application.data_id == MTApplicationData.id)
             .where(
                 and_(
                     *_filters
@@ -379,11 +380,12 @@ class MTOrderQueryAndStatementManager:
         return result
     
     @staticmethod
-    async def update_order_data(
+    async def update_application_data(
         session: AsyncSession,
         
-        order_data_id: int,
+        application_data_id: int,
         
+        order_name: Optional[str],
         payment_deadline_not_earlier_than: Optional[str],
         payment_deadline_no_later_than: Optional[str],
         invoice_date: Optional[str],
@@ -451,6 +453,7 @@ class MTOrderQueryAndStatementManager:
         comment: Optional[str],
     ) -> None:
         values_for_update = {
+            "order_name": order_name,
             "payment_deadline_not_earlier_than": datetime.datetime.strptime(payment_deadline_not_earlier_than, "%d.%m.%Y").date() if payment_deadline_not_earlier_than and payment_deadline_not_earlier_than != "~" else "~" if payment_deadline_not_earlier_than == "~" else None,
             "payment_deadline_no_later_than": datetime.datetime.strptime(payment_deadline_no_later_than, "%d.%m.%Y").date() if payment_deadline_no_later_than and payment_deadline_no_later_than != "~" else "~" if payment_deadline_no_later_than == "~" else None,
             "invoice_date": datetime.datetime.strptime(invoice_date, "%d.%m.%Y").date() if invoice_date and invoice_date != "~" else "~",
@@ -523,8 +526,8 @@ class MTOrderQueryAndStatementManager:
         new_values = {k: v for k, v in values_for_update.items() if v != "~"}
         
         stmt = (
-            update(MTOrderData)
-            .filter(MTOrderData.id == order_data_id)
+            update(MTApplicationData)
+            .filter(MTApplicationData.id == application_data_id)
             .values(**new_values)
         )
         

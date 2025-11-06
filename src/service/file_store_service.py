@@ -1,4 +1,3 @@
-# FIXME ПРОТЕСТИРОВАТЬ
 import os
 import posixpath
 from pathlib import Path

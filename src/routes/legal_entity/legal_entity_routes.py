@@ -15,7 +15,7 @@ from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
 from src.schemas.legal_entity.legal_entity_schema import (
     BaseLegalEntity, ExtendedLegalEntity, FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, PersonData, RegistrationIdentifierType,
-    CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdateOrderAccessList, UpdatePerson,
+    CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdateApplicationAccessList, UpdatePerson,
 )
 from src.schemas.reference_schema import CountryKey
 from src.service.notification_service import NotificationService
@@ -281,7 +281,7 @@ async def get_legal_entities(
                         data_id=le["legal_entity"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=le["legal_entity"].can_be_updated_by_user,
                         mt=le["mt"],
-                        order_access_list=le["legal_entity"].order_access_list,
+                        application_access_list=le["legal_entity"].application_access_list,
                         updated_at=convert_tz(le["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].updated_at else None,
                         created_at=convert_tz(le["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].created_at else None,
                     )
@@ -303,7 +303,7 @@ async def get_legal_entities(
                         data_id=le[0].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=le[0].can_be_updated_by_user,
                         mt=le[1],
-                        order_access_list=le[0].order_access_list,
+                        application_access_list=le[0].application_access_list,
                         updated_at=convert_tz(le[0].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].updated_at else None,
                         created_at=convert_tz(le[0].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].created_at else None,
                     )
@@ -507,19 +507,19 @@ async def update_legal_entity(
             return JSONResponse(content=response_content)
 
 @router.put(
-    "/update_order_access_list",
+    "/update_application_access_list",
     description="""
-    Изменение списка доступных к созданию типов ПР.
+    Изменение списка доступных к созданию типов Заявок.
     """,
     dependencies=[Depends(check_app_auth)],
 )
-async def update_order_access_list(
+async def update_application_access_list(
     request: Request,
     
-    data_for_update: UpdateOrderAccessList,
+    data_for_update: UpdateApplicationAccessList,
     legal_entity_uuid: str = Query(
         ...,
-        description="UUID ЮЛ, в котором планируется изменение списка доступных к созданию типов ПР.",
+        description="UUID ЮЛ, в котором планируется изменение списка доступных к созданию типов Заявок.",
         min_length=36,
         max_length=36
     ),
@@ -532,7 +532,7 @@ async def update_order_access_list(
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
         
-        await LegalEntityService.update_order_access_list(
+        await LegalEntityService.update_application_access_list(
             session=session,
             
             requester_user_privilege=user_data["privilege_id"],
@@ -541,7 +541,7 @@ async def update_order_access_list(
             mt=data_for_update.mt,
             # TODO тут будут другие бизнес процессы
         )
-        response_content = {"msg": f'Список доступов к ПР для ЮЛ с UUID - "{legal_entity_uuid}" успешно изменен.'}
+        response_content = {"msg": f'Список доступов к типам Заявок для ЮЛ с UUID - "{legal_entity_uuid}" успешно изменен.'}
         return JSONResponse(content=response_content)
     except AssertionError as e:
         error_message = str(e)
@@ -558,7 +558,7 @@ async def update_order_access_list(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="update_order_access_list",
+                endpoint="update_application_access_list",
                 params={
                     "data_for_update": data_for_update.model_dump() if data_for_update else data_for_update,
                     "legal_entity_uuid": legal_entity_uuid,

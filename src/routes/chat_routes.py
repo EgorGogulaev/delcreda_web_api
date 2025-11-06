@@ -31,7 +31,7 @@ router = APIRouter(
 @router.websocket("/ws/{chat_subject}/{subject_uuid}")
 async def websocket_chat(
     websocket: WebSocket,
-    chat_subject: Literal["Order", "Legal_entity"],
+    chat_subject: Literal["Application", "Legal_entity"],
     subject_uuid: str,
     token: str = Query(...),
     manager: WSConnectionManager = Depends(lambda: ws_connection_manager),
@@ -45,7 +45,7 @@ async def websocket_chat(
     
     user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
     
-    chat_subject = "Поручение" if chat_subject == "Order" else "ЮЛ"
+    chat_subject = "Заявка" if chat_subject == "Application" else "ЮЛ"
     
     chat_id: Optional[int] = await ChatQueryAndStatementManager.check_access(
         session=None,
@@ -134,13 +134,13 @@ async def websocket_chat(
 @limiter.limit("3/second")
 async def send_message(
     request: Request,
-    chat_subject: Literal["Order", "Legal entity"] = Query(
+    chat_subject: Literal["Application", "Legal entity"] = Query(
         ...,
-        description="В какой Чат отправляем сообщение? (В Чат для ПР или для ЮЛ)"
+        description="В какой Чат отправляем сообщение? (В Чат для Заявки или для ЮЛ)"
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР в Чат которого будет отправлено сообщение.",
+        description="UUID ЮЛ/Заявки в Чат которого будет отправлено сообщение.",
         min_length=36,
         max_length=36
     ),
@@ -161,7 +161,7 @@ async def send_message(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Поручение" if chat_subject == "Order" else "ЮЛ",
+            chat_subject="Заявка" if chat_subject == "Application" else "ЮЛ",
             subject_uuid=subject_uuid,
             message=message.get("msg"),
         )
@@ -208,13 +208,13 @@ async def send_message(
 @limiter.limit("3/second")
 async def get_messages(
     request: Request,
-    chat_subject: Literal["Order", "Legal_entity"] = Query(
+    chat_subject: Literal["Application", "Legal_entity"] = Query(
         ...,
-        description="Из какого Чата достаем сообщения? (Из Чат для ПР или для ЮЛ)"
+        description="Из какого Чата достаем сообщения? (Из Чата для Заявки или для ЮЛ)"
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/ПР из Чата которого будет взяты сообщение.",
+        description="UUID ЮЛ/Заявки из Чата которой/го будут взяты сообщение.",
         min_length=36,
         max_length=36
     ),
@@ -252,7 +252,7 @@ async def get_messages(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Поручение" if chat_subject == "Order" else "ЮЛ",
+            chat_subject="Заявка" if chat_subject == "Application" else "ЮЛ",
             subject_uuid=subject_uuid,
             
             page=page,

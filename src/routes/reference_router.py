@@ -92,7 +92,7 @@ async def check_uuid(
 @router.post(
     "/create_service_note",
     description="""
-    Создание служебной заметки по Поручению/ЮЛ/Документу/Пользователю.
+    Создание служебной заметки по Заявке/ЮЛ/Документу/Пользователю.
     """,
     dependencies=[Depends(check_app_auth)],
 )
@@ -100,12 +100,12 @@ async def check_uuid(
 async def create_service_note(
     request: Request,
     subject: Literal[
-        "Поручение",
+        "Заявка",
         "ЮЛ",
         "Документ",
         "Пользователь",
     ] = Query(
-        "Поручение",
+        "Заявка",
         description="К чему будет прикреплена служебная заметка?",
     ),
     subject_uuid: str = Query(
@@ -116,7 +116,7 @@ async def create_service_note(
     ),
     title: str = Query(
         ...,
-        description="Уникальный(для отдельной сущности - Поручение, ЮЛ, Документ, Пользователь) заголовок служебной заметки.",
+        description="Уникальный(для отдельной сущности - Заявка, ЮЛ, Документ, Пользователь) заголовок служебной заметки.",
         max_length=256,
     ),
     data: Optional[str] = Query(
@@ -179,7 +179,7 @@ async def create_service_note(
 @router.post(
     "/get_service_notes",
     description="""
-    Получение служебных заметок по Поручению/ЮЛ/Документу/Пользователю.
+    Получение служебных заметок по Заявке/ЮЛ/Документу/Пользователю.
     
     filter: FiltersServiceNote
     order: OrdersServiceNote
@@ -196,7 +196,7 @@ async def get_service_notes(
         description="(Опционально) Фильтр по ID служебных заметок."
     ),
     subject: Optional[Literal[
-        "Поручение",
+        "Заявка",
         "ЮЛ",
         "Документ",
         "Пользователь",
@@ -333,7 +333,7 @@ async def update_service_note(
     ),
     new_title: str = Query(
         "~",
-        description='Новое уникальное(в рамках сущности - Поручение/ЮЛ/Документ/Пользователь) значение для заголовка служебной заметки ("~" - оставить текущее значение).',
+        description='Новое уникальное(в рамках сущности - Заявки/ЮЛ/Документ/Пользователь) значение для заголовка служебной заметки ("~" - оставить текущее значение).',
     ),
     new_data: str = Query(
         "~",
@@ -404,7 +404,7 @@ async def delete_service_notes(
         description="(Опционально) Фильтр по ID служебных заметок к удалению."
     ),
     subject: Optional[Literal[
-        "Поручение",
+        "Заявка",
         "ЮЛ",
         "Документ",
         "Пользователь",

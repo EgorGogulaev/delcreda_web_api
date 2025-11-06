@@ -24,7 +24,7 @@ class UpdateLegalEntitySchema(BaseModel):
     registration_identifier_type: str = Field("~", description="Тип регистрационного идентификатора ЮЛ. (значение '~' == оставить без изменений)")
     registration_identifier_value: str = Field("~", description="Значение регистрационного идентификатора ЮЛ. (значение '~' == оставить без изменений)")
     tax_identifier: str = Field("~", description="Значение налогового идентификатора ЮЛ. (значение '~' == оставить без изменений)")
-    is_active: bool|str = Field("~", description="Флаг возможности создания Поручений по данному ЮЛ (true-можно/false-нельзя). (значение '~' == оставить без изменений)")
+    is_active: bool|str = Field("~", description="Флаг возможности создания Заявки по данному ЮЛ (true-можно/false-нельзя). (значение '~' == оставить без изменений)")
 
 class UpdateLegalEntityDataSchema(BaseModel):
     name_latin: Optional[str] = Field("~", description="Наименование латиницей. (значение '~' == оставить без изменений)")
@@ -37,7 +37,7 @@ class UpdateLegalEntityDataSchema(BaseModel):
     postal_address: Optional[str] = Field("~", description="Почтовый адрес. (значение '~' == оставить без изменений)")
     additional_address: Optional[str] = Field("~", description="Дополнительный адрес. (значение '~' == оставить без изменений)")
 
-class UpdateOrderAccessList(BaseModel):
+class UpdateApplicationAccessList(BaseModel):
     mt: str|bool = Field("~", description="Доступ к переводам денежных средств (MT). (значение '~' == оставить без изменений)")
     # TODO ... тут будут иные бизнес направления
 
@@ -174,8 +174,8 @@ class BaseLegalEntity(BaseModel):
     directory_uuid: str = Field(..., description="UUID директории.")
     data_id: Optional[int] = Field(None, description="ID подробных данных о ЮЛ.")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем? (true - да/false - нет)")
-    mt: bool = Field(..., description="Может ли Пользователь по данному ЮЛ выполнять поручения по переводу денежных средств? (true - да/false - нет)")
-    order_access_list: int = Field(..., description="ID перечня доступных услуг для данного ЮЛ.")
+    mt: bool = Field(..., description="Может ли Пользователь по данному ЮЛ выполнять Заявки по переводу денежных средств? (true - да/false - нет)")
+    application_access_list: int = Field(..., description="ID перечня доступных услуг для данного ЮЛ.")
     is_active: bool = Field(..., description="Активно ли юридическое лицо.")
     updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о ЮЛ (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
     created_at: Optional[str] = Field(None, description="Дата-время создания записи (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")

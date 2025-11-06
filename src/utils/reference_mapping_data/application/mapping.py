@@ -2,7 +2,7 @@ from typing import Dict, List
 
 
 # ______________________________________________________________________
-ORDER_STATUS_MAPPING: Dict[str, int] = {  # TODO нужно проговорить все виды статусов с Юрием(что еще добавить, что убрать?)
+APPLICATION_STATUS_MAPPING: Dict[str, int] = {  # TODO нужно проговорить все виды статусов с Юрием(что еще добавить, что убрать?)
     "Запрошен": 1,
     "В работе": 2,
     "Отклонено": 3,
@@ -12,13 +12,13 @@ ORDER_STATUS_MAPPING: Dict[str, int] = {  # TODO нужно проговорит
     "Завершен не успешно": 7,
 }
 
-ORDER_STATUS_FOR_KEYS: List[int] = list(range(1, 8))
+APPLICATION_STATUS_FOR_KEYS: List[int] = list(range(1, 8))
 # ______________________________________________________________________
 
 # ______________________________________________________________________
-ORDER_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ
+APPLICATION_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ
     "MT": 1,
 }
 
-ORDER_TYPE_MAPPING: List[int] = list(range(1, 2))  # TODO ДОРАБОТАТЬ
+APPLICATION_TYPE_MAPPING: List[int] = list(range(1, 2))  # TODO ДОРАБОТАТЬ
 # ______________________________________________________________________

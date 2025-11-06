@@ -703,7 +703,7 @@ BANK_DETAIL_TYPE_FOR_KEYS: List[int] = list(range(1, 4))
 # ______________________________________________________________________
 
 # ______________________________________________________________________
-ORDER_STATUS_MT_MAPPING: Dict[str, int] = {
+APPLICATION_STATUS_MT_MAPPING: Dict[str, int] = {
     "Запрошен": 1,
     "Создан заказ": 2,
     "Заказ подтвержден": 3,
@@ -711,7 +711,7 @@ ORDER_STATUS_MT_MAPPING: Dict[str, int] = {
     "Отмена": 5,
 }
 
-ORDER_STATUS_MT_FOR_KEYS: List[int] = list(range(1, 7))
+APPLICATION_STATUS_MT_FOR_KEYS: List[int] = list(range(1, 7))
 # ______________________________________________________________________
 
 # ______________________________________________________________________

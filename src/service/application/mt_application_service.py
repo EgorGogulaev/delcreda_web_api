@@ -4,23 +4,23 @@ from typing import Any, Dict, List, Optional, Tuple, Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from src.query_and_statement.order.order_qas_manager import OrderQueryAndStatementManager
-from src.schemas.order.order_schema import FiltersOrders, OrdersOrders
+from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
+from src.schemas.application.application_schema import FiltersApplications, OrdersApplications
 from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
-from src.models.order.order_models import Order
-from src.models.order.mt_models import MTOrderData
+from src.models.application.application_models import Application
+from src.models.application.mt_models import MTApplicationData
 from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
-from src.query_and_statement.order.mt_order_qas_manager import MTOrderQueryAndStatementManager
+from src.query_and_statement.application.mt_application_qas_manager import MTApplicationQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
 
-class MTOrderService:
+class MTApplicationService:
     @staticmethod
-    async def create_order(
+    async def create_application(
         session: AsyncSession,
         
         # requester_user_id: int,
@@ -31,7 +31,7 @@ class MTOrderService:
         legal_entity_uuid: str,
         new_directory_uuid: Optional[str],
         
-        # OrderData
+        # ApplicationData
         payment_deadline_not_earlier_than: Optional[datetime.date],
         payment_deadline_no_later_than: Optional[datetime.date],
         invoice_date: Optional[datetime.date],
@@ -103,9 +103,9 @@ class MTOrderService:
         sender_country: Optional[int],
         
         comment: Optional[str],
-    ) -> Tuple[Tuple[Order, MTOrderData], Dict[str, str|int]]:
+    ) -> Tuple[Tuple[Application, MTApplicationData], Dict[str, str|int]]:
         
-        assert requester_user_uuid == user_uuid, "Вы не можете создать Поручение для другого Пользователя!"
+        assert requester_user_uuid == user_uuid, "Вы не можете создать Заявку для другого Пользователя!"
         
         le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
             session=session,
@@ -114,7 +114,7 @@ class MTOrderService:
             requester_user_privilege=requester_user_privilege,
             legal_entity_uuid=legal_entity_uuid,
             
-            for_create_order=True,
+            for_create_application=True,
         )
         assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует или же ЮЛ не активно!"
         
@@ -142,33 +142,33 @@ class MTOrderService:
             if user_dirs["data"][dir_id]["type"] == DIRECTORY_TYPE_MAPPING["Пользовательская директория"]:
                 parent_directory_uuid = user_dirs["data"][dir_id]["uuid"]
         assert parent_directory_uuid, "У Пользователя нет пользовательской Директории!"
-        new_order_dir_data: Dict[str, Any] = await FileStoreService.create_directory(
+        new_application_dir_data: Dict[str, Any] = await FileStoreService.create_directory(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege ,
             owner_user_uuid=requester_user_uuid,
-            directory_type=DIRECTORY_TYPE_MAPPING["Директория поручения"],
+            directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки"],
             new_directory_uuid=new_directory_uuid,
             parent_directory_uuid=parent_directory_uuid,
         )
         
-        new_order_uuid_coro = await SignalConnector.generate_identifiers(target="Поручение", count=1)
-        new_order_uuid = new_order_uuid_coro[0]
+        new_application_uuid_coro = await SignalConnector.generate_identifiers(target="Заявка", count=1)
+        new_application_uuid = new_application_uuid_coro[0]
         
-        new_order_with_data: Tuple[Order, MTOrderData] = await MTOrderQueryAndStatementManager.create_order(
+        new_application_with_data: Tuple[Application, MTApplicationData] = await MTApplicationQueryAndStatementManager.create_application(
             session=session,
             
-            name=None,  # TODO тут будет идентификатор из DELCREDIX
+            name=None,  # Значение генерируется само на уровне БД
             user_id=user_id,
             user_uuid=user_uuid,
-            new_order_uuid=new_order_uuid,
+            new_application_uuid=new_application_uuid,
             legal_entity_id=legal_entity_id,
             legal_entity_uuid=legal_entity_uuid,
-            directory_id=new_order_dir_data["id"],
-            directory_uuid=new_order_dir_data["uuid"],
+            directory_id=new_application_dir_data["id"],
+            directory_uuid=new_application_dir_data["uuid"],
             
-            # MTOrderData
+            # MTApplicationData
             payment_deadline_not_earlier_than=payment_deadline_not_earlier_than,
             payment_deadline_no_later_than=payment_deadline_no_later_than,
             invoice_date=invoice_date,
@@ -245,14 +245,14 @@ class MTOrderService:
         new_chat = await ChatService.create_chat(
             session=session,
             
-            chat_subject="Поручение",
-            subject_uuid=new_order_uuid,
+            chat_subject="Заявка",
+            subject_uuid=new_application_uuid,
         )
         
-        return new_order_with_data, new_chat
+        return new_application_with_data, new_chat
     
     @staticmethod
-    async def get_orders(
+    async def get_applications(
         session: AsyncSession,
         
         requester_user_uuid: str,
@@ -268,9 +268,9 @@ class MTOrderService:
         page: Optional[int] = None,
         page_size: Optional[int] = None,
         
-        filter: Optional[FiltersOrders] = None,
-        order: Optional[OrdersOrders] = None,
-    ) -> Dict[str, List[Optional[Order]]|Optional[int]]:
+        filter: Optional[FiltersApplications] = None,
+        order: Optional[OrdersApplications] = None,
+    ) -> Dict[str, List[Optional[Application]]|Optional[int]]:
         if page or page_size:
             assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
         if extended_output is False and any(
@@ -281,7 +281,7 @@ class MTOrderService:
         ):
             raise AssertionError("Параметры поиска по логину/наименованию ЮЛ доступны только с extended_output==true!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert legal_entity_uuid or user_uuid, "Вы не можете просмотреть все Поручения не являясь Адмиинистратором!"
+            assert legal_entity_uuid or user_uuid, "Вы не можете просмотреть все Заявки не являясь Адмиинистратором!"
             assert user_uuid == requester_user_uuid, "Вы не можете просмотреть заказы других пользователей!"
             if legal_entity_uuid:
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
@@ -293,7 +293,7 @@ class MTOrderService:
                 )
                 assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует!"
         
-        orders: Dict[str, List[Optional[Order]]|Optional[int]] = await MTOrderQueryAndStatementManager.get_orders(
+        applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
             session=session,
             
             user_uuid=user_uuid,
@@ -311,20 +311,20 @@ class MTOrderService:
             order=order,
         )
         
-        return orders
+        return applications
     
     @staticmethod
-    async def get_orders_data(
+    async def get_applications_data(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        order_uuid_list: List[Optional[str]],
+        application_uuid_list: List[Optional[str]],
         legal_entity_uuid: Optional[str],
-    ) -> List[Optional[MTOrderData]]:
+    ) -> List[Optional[MTApplicationData]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert order_uuid_list or legal_entity_uuid, "Нужно указать хотябы один uuid-Поручения или uuid-ЮЛ по которому будут запрошены данные Поручений!"
+            assert application_uuid_list or legal_entity_uuid, "Нужно указать хотябы один uuid-Заявки или uuid-ЮЛ по которому будут запрошены данные Заявки!"
             if legal_entity_uuid:
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                     session=session,
@@ -334,35 +334,36 @@ class MTOrderService:
                     legal_entity_uuid=legal_entity_uuid,
                 )
                 assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует!"
-            if order_uuid_list:
-                orders: Dict[str, List[Optional[Order]]|Optional[int]] = await MTOrderQueryAndStatementManager.get_orders(
+            if application_uuid_list:
+                applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
                     session=session,
                     
                     user_uuid=requester_user_uuid,
                     legal_entity_uuid=legal_entity_uuid,
-                    order_uuid_list=order_uuid_list,
+                    application_uuid_list=application_uuid_list,
                 )
-                user_uuid: Tuple[str] = tuple({order.user_uuid for order in orders["data"]})
-                assert len(user_uuid) == 1 and user_uuid[0] == requester_user_uuid, "Вы не можете просматривать Данные Поручений других Пользователей!"
+                user_uuid: Tuple[str] = tuple({application.user_uuid for application in applications["data"]})
+                assert len(user_uuid) == 1 and user_uuid[0] == requester_user_uuid, "Вы не можете просматривать Данные Заявок других Пользователей!"
         
-        orders_data: List[Optional[MTOrderData]] = await MTOrderQueryAndStatementManager.get_orders_data(
+        applications_data: List[Optional[MTApplicationData]] = await MTApplicationQueryAndStatementManager.get_applications_data(
             session=session,
             
-            order_uuid_list=order_uuid_list,
+            application_uuid_list=application_uuid_list,
             legal_entity_uuid=legal_entity_uuid,
         )
         
-        return orders_data
+        return applications_data
     
     @staticmethod
-    async def update_order_data(
+    async def update_application_data(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        order_uuid: str,
+        application_uuid: str,
         
+        order_name: Optional[str],
         payment_deadline_not_earlier_than: Optional[str],
         payment_deadline_no_later_than: Optional[str],
         invoice_date: Optional[str],
@@ -429,19 +430,20 @@ class MTOrderService:
         sender_country: Optional[Literal[*COUNTRY_MAPPING, "~"]], # type: ignore
         comment: Optional[str],
     ) -> None:
-        order_check_access_response_object: Optional[Tuple[int, int, str]] = await OrderQueryAndStatementManager.check_access(
+        application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            order_uuid=order_uuid,
-            for_update_or_delete_order=True,
+            application_uuid=application_uuid,
+            for_update_or_delete_application=True,
         )
-        assert order_check_access_response_object, "Вы не можете обновлять данные Поручений других Пользователей или же доступ к редактирования данного Поручения ограничен!"
+        assert application_check_access_response_object, "Вы не можете обновлять данные Заявок других Пользователей или же доступ к редактирования данной Заявки ограничен!"
         assert list(
             filter(
                 lambda x: x != "~",
                 [
+                    order_name,
                     payment_deadline_not_earlier_than,
                     payment_deadline_no_later_than,
                     invoice_date,
@@ -509,13 +511,14 @@ class MTOrderService:
                     comment,
                 ]
             )
-        ), "Хотя бы одно поле должно быть изменено для обновления данных о Поручении!"
+        ), "Хотя бы одно поле должно быть изменено для обновления данных Заявки!"
         
-        await MTOrderQueryAndStatementManager.update_order_data(
+        await MTApplicationQueryAndStatementManager.update_application_data(
             session=session,
             
-            order_data_id=order_check_access_response_object[1],
+            application_data_id=application_check_access_response_object[1],
             
+            order_name=order_name,
             payment_deadline_not_earlier_than=payment_deadline_not_earlier_than,
             payment_deadline_no_later_than=payment_deadline_no_later_than,
             invoice_date=invoice_date,

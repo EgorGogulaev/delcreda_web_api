@@ -1,6 +1,6 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
+# from fastapi.middleware.gzip import GZipMiddleware
 
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -21,8 +21,8 @@ from src.routes.comment_subject_routes import router as comment_subject_router
 from src.routes.legal_entity.legal_entity_routes import router as legal_entity_router
 from src.routes.legal_entity.bank_details_routes import router as bank_details_router
 
-from src.routes.order.order_routes import router as order_router
-from src.routes.order.mt_order_routes import router as mt_order_router
+from src.routes.application.application_routes import router as application_router
+from src.routes.application.mt_application_routes import router as mt_application_router
 
 
 
@@ -76,8 +76,8 @@ app.include_router(reference_router)
 app.include_router(chat_router)
 app.include_router(notification_router)
 app.include_router(legal_entity_router)
-app.include_router(order_router)
-app.include_router(mt_order_router)
+app.include_router(application_router)
+app.include_router(mt_application_router)
 app.include_router(bank_details_router)
 app.include_router(comment_subject_router)
 # ___________

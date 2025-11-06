@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 
-ORDER_STATUS: List[Tuple] = [
+APPLICATION_STATUS: List[Tuple] = [
     (1, "Запрошено",),
     (2, "В работе",),
     (3, "Отклонено",),
@@ -11,6 +11,6 @@ ORDER_STATUS: List[Tuple] = [
     (7, "Завершено неуспешно",),
 ]
 
-ORDER_TYPE: List[Tuple] = [
+APPLICATION_TYPE: List[Tuple] = [
     (1, "MT", "Переводы денежных средств"),
 ]

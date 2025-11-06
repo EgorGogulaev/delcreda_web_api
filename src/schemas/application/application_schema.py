@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 
 # FILTERS
-class FilterOrders(BaseModel):
+class FilterApplications(BaseModel):
     field: Literal[
         "id", "uuid", "name", "user_id", "user_uuid", "legal_entity_id", "legal_entity_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
@@ -23,10 +23,10 @@ class FilterOrders(BaseModel):
     )
     value: Optional[str|bool|int|float] = Field(..., description="Значения для логических операций фильтра.")
 
-class FiltersOrders(BaseModel):
-    filters: List[FilterOrders] = Field(..., description="Массив фильтров-объектов.")
+class FiltersApplications(BaseModel):
+    filters: List[FilterApplications] = Field(..., description="Массив фильтров-объектов.")
 
-class OrderOrders(BaseModel):
+class OrderApplications(BaseModel):
     field: Literal[
         "id", "uuid", "name", "user_id", "user_uuid", "legal_entity_id", "legal_entity_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
     ] = Field(
@@ -42,11 +42,11 @@ class OrderOrders(BaseModel):
         """
     )
 
-class OrdersOrders(BaseModel):
-    orders: List[OrderOrders] = Field(..., description="Массив объектов, описывающих сотировку.")
+class OrdersApplications(BaseModel):
+    orders: List[OrderApplications] = Field(..., description="Массив объектов, описывающих сотировку.")
 
 # RESPONSES
-class BaseOrder(BaseModel):
+class BaseApplication(BaseModel):
     uuid: str = Field(..., description="UUID заявки.")
     name: str = Field(..., description="Человекочитаемое уникальное название заявки.")
     user_id: int = Field(..., description="ID пользователя.")
@@ -55,9 +55,9 @@ class BaseOrder(BaseModel):
     legal_entity_uuid: str = Field(..., description="UUID юридического лица.")
     directory_id: int = Field(..., description="ID директории.")
     directory_uuid: str = Field(..., description="UUID директории.")
-    type: Optional[int] = Field(..., description="Тип поручения (вид услуги).")
-    status: Optional[str] = Field(None, description="Статус поручения.")  # см. ORDER_STATUS_MAPPING
-    data_id: Optional[int] = Field(None, description="ID подробных данных о Поручении.")
+    type: Optional[int] = Field(..., description="Тип заявки (вид услуги).")
+    status: Optional[str] = Field(None, description="Статус Заявки.")  # см. APPLICATION_STATUS_MAPPING
+    data_id: Optional[int] = Field(None, description="ID подробных данных о Заявке.")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем (true - да/false - нет).")
-    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о ПР (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
-    created_at: str = Field(..., description="Дата-время создания поручения (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
+    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о Заявке (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
+    created_at: str = Field(..., description="Дата-время создания Заявки (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")

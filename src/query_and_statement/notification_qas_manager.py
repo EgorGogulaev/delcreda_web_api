@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
 from src.models.user_models import UserContact
-from src.models.order.order_models import Order
+from src.models.application.application_models import Application
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
 from src.models.notification_models import Notification
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -98,19 +98,19 @@ class NotificationQueryAndStatementManager:
         
         if subject_id:
             if subject_id == NOTIFICATION_SUBJECT_MAPPING["ЮЛ"] and subject_uuid:  # Если мы фильтруем по ЮЛ и указано конкретное ЮЛ, то...
-                query = (  # выводим уведомления о ПР, которые связаны с данным ЮЛ
+                query = (  # выводим уведомления о Заявках, которые связаны с данным ЮЛ
                     query
                     .select_from(Notification)
-                    .outerjoin(Order, Notification.subject_uuid == Order.uuid,)
+                    .outerjoin(Application, Notification.subject_uuid == Application.uuid,)
                 )
                 _filters.append(
                     or_(
                         and_(
                             Notification.subject_uuid != None,  # noqa: E711
-                            Order.legal_entity_uuid == subject_uuid,
+                            Application.legal_entity_uuid == subject_uuid,
                             Notification.subject_id.in_(
                                 [
-                                    NOTIFICATION_SUBJECT_MAPPING["Поручение"],
+                                    NOTIFICATION_SUBJECT_MAPPING["Заявка"],
                                     NOTIFICATION_SUBJECT_MAPPING["ЮЛ"],
                                 ]
                             )
@@ -200,7 +200,7 @@ class NotificationQueryAndStatementManager:
             count_query = (
                 select(func.count())
                 .select_from(Notification)
-                .outerjoin(Order, Notification.subject_uuid == Order.uuid,)
+                .outerjoin(Application, Notification.subject_uuid == Application.uuid,)
                 .filter(and_(*_filters))
             )
         else:
@@ -230,7 +230,7 @@ class NotificationQueryAndStatementManager:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Order", "Legal_entity", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"],
     ) -> int:
         _filters = []
         
@@ -240,7 +240,7 @@ class NotificationQueryAndStatementManager:
         else:
             _filters.append(Notification.for_admin == True)  # noqa: E712
         
-        if notification_subject == "Order":
+        if notification_subject == "Application":
             _filters.append(Notification.subject_id == 1)
         elif notification_subject == "Legal_entity":
             _filters.append(Notification.subject_id == 2)

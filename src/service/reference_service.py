@@ -21,7 +21,7 @@ class ReferenceService:
         requester_user_privilege: int,
         
         uuid: str,
-        object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Order",]
+        object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Application",]
     ) -> bool:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise AssertionError("Вы не являетесь Администратором!")
@@ -62,12 +62,12 @@ class ReferenceService:
                     uuid=uuid,
                     object_type="Legal entity",
                 )
-            case "Order":
+            case "Application":
                 return await ReferenceQueryAndStatementManager.check_uuid(
                     session=session,
                     
                     uuid=uuid,
-                    object_type="Order",
+                    object_type="Application",
                 )
             case _:
                 raise AssertionError("Нужно указать корректный объект для проверки uuid!")
@@ -82,7 +82,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Literal["Поручение", "ЮЛ", "Документ", "Пользователь",],
+        subject: Literal["Заявка", "ЮЛ", "Документ", "Пользователь",],
         subject_uuid: str,
         title: str,
         data: Optional[str]=None,
@@ -90,14 +90,14 @@ class ReferenceService:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise AssertionError("Вы не являетесь Администратором!")
         assert all([subject, subject_uuid, title]), "Для создания служебной заметки обязательными являются: сущность к чему прикрепляется, UUID-сущности и заголовок заметки!"
-        if subject == "Поручение":
+        if subject == "Заявка":
             is_exist: bool = cls.check_uuid(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 uuid=subject_uuid,
-                object="Order",
+                object="Application",
             )
         elif subject == "ЮЛ":
             is_exist: bool = cls.check_uuid(
@@ -152,7 +152,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Optional[Literal["Поручение", "ЮЛ", "Документ", "Пользователь"]],
+        subject: Optional[Literal["Заявка", "ЮЛ", "Документ", "Пользователь"]],
         subject_uuid: Optional[str],
         
         page: Optional[int] = None,
