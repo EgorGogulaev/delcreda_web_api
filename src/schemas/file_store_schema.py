@@ -92,12 +92,12 @@ class OrdersUserDirsInfo(BaseModel):
 # RESPONSES
 # docs:
 class FileInfoFromFS(BaseModel):
-    is_exist: bool = Field(..., description="Существует ли файл в файловой системе.")
-    path: str = Field(..., description="Путь к файлу.")
-    created_at: Optional[str] = Field(None, description="Дата-время создания файла (Формат: dd.mm.YYYY HH:MM:SS server time).")
-    access_time: Optional[str] = Field(None, description="Дата-время последнего доступа (Формат: dd.mm.YYYY HH:MM:SS server time).")
-    modificated_at: Optional[str] = Field(None, description="Дата-время последней модификации (Формат: dd.mm.YYYY HH:MM:SS server time).")
+    path: Optional[str] = Field(None, description="Путь к файлу.")
     size: Optional[int] = Field(None, description="Размер файла в байтах.")
+    last_modified: Optional[str] = Field(None, description="Время последней модификации файла (ISO-формат).")
+    etag: Optional[str] = Field(None, description="Уникальный идентификатор в S3.")
+    content_type: Optional[str] = Field(None, description="Тип файла.")
+    msg: Optional[str] = Field(None, description="Поле появляется при отсутствии файла.")
 
 class BaseFileInfo(BaseModel):
     uuid: str = Field(..., description="UUID файла.")
@@ -132,13 +132,10 @@ class ResponseGetUserFilesInfo(BaseModel):
 
 # dirs:
 class DirInfoFromFS(BaseModel):
-    is_exist: bool = Field(..., description="Существует ли директория в файловой системе.")
-    path: str = Field(..., description="Путь к директории.")
-    contents: Optional[List[str]] = Field(None, description="Список содержимого директории.")
-    created_at: Optional[str] = Field(None, description="Дата-время создания директории (Формат: dd.mm.YYYY HH:MM:SS server time).")
-    access_time: Optional[str] = Field(None, description="Дата-время последнего доступа (Формат: dd.mm.YYYY HH:MM:SS server time).")
-    modificated_at: Optional[str] = Field(None, description="Дат-время последней модификации (Формат: dd.mm.YYYY HH:MM:SS server time).")
-    size: Optional[int] = Field(None, description="Размер директории в байтах.")
+    path: Optional[str] = Field(None, description="Путь к директории(префиксу).")
+    files: Optional[List[Optional[str]]] = Field([], description="Массив названий файлов, находящихся по данному пути.")
+    directories: Optional[List[Optional[str]]] = Field([], description="Массив директорий(префиксов), находящихся по данному пути.")
+    msg: Optional[str] = Field(None, description="Поле появляется при отсутствии директории(префикса).")
 
 class BaseDirInfo(BaseModel):
     uuid: str = Field(..., description="UUID директории.")
@@ -160,10 +157,3 @@ class AdminDirInfo(BaseDirInfo):
     visibility_off_user_uuid: Optional[str] = Field(None, description="UUID пользователя, выключившего видимость.")
     deleters_user_id: Optional[int] = Field(None, description="ID пользователя, удалившего директорию.")
     deleters_user_uuid: Optional[str] = Field(None, description="UUID пользователя, удалившего директорию.")
-
-class ResponseGetUserDirsInfo(BaseModel):
-    data_from_db: List[Optional[BaseDirInfo | AdminDirInfo]] = Field([], description="Информация о директориях из базы данных.")
-    data_from_fs: List[Optional[DirInfoFromFS]] = Field([], description="Информация о директориях из файловой системы (только для админов).")
-    count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
-    total_records: Optional[int] = Field(None, description="Общее количество записей.")
-    total_pages: Optional[int] = Field(None, description="Общее количество страниц.")

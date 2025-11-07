@@ -13,12 +13,10 @@ from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
 from src.schemas.file_store_schema import (
-    AdminDirInfo, AdminFileInfo,
-    BaseDirInfo, BaseFileInfo,
-    DirInfoFromFS, FileInfoFromFS,
-    FiltersUserDirsInfo, FiltersUserFilesInfo,
-    OrdersUserDirsInfo, OrdersUserFilesInfo,
-    ResponseGetUserDirsInfo, ResponseGetUserFilesInfo,
+    AdminFileInfo, BaseFileInfo, FileInfoFromFS,
+    FiltersUserFilesInfo,
+    OrdersUserFilesInfo,
+    ResponseGetUserFilesInfo,
 )
 from src.service.notification_service import NotificationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
@@ -381,162 +379,6 @@ async def get_user_files_info(
                     "uploader_user_uuid": uploader_user_uuid,
                     "directory_uuid": directory_uuid,
                     "file_uuid": file_uuid,
-                    "with_data_from_fs": with_data_from_fs,
-                    "page": page,
-                    "page_size": page_size,
-                    "filter": filter.model_dump() if filter else filter,
-                    "order": order.model_dump() if order else order,
-                },
-                msg=f"{error_message}\n{formatted_traceback}",
-                user_uuid=user_data["user_uuid"],
-            )
-            
-            response_content = {"msg": f"ОШИБКА! #{log_id}"}
-            return JSONResponse(content=response_content)
-
-@router.post(
-    "/get_user_dirs_info",
-    description="""
-    Получение информации о директориях.
-    Пользователь может запросить только информацию о своих директориях.
-    Админ может получить информацию о всех директориях, всех пользователей.
-    
-    filter: FiltersUserDirsInfo
-    order: OrdersUserDirsInfo
-    state: ClientState
-    output: ResponseGetUserDirsInfo
-    """,
-    dependencies=[Depends(check_app_auth)],
-)
-@limiter.limit("3/second")
-async def get_user_dirs_info(
-    request: Request,
-    visible: Literal["visible", "invisible", "all"] = Query(
-        "all",
-        description="Фильтр по статусу видимости."
-    ),
-    owner_user_uuid: Optional[str] = Query(
-        None,
-        description="(Опиционально) Фильтр по UUID владельца (точное совпадение).",
-        min_length=36,
-        max_length=36
-    ),
-    uploader_user_uuid: Optional[str] = Query(
-        None,
-        description="(Опиционально) Фильтр по UUID пользователя загрузившего файл (точное совпадение).",
-        min_length=36,
-        max_length=36
-    ),
-    directory_uuid: Optional[str] = Query(
-        None,
-        description="(Опиционально) Фильтр по UUID Директории (точное совпадение).",
-        min_length=36,
-        max_length=36
-    ),
-    
-    with_data_from_fs: Optional[bool] = Query(
-        None,
-        description="С данными из файловой системы?(true(null)-да/false-нет)"
-    ),
-    
-    page: Optional[int] = Query(
-        None,
-        description="Пагинация. (По умолчанию - 1)",
-        example=1
-    ),
-    page_size: Optional[int] = Query(
-        None,
-        description="Размер страницы (По умолчанию - 50).",
-        example=50
-    ),
-    
-    filter: Optional[FiltersUserDirsInfo] = None,
-    order: Optional[OrdersUserDirsInfo] = None,
-    
-    token: str = Depends(UserQaSM.get_current_user_data),
-    
-    session: AsyncSession = Depends(get_async_session),
-    
-    client_state: Optional[ClientState] = None,
-) -> ResponseGetUserDirsInfo:
-    try:
-        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
-        
-        if client_state is None:
-            client_state: ClientState = await UserService.get_client_state(
-                requester_user_uuid=user_data["user_uuid"],
-                requester_user_privilege=user_data["privilege_id"],
-                user_uuid=user_data["user_uuid"],
-            )
-        client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
-        
-        response_content = ResponseGetUserDirsInfo(
-            data_from_db=[],
-            data_from_fs=[],
-            count=0,
-            total_records=None,
-            total_pages=None,
-        )
-        
-        data_from_db: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
-            session=session,
-            
-            requester_user_uuid=user_data["user_uuid"],
-            requester_user_privilege=user_data["privilege_id"],
-            owner_user_uuid=owner_user_uuid,
-            uploader_user_uuid=uploader_user_uuid,
-            directory_uuids=[directory_uuid] if directory_uuid else None,
-            visible=True if visible == "visible" else False if visible == "invisible" else None,
-            
-            page=page,
-            page_size=page_size,
-            
-            filter=filter,
-            order=order,
-            
-            tz=client_state_data.get("tz"),
-        )
-        
-        # Обработка данных из БД
-        for dir_id, row in data_from_db["data"].items():
-            if user_data["privilege_id"] == PRIVILEGE_MAPPING["Admin"]:  # Admin
-                response_content.data_from_db.append(AdminDirInfo(**row))
-            else:
-                response_content.data_from_db.append(BaseDirInfo(**row))
-        
-        # Обработка данных из файловой системы (для админов)
-        if user_data["privilege_id"] == PRIVILEGE_MAPPING["Admin"] and with_data_from_fs is not False:
-            for dir_id in data_from_db["data"]:
-                row = data_from_db["data"][dir_id]
-                fs_info = await FileStoreService.get_dir_info_from_fs(row["path"])
-                response_content.data_from_fs.append(DirInfoFromFS(**fs_info))
-        
-        response_content.count = data_from_db["count"]
-        response_content.total_records = data_from_db["total_records"]
-        response_content.total_pages = data_from_db["total_pages"]
-        
-        return response_content
-    except AssertionError as e:
-        error_message = str(e)
-        formatted_traceback = traceback.format_exc()
-        
-        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
-        return JSONResponse(content=response_content)
-    
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        else:
-            error_message = str(e)
-            formatted_traceback = traceback.format_exc()
-            
-            log_id = await ReferenceService.create_errlog(
-                endpoint="get_user_dirs_info",
-                params={
-                    "visible": visible,
-                    "owner_user_uuid": owner_user_uuid,
-                    "uploader_user_uuid": uploader_user_uuid,
-                    "directory_uuid": directory_uuid,
                     "with_data_from_fs": with_data_from_fs,
                     "page": page,
                     "page_size": page_size,
