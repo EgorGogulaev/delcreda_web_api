@@ -568,7 +568,11 @@ class LegalEntityService:
         contact: Optional[str],
         legal_entity_uuid: Optional[str],
     ) -> str:  # возвращает uuid ЮЛ
-        person: List[Optional[Person]] = await LegalEntityQueryAndStatementManager.get_persons(person_ids=[person_id])
+        person: List[Optional[Person]] = await LegalEntityQueryAndStatementManager.get_persons(
+            session=session,
+            
+            person_ids=[person_id],
+        )
         assert person, "Ошибка доступа к записи о ФЛ!"
         
         le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(

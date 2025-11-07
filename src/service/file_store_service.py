@@ -529,9 +529,11 @@ class FileStoreService:
             raise AssertionError(f'{"Файл" if is_document else "Директория"} c uuid "{uuid}" уже удален{"" if is_document else "а"}!')
         else:
             path: str = object_info["data"][list(object_info["data"])[0]]["path"]
-            await SignalConnector.delete_s3(
-                path=path.replace("filestore/", ""),
-            )
+            try:
+                await SignalConnector.delete_s3(
+                    path=path.replace("filestore/", ""),
+                )
+            except: pass  # noqa: E701, E722
             
             await FileStoreQueryAndStatementManager.change_deletion_status(
                 session=session,

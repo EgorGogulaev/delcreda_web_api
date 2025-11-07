@@ -104,8 +104,8 @@ class MTApplicationService:
         
         comment: Optional[str],
     ) -> Tuple[Tuple[Application, MTApplicationData], Dict[str, str|int]]:
-        
-        assert requester_user_uuid == user_uuid, "Вы не можете создать Заявку для другого Пользователя!"
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            assert requester_user_uuid == user_uuid, "Вы не можете создать Заявку для другого Пользователя!"
         
         le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
             session=session,
@@ -142,11 +142,19 @@ class MTApplicationService:
             if user_dirs["data"][dir_id]["type"] == DIRECTORY_TYPE_MAPPING["Пользовательская директория"]:
                 parent_directory_uuid = user_dirs["data"][dir_id]["uuid"]
         assert parent_directory_uuid, "У Пользователя нет пользовательской Директории!"
+        
+        user_s3_login: str = await UserQueryAndStatementManager.get_user_s3_login(
+            session=session,
+            
+            user_id=user_id,
+        )
+        
         new_application_dir_data: Dict[str, Any] = await FileStoreService.create_directory(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
-            requester_user_privilege=requester_user_privilege ,
+            requester_user_privilege=requester_user_privilege,
+            owner_s3_login=user_s3_login,
             owner_user_uuid=requester_user_uuid,
             directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки"],
             new_directory_uuid=new_directory_uuid,

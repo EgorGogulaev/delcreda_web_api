@@ -35,7 +35,7 @@ router = APIRouter(
 @limiter.limit("3/second")
 async def check_uuid(
     request: Request,
-    object: Literal["User", "Directory", "Document", "Notification"] = Query(
+    object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Application"] = Query(
         "User",
         description="UUID какой сущности проверяется?"
     ),
