@@ -4,11 +4,10 @@ from typing import Dict, List, Literal, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
+from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.user_models import UserContact
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
 from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
-from src.query_and_statement.application.mt_application_qas_manager import MTApplicationQueryAndStatementManager
 from src.models.notification_models import Notification
 from src.query_and_statement.notification_qas_manager import NotificationQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
