@@ -157,3 +157,10 @@ class AdminDirInfo(BaseDirInfo):
     visibility_off_user_uuid: Optional[str] = Field(None, description="UUID пользователя, выключившего видимость.")
     deleters_user_id: Optional[int] = Field(None, description="ID пользователя, удалившего директорию.")
     deleters_user_uuid: Optional[str] = Field(None, description="UUID пользователя, удалившего директорию.")
+
+class ResponseGetUserDirsInfo(BaseModel):
+    data_from_db: List[Optional[BaseDirInfo | AdminDirInfo]] = Field([], description="Информация о директориях из базы данных.")
+    data_from_fs: List[Optional[DirInfoFromFS]] = Field([], description="Информация о директориях из файловой системы (только для админов).")
+    count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
+    total_records: Optional[int] = Field(None, description="Общее количество записей.")
+    total_pages: Optional[int] = Field(None, description="Общее количество страниц.")
