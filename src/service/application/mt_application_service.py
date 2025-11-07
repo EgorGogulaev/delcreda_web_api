@@ -133,7 +133,7 @@ class MTApplicationService:
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            owner_user_uuid=requester_user_uuid,
+            owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else user_uuid,
             visible=True,
         )
         assert user_dirs["count"], "Не найдена ни одна директория по указанным данным Пользователя!"
@@ -155,7 +155,7 @@ class MTApplicationService:
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
             owner_s3_login=user_s3_login,
-            owner_user_uuid=requester_user_uuid,
+            owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else user_uuid,
             directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки"],
             new_directory_uuid=new_directory_uuid,
             parent_directory_uuid=parent_directory_uuid,

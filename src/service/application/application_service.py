@@ -90,7 +90,8 @@ class ApplicationService:
                 application_uuid=application_uuid,
                 for_update_or_delete_application=True,
             )
-            assert application_check_access_response_object, "Вы не можете удалять информацию о Заявках других Пользователей или же доступ к редактирования данной Заявки ограничен!"
+            
+            assert application_check_access_response_object, "Вы не можете удалять информацию о Заявках других Пользователей или же доступ к редактирования данной Заявки ограничен!" if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else "Информация о ЮЛ не была найдена!"
             application_ids_with_application_data_ids_with_dir_uuid.append(application_check_access_response_object)
         
         for _, _, dir_uuid in application_ids_with_application_data_ids_with_dir_uuid:

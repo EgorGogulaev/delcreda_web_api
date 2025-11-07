@@ -11,7 +11,7 @@ from src.schemas.application.application_schema import FiltersApplications, Orde
 from src.models.application.application_models import Application
 from src.models.application.mt_models import MTApplicationData
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
-from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING
+from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING, APPLICATION_TYPE_MAPPING
 from src.utils.bool_converter import bool_converter
 
 
@@ -181,7 +181,7 @@ class MTApplicationQueryAndStatementManager:
             legal_entity_uuid=legal_entity_uuid,
             directory_id=directory_id,
             directory_uuid=directory_uuid,
-            type="MT",
+            type=APPLICATION_TYPE_MAPPING["MT"],
             status=APPLICATION_STATUS_MAPPING["Запрошен"],
             data_id=new_mt_application_data.id  # Используем сгенерированный ID
         )

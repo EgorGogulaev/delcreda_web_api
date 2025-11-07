@@ -118,7 +118,7 @@ class FileStoreQueryAndStatementManager:
             .values(
                 uuid=dir_info_data.get("uuid"),
                 parent=parent_dir_id,
-                path=dir_info_data.get("path"),
+                path=dir_info_data["path"] if dir_info_data.get("path") and dir_info_data["path"].endswith("/") else (dir_info_data["path"] + "/") if dir_info_data.get("path") else dir_info_data.get("path"),
                 type=dir_info_data.get("type"),
                 owner_user_id=owner_user_id,
                 owner_user_uuid=dir_info_data.get("owner_user_uuid"),

@@ -55,7 +55,7 @@ class BaseApplication(BaseModel):
     legal_entity_uuid: str = Field(..., description="UUID юридического лица.")
     directory_id: int = Field(..., description="ID директории.")
     directory_uuid: str = Field(..., description="UUID директории.")
-    type: Optional[int] = Field(..., description="Тип заявки (вид услуги).")
+    type: Optional[str] = Field(..., description="Тип заявки (вид услуги).")
     status: Optional[str] = Field(None, description="Статус Заявки.")  # см. APPLICATION_STATUS_MAPPING
     data_id: Optional[int] = Field(None, description="ID подробных данных о Заявке.")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем (true - да/false - нет).")

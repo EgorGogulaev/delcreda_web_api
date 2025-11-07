@@ -185,7 +185,7 @@ class UpdateMTApplicationDataSchema(BaseModel):
 
 
 class ExtendedMTApplication(BaseApplication):
-    type: Optional[str] = Field(None, description="Тип заявки по MT.")
+    mt_type: Optional[str] = Field(None, description="Тип заявки по MT.")
     priority: Optional[str] = Field(None, description="Приоритет заявки.")
     user_login: Optional[str] = Field(None, description="Логин Пользователя, который создал ПР.")
     legal_entity_name_latin: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (латиница).")

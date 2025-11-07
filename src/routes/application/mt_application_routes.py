@@ -23,7 +23,7 @@ from src.service.application.mt_application_service import MTApplicationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
 from src.utils.reference_mapping_data.application.application.mt_mapping import MT_APPLICATION_TYPE_MAPPING
-from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING
+from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING, APPLICATION_TYPE_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.tz_converter import convert_tz
 
@@ -316,7 +316,7 @@ async def get_applications(
                         uuid=application["application"].uuid,
                         name=application["application"].name,
                         
-                        type=list(MT_APPLICATION_TYPE_MAPPING)[list(MT_APPLICATION_TYPE_MAPPING.values()).index(application["type"])] if application.get("type") else application["type"],
+                        mt_type=list(MT_APPLICATION_TYPE_MAPPING)[list(MT_APPLICATION_TYPE_MAPPING.values()).index(application["type"])] if application.get("type") else application["type"],
                         priority=application["priority"],
                         user_login=application["login"],
                         legal_entity_name_latin=application["name_latin"],
@@ -331,6 +331,7 @@ async def get_applications(
                         legal_entity_uuid=application["application"].legal_entity_uuid,
                         directory_id=application["application"].directory_id,
                         directory_uuid=application["application"].directory_uuid,
+                        type="MT",
                         status=list(APPLICATION_STATUS_MAPPING)[list(APPLICATION_STATUS_MAPPING.values()).index(application["application"].status)] if application["application"].status else application["application"].status,
                         data_id=application["application"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application["application"].can_be_updated_by_user,
@@ -349,6 +350,7 @@ async def get_applications(
                         legal_entity_uuid=application.legal_entity_uuid,
                         directory_id=application.directory_id,
                         directory_uuid=application.directory_uuid,
+                        type="MT",
                         status=list(APPLICATION_STATUS_MAPPING)[list(APPLICATION_STATUS_MAPPING.values()).index(application.status)] if application.status else application.status,
                         data_id=application.data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application.can_be_updated_by_user,

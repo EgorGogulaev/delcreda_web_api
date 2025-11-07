@@ -16,9 +16,9 @@ APPLICATION_STATUS_FOR_KEYS: List[int] = list(range(1, 8))
 # ______________________________________________________________________
 
 # ______________________________________________________________________
-APPLICATION_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ
+APPLICATION_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ С ЧЕЛОВЕКОМ ОТ 
     "MT": 1,
 }
 
-APPLICATION_TYPE_MAPPING: List[int] = list(range(1, 2))  # TODO ДОРАБОТАТЬ
+APPLICATION_TYPE_FOR_KEYS: List[int] = list(range(1, 2))  # TODO ДОРАБОТАТЬ С ЧЕЛОВЕКОМ ОТ БИЗНЕСА
 # ______________________________________________________________________
