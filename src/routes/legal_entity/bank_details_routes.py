@@ -33,7 +33,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def create_banks_details(
     request: Request,
     new_banks_details: CreateBanksDetailsSchema,
@@ -106,7 +106,7 @@ async def create_banks_details(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_banks_details(
     request: Request,
     legal_entity_uuid: Optional[str] = Query(
@@ -214,7 +214,7 @@ async def get_banks_details(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_bank_details(
     request: Request,
     data_for_update: UpdateBankDetailsSchema,
@@ -293,7 +293,7 @@ async def update_bank_details(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_bank_details(
     request: Request,
     bank_details_ids: List[Optional[int]] = Query(

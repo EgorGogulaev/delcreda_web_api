@@ -42,7 +42,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def create_application(
     request: Request,
     application_data: CreateMTApplicationDataSchema,
@@ -219,7 +219,7 @@ async def create_application(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_applications(
     request: Request,
     legal_entity_uuid: Optional[str] = Query(
@@ -406,7 +406,7 @@ async def get_applications(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_applications_data(
     request: Request,
     application_uuid_list: List[Optional[str]] = Query(
@@ -569,7 +569,7 @@ async def get_applications_data(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_application_data(
     request: Request,
     data_for_update: UpdateMTApplicationDataSchema,

@@ -26,7 +26,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def change_applications_status(
     request: Request,
     status: Literal[
@@ -99,7 +99,7 @@ async def change_applications_status(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def change_applications_edit_status(
     request: Request,
     application_uuids: List[str] = Query(
@@ -168,7 +168,7 @@ async def change_applications_edit_status(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_applications(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов
     request: Request,
     applications_uuids: List[str] = Query(

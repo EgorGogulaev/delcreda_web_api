@@ -31,7 +31,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def create_comment_subject(
     request: Request,
     comment_subject: Literal["Application", "Legal_entity"] = Query(
@@ -108,7 +108,7 @@ async def create_comment_subject(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_comment_subject(
     request: Request,
     comment_subject: Literal["Application", "Legal_entity"] = Query(
@@ -205,7 +205,7 @@ async def get_comment_subject(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_comment_subject(
     request: Request,
     comment_subject: Literal["Application", "Legal_entity"] = Query(
@@ -277,7 +277,7 @@ async def update_comment_subject(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_comment_subject(
     request: Request,
     comment_subject: Literal["Application", "Legal_entity"] = Query(

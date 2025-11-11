@@ -1,14 +1,13 @@
 import datetime
-import posixpath
 from typing import List, Tuple
 
 from config import ADMIN_LOGIN, ADMIN_PASSWORD, ADMIN_TOKEN as token, ADMIN_UUID
 
 
 PRIVILEGE: List[Tuple] = [
-    (1, "Admin", "Application administration", ),
-    (2, "User", "Application user", ),
-    (3, "Intermediary", "", )
+    (1, "Admin", "Администратор web-приложения.", ),
+    (2, "Сounterparty", "Контрагент (с кем есть договор)", )
+    (3, "Client", "Клиент (с кем еще нет договора, статус при регистрации)", ),
 ]
 
 ADMIN: List[Tuple] = [

@@ -3,8 +3,8 @@ from typing import Dict
 
 PRIVILEGE_MAPPING: Dict[str, int] = {
     "Admin": 1,
-    "User": 2,
-    "Intermediary": 3,
+    "Сounterparty": 2,
+    "Client": 3,
 }
 
 SERVICE_NOTE_SUBJECT_MAPPING: Dict[str, int] = {

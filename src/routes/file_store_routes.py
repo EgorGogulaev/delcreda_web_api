@@ -38,7 +38,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def download_file(
     request: Request,
     file_uuid: str = Query(
@@ -95,7 +95,7 @@ async def download_file(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def upload_file(
     request: Request,
     directory_uuid: str = Query(
@@ -244,7 +244,7 @@ async def upload_file(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_user_files_info(
     request: Request,
     visible: Literal["visible", "invisible", "all"] = Query(
@@ -408,7 +408,7 @@ async def get_user_files_info(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_user_dirs_info(
     request: Request,
     visible: Literal["visible", "invisible", "all"] = Query(
@@ -558,7 +558,7 @@ async def get_user_dirs_info(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def change_visibility(
     request: Request,
     visibility_status: bool = Query(
@@ -630,7 +630,7 @@ async def change_visibility(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_doc_or_dir(
     request: Request,
     uuid: str = Query(

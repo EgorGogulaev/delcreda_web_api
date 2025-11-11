@@ -34,7 +34,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def notify(
     request: Request,
     data: CreateNotificationDataSchema,
@@ -142,7 +142,7 @@ async def notify(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("20/second")
+@limiter.limit("30/second")
 async def get_notifications(
     request: Request,
     for_admin: bool = Query(
@@ -296,7 +296,7 @@ async def get_notifications(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("20/second")
+@limiter.limit("30/second")
 async def get_count_notifications(
     request: Request,
     unread_only: Literal["Yes", "No"] = Query(
@@ -361,7 +361,7 @@ async def get_count_notifications(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def read_notifications(
     request: Request,
     notification_list_uuid: List[str] = Query(
@@ -420,7 +420,7 @@ async def read_notifications(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_notifications(
     request: Request,
     notification_list_uuid: List[str] = Query(

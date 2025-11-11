@@ -32,7 +32,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def check_uuid(
     request: Request,
     object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Application"] = Query(
@@ -96,7 +96,7 @@ async def check_uuid(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("2/second")
+@limiter.limit("30/second")
 async def create_service_note(
     request: Request,
     subject: Literal[
@@ -188,7 +188,7 @@ async def create_service_note(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("2/second")
+@limiter.limit("30/second")
 async def get_service_notes(
     request: Request,
     service_notes_ids: Optional[List[int]] = Query(
@@ -324,7 +324,7 @@ async def get_service_notes(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("2/second")
+@limiter.limit("30/second")
 async def update_service_note(
     request: Request,
     service_note_id: int = Query(
@@ -396,7 +396,7 @@ async def update_service_note(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("2/second")
+@limiter.limit("30/second")
 async def delete_service_notes(
     request: Request,
     service_notes_ids: Optional[List[int]] = Query(
@@ -470,7 +470,7 @@ async def delete_service_notes(
 
 
 @router.get("/get_countries", dependencies=[Depends(check_app_auth)],)
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_countries(
     request: Request,
     token: str = Depends(UserQaSM.get_current_user_data),

@@ -131,7 +131,7 @@ async def websocket_chat(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def send_message(
     request: Request,
     chat_subject: Literal["Application", "Legal entity"] = Query(
@@ -205,7 +205,7 @@ async def send_message(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_messages(
     request: Request,
     chat_subject: Literal["Application", "Legal_entity"] = Query(
@@ -320,7 +320,7 @@ async def get_messages(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_messages(
     request: Request,
     list_ids: List[int] = Query(

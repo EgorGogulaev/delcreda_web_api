@@ -22,6 +22,95 @@ router = APIRouter(
 )
 
 @router.post(
+    "/register_client",
+    description="""
+    Регистрация пользовател с правами Client.
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("30/second")
+async def register_client(
+    request: Request,
+    
+    email: str,
+    password: str,
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        ...  # TODO Реализовать (через редис + верстка)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
+                endpoint="register_client",
+                params={
+                    "email": email,
+                    "password": password,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid="-",
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.get(
+    "/confirmation_client_registration/{unique_path}",
+    description="""
+    Подтверждение регистрации аккаунта.
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("30/second")
+async def confirmation_client_registration(
+    request: Request,
+    
+    unique_path: str,
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        ...  # TODO Реализовать (через редис + верстка)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
+                endpoint="confirmation_client_registration",
+                params={
+                    "unique_path": unique_path,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid="-",
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+
+@router.post(
     "/register",
     description="""
     Регистрация пользователя.
@@ -29,7 +118,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("10/minute")
+@limiter.limit("30/second")
 async def register(
     request: Request,
     login: str = Query(
@@ -46,10 +135,10 @@ async def register(
         max_length=255,
         example="1234578",
     ),
-    privilege: Literal["User", "Intermediary"] = Query(
-        "User",
-        description="Права выдаваемые пользователю. (Доступно - Пользователь/Посредник)",
-        example="User",
+    privilege: Literal["Client", "Сounterparty"] = Query(
+        "Client",
+        description="Права выдаваемые пользователю. (Доступно - Клиент/Контрагент)",
+        example="Client",
     ),
     new_user_uuid: Optional[str] = Query(
         None,
@@ -112,7 +201,7 @@ async def register(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("10/minute")
+@limiter.limit("30/second")
 async def auth(  # TODO этот метод будет использоваться при работе с шифрованием, шифровать будем только токен (???)
     request: Request,
     data: AuthData,
@@ -150,7 +239,7 @@ async def auth(  # TODO этот метод будет использовать�
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("10/minute")
+@limiter.limit("30/second")
 async def auth_v2(
     request: Request,
     data: AuthData,
@@ -188,10 +277,10 @@ async def auth_v2(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_users_info(
     request: Request,
-    privilege: Literal["User", "Admin", "all"] = Query(
+    privilege: Literal["Client", "Сounterparty", "Admin", "all"] = Query(
         "all",
         description="Фильтр для поиска по Правам пользователей.",
         min_length=3,
@@ -311,7 +400,7 @@ async def get_users_info(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_user_info(
     request: Request,
     target_token: Optional[str] = Query(
@@ -490,7 +579,7 @@ async def delete_users(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_client_state(
     request: Request,
     user_uuid: str = Query(
@@ -545,7 +634,7 @@ async def get_client_state(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def record_client_states(
     request: Request,
     new_state: ClientState,
@@ -600,7 +689,7 @@ async def record_client_states(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_user_contact(
     request: Request,
     

@@ -41,7 +41,7 @@ router = APIRouter(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def create_legal_entity(
     request: Request,
     # LegalEntityData
@@ -182,7 +182,7 @@ async def create_legal_entity(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_legal_entities(
     request: Request,
     user_uuid: Optional[str] = Query(
@@ -354,7 +354,7 @@ async def get_legal_entities(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def change_legal_entities_edit_status(
     request: Request,
     legal_entity_uuids: List[Optional[str]] = Query(
@@ -424,7 +424,7 @@ async def change_legal_entities_edit_status(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_legal_entity(
     request: Request,
     data_for_update: UpdateLegalEntitySchema,
@@ -579,7 +579,7 @@ async def update_application_access_list(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_legal_entities_data(
     request: Request,
     legal_entities_uuid_list: List[Optional[str]] = Query(
@@ -672,7 +672,7 @@ async def get_legal_entities_data(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_legal_entity_data(
     request: Request,
     data_for_update: UpdateLegalEntityDataSchema,
@@ -765,7 +765,7 @@ async def update_legal_entity_data(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_legal_entities(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов (ЮЛ и ПР)
     request: Request,
     legal_entities_uuids: List[str] = Query(
@@ -828,7 +828,7 @@ async def delete_legal_entities(  # TODO Нужно предусмотреть �
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def create_persons(
     request: Request,
     new_persons: CreatePersonsSchema,
@@ -907,7 +907,7 @@ async def create_persons(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def get_persons(
     request: Request,
     legal_entity_uuid: Optional[str] = Query(
@@ -1033,7 +1033,7 @@ async def get_persons(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def update_person(
     request: Request,
     person_id: int,
@@ -1119,7 +1119,7 @@ async def update_person(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("3/second")
+@limiter.limit("30/second")
 async def delete_persons(
     request: Request,
     person_ids: List[Optional[int]] = Query(
