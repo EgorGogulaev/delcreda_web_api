@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
-from src.utils.reference_mapping_data.legal_entity.mapping import LegalEntityPersonRole, PersonGender
+from src.utils.reference_mapping_data.legal_entity.mapping import PersonGender
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
 
