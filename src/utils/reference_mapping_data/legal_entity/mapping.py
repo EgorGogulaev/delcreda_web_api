@@ -1,7 +1,6 @@
 from typing import Literal
 
 
-LegalEntityPersonRole: type = Literal["Подписант", "Администратор контракта", "Финансовый специалист",]
 PersonGender: type = Literal["m", "w"]
 
 # ______________________________________________________________________

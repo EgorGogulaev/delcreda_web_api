@@ -47,7 +47,7 @@ class CreatePersonSchema(BaseModel):
     patronymic: str = Field(..., description="Отчество.")
     gender: PersonGender = Field(..., description="Пол ('m'/'w').") # type: ignore
     job_title: str = Field(..., description="Должность.")
-    basic_action_signatory: LegalEntityPersonRole = Field(..., description="Роль ФЛ ('Подписант'/'Администратор контракта'/'Финансовый специалист').") # type: ignore
+    basic_action_signatory: str = Field(..., description="Роль ФЛ ('На основании чего ФЛ является подписантом').")
     power_of_attorney_number: Optional[str] = Field(None, description="(Если есть доверенность) Номер доверенности.")
     power_of_attorney_date: Optional[str] = Field(None, description="(Если есть доверенность) Дата доверенности (Формат: 'dd.mm.YYYY').")
     email: str = Field(..., description="E-mail")
