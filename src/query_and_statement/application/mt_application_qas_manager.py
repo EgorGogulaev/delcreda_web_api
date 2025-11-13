@@ -30,6 +30,7 @@ class MTApplicationQueryAndStatementManager:
         directory_uuid: str,
         
         # MTApplicationData
+        order_name: Optional[str],
         payment_deadline_not_earlier_than: Optional[datetime.date],
         payment_deadline_no_later_than: Optional[datetime.date],
         invoice_date: Optional[datetime.date],
@@ -104,6 +105,8 @@ class MTApplicationQueryAndStatementManager:
     ) -> Tuple[Application, MTApplicationData]:
         # MTApplicationData
         new_mt_application_data = MTApplicationData(
+            order_name=order_name,
+            
             payment_deadline_not_earlier_than=payment_deadline_not_earlier_than,
             payment_deadline_no_later_than=payment_deadline_no_later_than,
             invoice_date=invoice_date,

@@ -32,6 +32,7 @@ class MTApplicationService:
         new_directory_uuid: Optional[str],
         
         # ApplicationData
+        order_name: Optional[str],
         payment_deadline_not_earlier_than: Optional[datetime.date],
         payment_deadline_no_later_than: Optional[datetime.date],
         invoice_date: Optional[datetime.date],
@@ -177,6 +178,7 @@ class MTApplicationService:
             directory_uuid=new_application_dir_data["uuid"],
             
             # MTApplicationData
+            order_name=order_name,
             payment_deadline_not_earlier_than=payment_deadline_not_earlier_than,
             payment_deadline_no_later_than=payment_deadline_no_later_than,
             invoice_date=invoice_date,

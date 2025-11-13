@@ -23,14 +23,14 @@ from src.service.application.mt_application_service import MTApplicationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
 from src.utils.reference_mapping_data.application.application.mt_mapping import MT_APPLICATION_TYPE_MAPPING
-from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING, APPLICATION_TYPE_MAPPING
+from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.tz_converter import convert_tz
 
 
 router = APIRouter(
     prefix="/mt",
-    tags=["MTApplication"],
+    tags=["MT Application"],
 )
 
 @router.post(
@@ -83,6 +83,7 @@ async def create_application(
             new_directory_uuid=new_directory_uuid,
             
             # ApplicationData
+            order_name=application_data.order_name,
             payment_deadline_not_earlier_than=datetime.datetime.strptime(application_data.payment_deadline_not_earlier_than, "%d.%m.%Y").date() if application_data.payment_deadline_not_earlier_than else None,
             payment_deadline_no_later_than=datetime.datetime.strptime(application_data.payment_deadline_no_later_than, "%d.%m.%Y").date() if application_data.payment_deadline_no_later_than else None,
             invoice_date=datetime.datetime.strptime(application_data.invoice_date, "%d.%m.%Y").date() if application_data.invoice_date else None,
