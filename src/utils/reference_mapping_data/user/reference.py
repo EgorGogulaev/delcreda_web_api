@@ -6,7 +6,7 @@ from config import ADMIN_LOGIN, ADMIN_PASSWORD, ADMIN_TOKEN as token, ADMIN_UUID
 
 PRIVILEGE: List[Tuple] = [
     (1, "Admin", "Администратор web-приложения.", ),
-    (2, "Сounterparty", "Контрагент (с кем есть договор)", )
+    (2, "Сounterparty", "Контрагент (с кем есть договор)", ),
     (3, "Client", "Клиент (с кем еще нет договора, статус при регистрации)", ),
 ]
 

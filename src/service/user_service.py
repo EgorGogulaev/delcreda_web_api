@@ -1,12 +1,15 @@
+import json
+import secrets
 from typing import Any, Dict, List, Literal, Optional, Tuple
+from urllib.parse import urljoin
 from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from security import encrypt
-from config import SECRET_KEY
-from connection_module import SignalConnector
+from config import ACCESS_TTL, APP_URL, SECRET_KEY
+from connection_module import RedisConnector, SignalConnector
 from src.models.legal_entity.legal_entity_models import LegalEntity
 from src.service.legal_entity.legal_entity_service import LegalEntityService
 from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
@@ -21,46 +24,48 @@ from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_M
 
 class UserService:
     @staticmethod
-    async def auth_user(
+    async def register_client(
         session: AsyncSession,
         
-        login: str,
+        email: str,
         password: str,
-        for_flet: bool=False,
-    ) -> Dict[str, str] | ResponseAuth:
-        assert all([login, password,]), "Нужно заполнить поля Логина и Пароля!"
+    ) -> None:
+        """Самостоятельная регистрация пользователей"""
+        assert len(email) >= 3, "Длина логина должна быть больше 2 символов!"
+        assert len(password) >= 8, "Длина пароля должна быть больше 7 символов!"
         
-        user_token = await UserQueryAndStatementManager.get_user_token(
+        user_exist: bool = await UserQueryAndStatementManager.check_user_account_by_field_value(
             session=session,
             
-            login=login,
-            password=password,
+            value=email,
+            field_type="login",
         )
-        if not user_token:
-            raise AssertionError("Не верный Логин или Пароль!")
+        if user_exist is True:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким email'ом уже зарегестрирован!")
         
-        user_data: UserSchema = await UserQueryAndStatementManager.get_current_user_data(            
-            token=user_token,
-        )
-        
-        if for_flet:
-            data = {
-                "encrypt_token": encrypt(plain_text=user_token, secret_key=SECRET_KEY),
-                "encrypt_user_id": encrypt(plain_text=str(user_data.user_id), secret_key=SECRET_KEY),
-                "encrypt_user_uuid": encrypt(plain_text=user_data.user_uuid, secret_key=SECRET_KEY),
-                "encrypt_user_dir_uuid": encrypt(plain_text=user_data.user_dir_uuid, secret_key=SECRET_KEY),
-                "encrypt_privilege_id": encrypt(plain_text=str(user_data.privilege_id), secret_key=SECRET_KEY),
+        async with RedisConnector.get_async_redis_session() as redis:
+            key_token: str = secrets.token_urlsafe(48)
+            exists = await redis.exists(key_token)
+            
+            while exists:  # проверка на всякий случай, для точного избегания коллизий
+                key_token = secrets.token_urlsafe(48)
+                exists = await redis.exists(key_token)
+            
+            user_data = {
+                "type": "confirmationnewaccount",
+                "email": email,
+                "password": password,
             }
-        else:
-            data = ResponseAuth(
-                token=user_token,
-                user_id=str(user_data.user_id),
-                user_uuid=user_data.user_uuid,
-                user_dir_uuid=user_data.user_dir_uuid,
-                privilege={v:k for k, v in PRIVILEGE_MAPPING.items()}[user_data.privilege_id],
-            )
+            
+            data_dump = json.dumps(user_data, ensure_ascii=False)
+            await redis.set(key_token, data_dump, expire=ACCESS_TTL)
         
-        return data
+        url = urljoin(APP_URL, "confirmation/" + key_token)
+        await SignalConnector.notify_email(  # FIXME тут нужна верствка
+            subject="Активация аккаунта",
+            body=f"Для активации аккаунта Вам нужно пройти по ссылке:\n{url}\n\n\nНикому не показывайте это сообщение!\nНе нужно отвечать на данное сообщение, оно создано автоматически.",
+            emails=[email],
+        )
     
     @classmethod
     async def create_user(
@@ -172,6 +177,48 @@ class UserService:
             "token_id": token_id,
             "value": gen_token,
         }
+    
+    @staticmethod
+    async def auth_user(
+        session: AsyncSession,
+        
+        login: str,
+        password: str,
+        for_flet: bool=False,
+    ) -> Dict[str, str] | ResponseAuth:
+        assert all([login, password,]), "Нужно заполнить поля Логина и Пароля!"
+        
+        user_token = await UserQueryAndStatementManager.get_user_token(
+            session=session,
+            
+            login=login,
+            password=password,
+        )
+        if user_token is None:
+            raise AssertionError("Не верный Логин или Пароль!")
+        
+        user_data: UserSchema = await UserQueryAndStatementManager.get_current_user_data(            
+            token=user_token,
+        )
+        
+        if for_flet:
+            data = {
+                "encrypt_token": encrypt(plain_text=user_token, secret_key=SECRET_KEY),
+                "encrypt_user_id": encrypt(plain_text=str(user_data.user_id), secret_key=SECRET_KEY),
+                "encrypt_user_uuid": encrypt(plain_text=user_data.user_uuid, secret_key=SECRET_KEY),
+                "encrypt_user_dir_uuid": encrypt(plain_text=user_data.user_dir_uuid, secret_key=SECRET_KEY),
+                "encrypt_privilege_id": encrypt(plain_text=str(user_data.privilege_id), secret_key=SECRET_KEY),
+            }
+        else:
+            data = ResponseAuth(
+                token=user_token,
+                user_id=str(user_data.user_id),
+                user_uuid=user_data.user_uuid,
+                user_dir_uuid=user_data.user_dir_uuid,
+                privilege={v:k for k, v in PRIVILEGE_MAPPING.items()}[user_data.privilege_id],
+            )
+        
+        return data
     
     @staticmethod
     async def get_users_info(
@@ -335,6 +382,75 @@ class UserService:
             new_password=new_password,
             new_user_uuid=new_user_uuid,
         )
+    
+    @classmethod
+    async def change_password(
+        cls,
+        
+        session: AsyncSession,
+        
+        email: str,
+        old_password: str,
+        new_password: str,
+    ) -> None:
+        """Изменение пароля ПОЛЬЗОВАТЕЛЕМ с подтверждением через email."""
+        
+        await cls.auth_user(
+            session=session,
+            login=email,
+            password=old_password,
+        )
+        
+        if old_password == new_password:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Текущий пароль совпадает с новым!")
+        
+        async with RedisConnector.get_async_redis_session() as redis:
+            key_token: str = secrets.token_urlsafe(48)
+            exists = await redis.exists(key_token)
+            
+            while exists:  # проверка на всякий случай, для точного избегания коллизий
+                key_token = secrets.token_urlsafe(48)
+                exists = await redis.exists(key_token)
+            
+            change_pass_data = {
+                "type": "confirmationnewpassword",
+                "email": email,
+                "password": new_password,
+            }
+            
+            data_dump = json.dumps(change_pass_data, ensure_ascii=False)
+            await redis.set(key_token, data_dump, expire=ACCESS_TTL)
+        
+        url = urljoin(APP_URL, "confirmation/" + key_token)
+        await SignalConnector.notify_email(  # FIXME тут нужна верствка
+            subject="Изменение пароля",
+            body=f"Для изменени пароля Вам нужно пройти по ссылке:\n{url}\n\n\nНикому не показывайте это сообщение!\nНе нужно отвечать на данное сообщение, оно создано автоматически.",
+            emails=[email],
+        )
+    
+    @staticmethod
+    async def confirmation(
+        session: AsyncSession,
+        
+        unique_path: str,
+    ) -> Dict[str, str]:
+        if len(unique_path) != 64:
+            return {"type": "notfound"}
+        
+        async with RedisConnector.get_async_redis_session() as redis:
+            data = await redis.get(unique_path)
+            if data is None:
+                return {"type": "notfound"}
+            else:
+                try:
+                    data_dct: Dict[str, str] = json.loads(data.decode('utf-8'))
+                    if not isinstance(data_dct, dict):
+                        raise ValueError
+                    await redis.delete(unique_path)
+                    return data_dct
+                except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                    await redis.delete(unique_path)
+                    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Проблема с десериализацией данных!")
     
     @classmethod
     async def delete_users(

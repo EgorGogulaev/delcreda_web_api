@@ -11,6 +11,7 @@ IS_PROD = bool(int(os.getenv("IS_PROD")))
 PORT = os.getenv("PORT")
 APP_LOGIN = os.getenv("APP_LOGIN")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
+APP_URL = os.getenv("APP_URL")
 
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
@@ -24,6 +25,7 @@ PG_BOUNCER_PORT = os.getenv("PG_BOUNCER_PORT")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = os.getenv("REDIS_PORT")
+ACCESS_TTL = 3_600  # время жизни записи для подтверждения -> 1 час в секундах
 
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")

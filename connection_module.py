@@ -273,6 +273,7 @@ class SignalConnector:
         body: str,
         
         emails: List[str],
+        html: str = '',
     ) -> None:
         await cls.__http_request_signal(
             method="POST",
@@ -287,7 +288,7 @@ class SignalConnector:
                 'body': body,
                 'headers': {},
                 'attachments': [],
-                'body_html': '',
+                'body_html': html,
             }
         )
     

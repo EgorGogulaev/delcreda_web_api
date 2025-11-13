@@ -1,10 +1,13 @@
+import os
 import traceback
 from typing import Any, Dict, List, Literal, Optional
 
+import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Body, Depends, Query, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
+from config import ADMIN_UUID, ROOT_DIR
 from connection_module import get_async_session
 from security import check_app_auth
 from src.service.reference_service import ReferenceService
@@ -38,7 +41,14 @@ async def register_client(
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
-        ...  # TODO Реализовать (через редис + верстка)
+        await UserService.register_client(
+            session=session,
+            email=email,
+            password=password,
+        )
+        
+        response_content = {"msg": "На почту выслано сообщение для активации аккаунта."}
+        return JSONResponse(content=response_content)
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -67,22 +77,53 @@ async def register_client(
             return JSONResponse(content=response_content)
 
 @router.get(
-    "/confirmation_client_registration/{unique_path}",
+    "/confirmation/{unique_path}",
     description="""
     Подтверждение регистрации аккаунта.
     """,
-    dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("30/second")
-async def confirmation_client_registration(
+@limiter.limit("30/minute")
+async def confirmation(
     request: Request,
     
     unique_path: str,
     
     session: AsyncSession = Depends(get_async_session),
-) -> JSONResponse:
+) -> HTMLResponse:
     try:
-        ...  # TODO Реализовать (через редис + верстка)
+        data: Dict[str, str] = await UserService.confirmation(
+            session=session,
+            
+            unique_path=unique_path,
+        )
+        html_type = data.get("type")
+        if html_type == "confirmationnewaccount":
+            await UserService.create_user(
+                session=session,
+                
+                requester_user_uuid=ADMIN_UUID,
+                requester_user_privilege=PRIVILEGE_MAPPING["Admin"],
+                login=data.get("email"),
+                password=data.get("password"),
+                privilege=PRIVILEGE_MAPPING["Client"],
+            )
+        elif html_type == "confirmationnewpassword":
+            await UserService.update_user_info(
+                session=session,
+                
+                requester_user_uuid=ADMIN_UUID,
+                requester_user_privilege=PRIVILEGE_MAPPING["Admin"],
+                target_token=None,
+                target_user_uuid=None,
+                target_login=data.get("email"),
+                new_login=None,
+                new_password=data.get("password"),
+                new_user_uuid=None,
+            )
+        
+        async with aiofiles.open(os.path.join(ROOT_DIR, "src", "static", html_type + ".html"), "r", encoding="utf-8") as f:
+            html_content = await f.read()
+        return HTMLResponse(content=html_content)
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -98,7 +139,7 @@ async def confirmation_client_registration(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
-                endpoint="confirmation_client_registration",
+                endpoint="confirmation",
                 params={
                     "unique_path": unique_path,
                 },
@@ -388,6 +429,61 @@ async def get_users_info(
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.put(
+    "/change_password",
+    description="""
+    Изменение пароля ПОЛЬЗОВАТЕЛЕМ с подтверждением через email.
+    """,
+    dependencies=[Depends(check_app_auth)],
+)  # TODO На фронте нужно будет предусмотреть капчу от спама
+@limiter.limit("30/second")
+async def change_password(
+    request: Request,
+    
+    email: str,
+    old_password: str,
+    new_password: str,
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        await UserService.change_password(
+            session=session,
+            email=email,
+            old_password=old_password,
+            new_password=new_password,
+        )
+        
+        response_content = {"msg": "На почту отправлена ссылка для подтверждения."}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
+                endpoint="change_password",
+                params={
+                    "email": email,
+                    "old_password": old_password,
+                    "new_password": new_password,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid="-",
             )
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
