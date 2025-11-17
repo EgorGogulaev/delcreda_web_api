@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from src.models.user_models import UserContact
+from src.models.user_models import UserAccount, UserContact
 from src.models.application.application_models import Application
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
 from src.models.notification_models import Notification
@@ -16,7 +16,40 @@ from src.utils.reference_mapping_data.notification.mapping import NOTIFICATION_S
 
 class NotificationQueryAndStatementManager:
     @staticmethod
+    async def __notify_email_telegram(
+        email_notification: bool,
+        email: Optional[str],
+        telegram_notification: bool,
+        telegram: Optional[str],
+        
+        message: str,
+    ) -> None:
+        notification_ex = None
+        if email_notification:
+            if email:
+                try:
+                    await SignalConnector.notify_email(
+                        emails=[email],
+                        subject="Уведомление MT",
+                        body=message,
+                    )
+                except Exception as e:
+                    notification_ex = e
+        if telegram_notification:
+            if telegram:
+                try:
+                    await SignalConnector.notify_telegram(
+                        tg_user_name=telegram,
+                        message=message,
+                    )
+                except Exception as e:
+                    notification_ex = e
+        if notification_ex is not None:
+            raise notification_ex
+    
+    @classmethod
     async def notify(
+        cls,
         session: AsyncSession,
         
         notification_options: Dict[str, Any],
@@ -41,35 +74,45 @@ class NotificationQueryAndStatementManager:
         await session.execute(stmt)
         await session.commit()
         
-        user_contact_data: Optional[UserContact] = notification_options["user_contact_data"]
-        if user_contact_data:
-            email_notification = user_contact_data.email_notification
-            email = user_contact_data.email
-            telegram_notification = user_contact_data.telegram_notification
-            telegram = user_contact_data.telegram
+        if notification_options["for_admin"] is False:
+            user_contact_data: Optional[UserContact] = notification_options["user_contact_data"]
+            if user_contact_data:
+                email_notification = user_contact_data.email_notification
+                email = user_contact_data.email
+                telegram_notification = user_contact_data.telegram_notification
+                telegram = user_contact_data.telegram
+                
+                await cls.__notify_email_telegram(
+                    email_notification=email_notification,
+                    email=email,
+                    telegram_notification=telegram_notification,
+                    telegram=telegram,
+                    
+                    message=notification_options["data"]
+                )
             
-            notification_ex = None
-            if email_notification:
-                if email:
-                    try:
-                        await SignalConnector.notify_email(
-                            emails=[email],
-                            subject="Уведомление MT",
-                            body=notification_options["data"],
-                        )
-                    except Exception as e:
-                        notification_ex = e
-            if telegram_notification:
-                if telegram:
-                    try:
-                        await SignalConnector.notify_telegram(
-                            tg_user_name=telegram,
-                            message=notification_options["data"],
-                        )
-                    except Exception as e:
-                        notification_ex = e
-            if notification_ex is not None:
-                raise notification_ex
+            elif notification_options["for_admin"] is True:
+                admin_contacts_query = (
+                    select(UserContact)
+                    .outerjoin(UserAccount, UserContact.id == UserAccount.contact)
+                    .filter(UserAccount.privilege == PRIVILEGE_MAPPING["Admin"])
+                )
+                response = await session.execute(admin_contacts_query)
+                admin_contacts = response.scalars()
+                for admin_contact in admin_contacts:
+                    email_notification = admin_contact.email_notification
+                    email = admin_contact.email
+                    telegram_notification = admin_contact.telegram_notification
+                    telegram = admin_contact.telegram
+                    
+                    await cls.__notify_email_telegram(
+                        email_notification=email_notification,
+                        email=email,
+                        telegram_notification=telegram_notification,
+                        telegram=telegram,
+                        
+                        message=notification_options["data"]
+                    )
     
     @staticmethod
     async def get_notifications(
