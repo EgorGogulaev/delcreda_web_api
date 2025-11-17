@@ -24,6 +24,9 @@ from src.routes.legal_entity.bank_details_routes import router as bank_details_r
 from src.routes.application.application_routes import router as application_router
 from src.routes.application.mt_application_routes import router as mt_application_router
 
+from src.routes.commercial_proposal.commercial_proposal_routes import router as commercial_proposal_router
+# TODO тут будет конкретное КП
+
 
 
 app = FastAPI(
@@ -76,8 +79,13 @@ app.include_router(reference_router)
 app.include_router(chat_router)
 app.include_router(notification_router)
 app.include_router(legal_entity_router)
+
 app.include_router(application_router)
 app.include_router(mt_application_router)
+
+app.include_router(commercial_proposal_router)
+# TODO тут будет конкретное КП
+
 app.include_router(bank_details_router)
 app.include_router(comment_subject_router)
 # ___________
