@@ -1,5 +1,7 @@
 from typing import Dict, List, Literal, Optional
 
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +26,7 @@ class ReferenceService:
         object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Application",]
     ) -> bool:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
         
         match object:
             case "User":
@@ -70,7 +72,7 @@ class ReferenceService:
                     object_type="Application",
                 )
             case _:
-                raise AssertionError("Нужно указать корректный объект для проверки uuid!")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать корректный объект для проверки UUID!")
     
     @classmethod
     async def create_service_note(
@@ -88,8 +90,9 @@ class ReferenceService:
         data: Optional[str]=None,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
-        assert all([subject, subject_uuid, title]), "Для создания служебной заметки обязательными являются: сущность к чему прикрепляется, UUID-сущности и заголовок заметки!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
+        if not all([subject, subject_uuid, title]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для создания служебной заметки обязательными являются: сущность к чему прикрепляется, UUID-сущности и заголовок заметки!")
         if subject == "Заявка":
             is_exist: bool = cls.check_uuid(
                 session=session,
@@ -126,7 +129,8 @@ class ReferenceService:
                 uuid=subject_uuid,
                 object="User",
             )
-        assert is_exist, f"{subject} с таким UUID'ом не существует!"
+        if is_exist is False:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{subject} с таким UUID'ом не существует!")
         
         try:
             await ReferenceQueryAndStatementManager.create_service_note(
@@ -142,7 +146,7 @@ class ReferenceService:
                 }
             )
         except IntegrityError:
-            raise AssertionError("Дублирование заголовка служебной заметки!")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Дублирование заголовка служебной заметки!")
     
     @staticmethod
     async def get_service_notes(
@@ -162,10 +166,11 @@ class ReferenceService:
         order: Optional[OrdersServiceNote] = None,
     ) -> Dict[str, List[Optional[ServiceNote]]|Optional[int]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
         
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         
         service_notes: Dict[str, List[Optional[ServiceNote]]|Optional[int]] = await ReferenceQueryAndStatementManager.get_service_notes(
             session=session,
@@ -195,10 +200,15 @@ class ReferenceService:
         new_data: Optional[str] = "~",
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
-        assert service_note_id, "Для обновления слуебной записки необходимо указать её идентификатор!"
-        assert new_title is not None, "Заголовок не может быть пустым!"
-        assert any([new_title != "~", new_data != "~"]), "Нужно указать что будет изменено (заголовок и/или данные) в служебной заметке!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
+        
+        if not service_note_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для обновления слуебной записки необходимо указать её идентификатор!")
+        if new_title is None:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Заголовок не может быть пустым!")
+        
+        if new_title == "~" and new_data == "~":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать что будет изменено (заголовок и/или данные) в служебной заметке!")
         
         await ReferenceQueryAndStatementManager.update_service_note(
             session=session,
@@ -224,8 +234,10 @@ class ReferenceService:
         subject_uuid: Optional[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
-        assert any([service_notes_ids and len(service_notes_ids) > 0, subject_id, subject_uuid]), "Для удаления служебных заметок нужно указать либо субъект, либо конкретный идентификатор служебной заметки!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
+        
+        if (service_notes_ids is None or len(service_notes_ids) == 0) and not subject_id and not subject_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления служебных заметок нужно указать либо субъект, либо конкретный идентификатор служебной заметки!")
         
         await ReferenceQueryAndStatementManager.delete_service_notes(
             session=session,
@@ -266,6 +278,6 @@ class ReferenceService:
         requester_user_privilege: int
     ):
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не являетесь Администратором!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
         await ReferenceQueryAndStatementManager._test(session=session)
         ...

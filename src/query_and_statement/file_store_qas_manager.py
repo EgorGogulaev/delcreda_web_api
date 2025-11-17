@@ -1,6 +1,8 @@
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +24,8 @@ class FileStoreQueryAndStatementManager:
         
         directory_uuid: str,
     ) -> Tuple[int, str]:
-        assert directory_uuid, "Для получения информации о субъекте по директории должен быть указан uuid директории!"
+        if not directory_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для получения информации о субъекте по директории - должен быть указан uuid директории!")
         
         query_legal_entity = (
             select(LegalEntity.uuid)
@@ -44,7 +47,7 @@ class FileStoreQueryAndStatementManager:
         if subject_uuid:
             return FILE_STORE_SUBJECT_MAPPING["Заявка"], subject_uuid
         
-        raise AssertionError("По данному UUID-директории не найдены субъекты!")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="По данному UUID-директории не найдены субъекты!")
     
     @staticmethod
     async def check_access(
@@ -57,8 +60,10 @@ class FileStoreQueryAndStatementManager:
         file_uuid: Optional[str] = None,
     ) -> Optional[int]:
         # FIXME блок проверок должен быть вынесен в service
-        assert any([file_uuid, directory_uuid]), "Для проверки должен быть указан uuid файла или директории!"
-        assert not all([file_uuid, directory_uuid]), "Для проверки должен быть указан uuid файла или директории (что-то одно)!"
+        if not file_uuid and not directory_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для проверки должен быть указан uuid файла или директории!")
+        if all([file_uuid, directory_uuid]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для проверки должен быть указан uuid файла или директории (что-то одно)!")
         
         table = Document if file_uuid else Directory
         

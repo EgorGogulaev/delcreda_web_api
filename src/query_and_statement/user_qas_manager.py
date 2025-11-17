@@ -47,7 +47,9 @@ class UserQueryAndStatementManager:
         user_id: Optional[int] = None,
         user_uuid: Optional[str] = None,
     ) -> Optional[str]:
-        assert any([user_id, user_uuid]), "Для определения логина в S3, нужно указать либо ID, либо UUID пользователя!"
+        if not user_id and not user_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для определения логина в S3, нужно указать либо ID, либо UUID пользователя (можно и то и другое)!")
+        
         _filters = []
         if user_id is not None:
             _filters.append(UserAccount.id == user_id)
@@ -208,7 +210,8 @@ class UserQueryAndStatementManager:
         user_id: Optional[str] = None,
         user_uuid: Optional[str] = None,
     ) -> Optional[UserContact]:
-        assert any([user_id, user_uuid]), "Для получения ID-контакта требуется указать ID или UUID пользователя!"
+        if not user_id and not user_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для получения ID-контакта требуется указать ID или UUID пользователя (можно и то и другое)!")
         _filters = []
         if user_id:
             _filters.append(UserAccount.id == user_id)

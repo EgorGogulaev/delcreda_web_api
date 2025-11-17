@@ -1,6 +1,7 @@
 import datetime
 from typing import Any, Dict, List, Optional, Tuple, Literal
 
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
@@ -106,7 +107,7 @@ class MTApplicationService:
         comment: Optional[str],
     ) -> Tuple[Tuple[Application, MTApplicationData], Dict[str, str|int]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert requester_user_uuid == user_uuid, "Вы не можете создать Заявку для другого Пользователя!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Заявку для другого Пользователя!")
         
         le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
             session=session,
@@ -117,7 +118,8 @@ class MTApplicationService:
             
             for_create_application=True,
         )
-        assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует или же ЮЛ не активно!"
+        if le_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует или же ЮЛ не активно!")
         
         legal_entity_id = le_check_access_response_object[0]
         
@@ -137,12 +139,14 @@ class MTApplicationService:
             owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else user_uuid,
             visible=True,
         )
-        assert user_dirs["count"], "Не найдена ни одна директория по указанным данным Пользователя!"
+        if not user_dirs["count"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не найдена ни одна директория по указанным данным Пользователя!")
         parent_directory_uuid = None
         for dir_id in user_dirs["data"]:
             if user_dirs["data"][dir_id]["type"] == DIRECTORY_TYPE_MAPPING["Пользовательская директория"]:
                 parent_directory_uuid = user_dirs["data"][dir_id]["uuid"]
-        assert parent_directory_uuid, "У Пользователя нет пользовательской Директории!"
+        if not parent_directory_uuid:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="У Пользователя нет пользовательской Директории!")
         
         user_s3_login: str = await UserQueryAndStatementManager.get_user_s3_login(
             session=session,
@@ -282,17 +286,21 @@ class MTApplicationService:
         order: Optional[OrdersApplications] = None,
     ) -> Dict[str, List[Optional[Application]]|Optional[int]]:
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         if extended_output is False and any(
             [
                 user_login_ilike,
                 legal_entity_name,
             ]
         ):
-            raise AssertionError("Параметры поиска по логину/наименованию ЮЛ доступны только с extended_output==true!")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Параметры поиска по логину/наименованию ЮЛ доступны только с extended_output==true!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert legal_entity_uuid or user_uuid, "Вы не можете просмотреть все Заявки не являясь Адмиинистратором!"
-            assert user_uuid == requester_user_uuid, "Вы не можете просмотреть заказы других пользователей!"
+            if not legal_entity_uuid and not user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все Заявки не являясь Адмиинистратором!")
+            if user_uuid != requester_user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть заказы других пользователей!")
+            
             if legal_entity_uuid:
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                     session=session,
@@ -301,7 +309,8 @@ class MTApplicationService:
                     requester_user_privilege=requester_user_privilege,
                     legal_entity_uuid=legal_entity_uuid,
                 )
-                assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует!"
+                if le_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует!")
         
         applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
             session=session,
@@ -334,7 +343,8 @@ class MTApplicationService:
         legal_entity_uuid: Optional[str],
     ) -> List[Optional[MTApplicationData]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert application_uuid_list or legal_entity_uuid, "Нужно указать хотябы один uuid-Заявки или uuid-ЮЛ по которому будут запрошены данные Заявки!"
+            if not application_uuid_list and not legal_entity_uuid:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать хотябы один UUID-Заявки или UUID-ЮЛ по которому будут запрошены данные Заявки!")
             if legal_entity_uuid:
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                     session=session,
@@ -343,7 +353,9 @@ class MTApplicationService:
                     requester_user_privilege=requester_user_privilege,
                     legal_entity_uuid=legal_entity_uuid,
                 )
-                assert le_check_access_response_object, "Вы не являетесь владельцем данной записи о ЮЛ или её не существует!"
+                if le_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует!")
+            
             if application_uuid_list:
                 applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
                     session=session,
@@ -353,7 +365,8 @@ class MTApplicationService:
                     application_uuid_list=application_uuid_list,
                 )
                 user_uuid: Tuple[str] = tuple({application.user_uuid for application in applications["data"]})
-                assert len(user_uuid) == 1 and user_uuid[0] == requester_user_uuid, "Вы не можете просматривать Данные Заявок других Пользователей!"
+                if len(user_uuid) != 1 or user_uuid[0] != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просматривать Данные Заявок других Пользователей!")
         
         applications_data: List[Optional[MTApplicationData]] = await MTApplicationQueryAndStatementManager.get_applications_data(
             session=session,
@@ -448,11 +461,10 @@ class MTApplicationService:
             application_uuid=application_uuid,
             for_update_or_delete_application=True,
         )
-        assert application_check_access_response_object, "Вы не можете обновлять данные Заявок других Пользователей или же доступ к редактирования данной Заявки ограничен!"
-        assert list(
-            filter(
-                lambda x: x != "~",
-                [
+        if application_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять данные Заявок других Пользователей или же доступ к редактирования данной Заявки ограничен!")
+        
+        if all(field == "~" for field in [
                     order_name,
                     payment_deadline_not_earlier_than,
                     payment_deadline_no_later_than,
@@ -520,8 +532,8 @@ class MTApplicationService:
                     sender_country,
                     comment,
                 ]
-            )
-        ), "Хотя бы одно поле должно быть изменено для обновления данных Заявки!"
+            ):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных Заявки!")
         
         await MTApplicationQueryAndStatementManager.update_application_data(
             session=session,

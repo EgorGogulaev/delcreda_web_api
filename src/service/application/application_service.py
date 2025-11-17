@@ -1,5 +1,6 @@
 from typing import List, Literal, Optional, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.service.file_store_service import FileStoreService
@@ -20,9 +21,11 @@ class ApplicationService:
         edit_status: bool,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("У Вас недостаточно прав для изменения статуса возможности редактирования информации о Заявке/ах!")
-        assert application_uuids, "Должен быть указан UUID, хотя бы одной Заявки!"
-        assert isinstance(edit_status, bool), "Статус должен быть булевым значением!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования информации о Заявке/ах!")
+        if not application_uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID, хотя бы одной Заявки!")
+        if not isinstance(edit_status, bool):
+            raise ValueError("Статус должен быть булевым значением!")
         
         await ApplicationQueryAndStatementManager.change_applications_edit_status(
             session=session,
@@ -38,7 +41,7 @@ class ApplicationService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        status: Literal[
+        status_: Literal[
             "Requested",
             "In_progress",
             "Rejected",
@@ -49,8 +52,10 @@ class ApplicationService:
         application_uuids: List[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("У Вас недостаточно прав для изменения статуса Заявки/ок!")
-        assert application_uuids, "Для изменения статуса Заявки, нужно указать хотя бы 1 UUID!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса Заявки/ок!")
+        
+        if not application_uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для изменения статуса Заявки, нужно указать хотя бы 1 UUID!")
         
         
         status_dict = {
@@ -65,7 +70,7 @@ class ApplicationService:
             session=session,
             
             application_uuids=application_uuids,
-            status=APPLICATION_STATUS_MAPPING[status_dict[status]],
+            status=APPLICATION_STATUS_MAPPING[status_dict[status_]],
         )
     
     @staticmethod
@@ -78,7 +83,8 @@ class ApplicationService:
         
         applications_uuids: List[str],
     ) -> None:
-        assert applications_uuids, "Для удаления Заявки, нужно указать хотя бы 1 UUID!"
+        if not applications_uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления Заявки, нужно указать хотя бы 1 UUID!")
         
         application_ids_with_application_data_ids_with_dir_uuid: List[Tuple[int, int, str]] = [] # type: ignore
         for application_uuid in applications_uuids:
@@ -91,7 +97,12 @@ class ApplicationService:
                 for_update_or_delete_application=True,
             )
             
-            assert application_check_access_response_object, "Вы не можете удалять информацию о Заявках других Пользователей или же доступ к редактирования данной Заявки ограничен!" if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else "Информация о ЮЛ не была найдена!"
+            if application_check_access_response_object is None:
+                if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию о Заявках других Пользователей или же доступ к редактирования данной Заявки ограничен!")
+                else:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Информация о ЮЛ не была найдена!")
+            
             application_ids_with_application_data_ids_with_dir_uuid.append(application_check_access_response_object)
         
         for _, _, dir_uuid in application_ids_with_application_data_ids_with_dir_uuid:

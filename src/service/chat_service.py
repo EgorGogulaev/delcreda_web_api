@@ -1,5 +1,7 @@
 from typing import Dict, List, Literal, Optional
 
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.chat_models import Chat, Message
@@ -17,13 +19,15 @@ class ChatService:
         subject_uuid: str,
     ) -> Dict[str, str|int]:
         
-        chat_row: Chat = await ChatQueryAndStatementManager.create_chat(
+        chat_row: Optional[Chat] = await ChatQueryAndStatementManager.create_chat(
             session=session,
             
             chat_subject_id=CHAT_SUBJECT_MAPPING[chat_subject],
             subject_uuid=subject_uuid,
         )
-        assert chat_row, "Что-то пошло не так при создании Чата!"
+        if chat_row is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Что-то пошло не так при создании Чата!")
+        
         chat_info = chat_row
         
         return {
@@ -42,7 +46,8 @@ class ChatService:
         subject_uuid: str,
         message: str,
     ) -> None:
-        assert len(message) <= 1000, "Сообщение не должно превышать 100 символов!"
+        if len(message) >= 1001:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Объём Сообщения не должен превышать 1000 символов!")
         
         chat_id: Optional[int] = await ChatQueryAndStatementManager.check_access(
             session=session,
@@ -53,7 +58,8 @@ class ChatService:
             subject_uuid=subject_uuid,
         )
         
-        assert chat_id, "Чат Вам не доступен для отправки сообщения или же не существует!"
+        if chat_id is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Чат Вам не доступен для отправки сообщения или же не существует!")
         
         await ChatQueryAndStatementManager.send_message(
             session=session,
@@ -87,7 +93,8 @@ class ChatService:
             subject_uuid=subject_uuid,
         )
         
-        assert chat_id, "Чат Вам не доступен или же не существует!"
+        if chat_id is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Чат Вам не доступен или же не существует!")
         
         result: Dict[str, List[Optional[Message]]|Optional[int]] = await ChatQueryAndStatementManager.get_messages(
             session=session,
@@ -108,9 +115,11 @@ class ChatService:
         
         list_ids: List[int],
     ) -> None:
-        assert list_ids, "Для удаления сообщений, нужно указать хотя бы 1 ID!"
+        if list_ids is None or len(list_ids) == 0:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Для удаления сообщений, нужно указать хотя бы 1 ID!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не можете удалять сообщения. Недостаточно прав!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять сообщения. Недостаточно прав!")
         
         await ChatQueryAndStatementManager.delete_messages(
             session=session,

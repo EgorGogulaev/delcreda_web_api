@@ -1,5 +1,7 @@
 from typing import List, Optional, Tuple
 
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
@@ -24,7 +26,7 @@ class CommentSubjectService:
         data: Optional[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете создавать Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не можете создавать Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
         
         is_exists: bool = await CommentSubjectQueryAndStatementManager.check_exist(
             session=session,
@@ -32,7 +34,8 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert not is_exists, f'Комментарий для данного/й {"Заяявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} уже создан, его можно обновить или удалить!'
+        if is_exists:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Комментарий для данного/й {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} уже создан, его можно обновить или удалить!')
         
         await CommentSubjectQueryAndStatementManager.create_comment_subject(
             session=session,
@@ -54,7 +57,10 @@ class CommentSubjectService:
         subject_uuid: str,
     ) -> List[Optional[CommentSubject]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка":
+            
+            subject = {v: k for k, v in COMMENT_SUBJECT_MAPPING.items()}[subject_id]
+            
+            if subject == "Заявка":
                 application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
                     session=session,
                     
@@ -62,9 +68,10 @@ class CommentSubjectService:
                     requester_user_privilege=requester_user_privilege,
                     application_uuid=subject_uuid,
                 )
-                assert application_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-Заявки!"
+                if application_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному uuid-Заявки!")
             
-            else:
+            elif subject == "ЮЛ":
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
                     session=session,
                     
@@ -72,7 +79,8 @@ class CommentSubjectService:
                     requester_user_privilege=requester_user_privilege,
                     legal_entity_uuid=subject_uuid,
                 )
-                assert le_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-ЮЛ!"
+                if le_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному uuid-ЮЛ!")
         
         comment: List[Optional[CommentSubject]] = await CommentSubjectQueryAndStatementManager.get_comment_subject(
             session=session,
@@ -95,10 +103,12 @@ class CommentSubjectService:
         
         new_data: Optional[str] = "~",
     ) -> None:
+        subject = {v: k for k, v in COMMENT_SUBJECT_MAPPING.items()}[subject_id]
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не можете обновлять Комментарии для {"Заявки" if subject == "Заявка" else "ЮЛ"}!')
         
-        assert new_data != "~", "Нужен какой-то контент для изменения Комментария"
+        if new_data == "~":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужен какой-то контент для изменения Комментария!")
         
         is_exists: bool = await CommentSubjectQueryAndStatementManager.check_exist(
             session=session,
@@ -106,7 +116,8 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert is_exists, f'Комментарий для данного {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} еще не создан!'
+        if is_exists is False:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Комментарий для {"Заявки" if subject == "Заявка" else "ЮЛ"} еще не создан!')
         
         await CommentSubjectQueryAndStatementManager.update_comment_subject(
             session=session,
@@ -127,8 +138,10 @@ class CommentSubjectService:
         subject_id: int,
         subject_uuid: str,
     ) -> None:
+        subject = {v: k for k, v in COMMENT_SUBJECT_MAPPING.items()}[subject_id]
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError(f'Вы не можете обновлять Комментарии для {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"}!')
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не можете обновлять Комментарии для {"Заявки" if subject == "Заявка" else "ЮЛ"}!')
         
         is_exists: bool = await CommentSubjectQueryAndStatementManager.check_exist(
             session=session,
@@ -136,7 +149,8 @@ class CommentSubjectService:
             subject_id=subject_id,
             subject_uuid=subject_uuid,
         )
-        assert is_exists, f'Комментарий для данного {"Заявки" if list(COMMENT_SUBJECT_MAPPING)[list(COMMENT_SUBJECT_MAPPING.values()).index(subject_id)] == "Заявка" else "ЮЛ"} отсутствует!'
+        if is_exists is False:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Комментарий для {"Заявки" if subject == "Заявка" else "ЮЛ"} отсутствует!')
         
         await CommentSubjectQueryAndStatementManager.delete_comment_subject(
             session=session,

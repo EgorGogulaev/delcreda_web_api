@@ -56,7 +56,7 @@ async def change_applications_status(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            status=status,
+            status_=status,
             application_uuids=application_uuids,
         )
         

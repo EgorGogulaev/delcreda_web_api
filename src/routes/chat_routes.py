@@ -56,7 +56,8 @@ async def websocket_chat(
         subject_uuid=subject_uuid,
     )
     
-    assert chat_id, "Чат Вам не доступен для отправки сообщения или же не существует!"
+    if chat_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Чат Вам не доступен для отправки сообщений или же не существует!")
     
     channel = f"{chat_subject}_{subject_uuid}"
     await manager.connect(websocket, channel)
@@ -151,7 +152,9 @@ async def send_message(
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
-        assert message.get("msg"), "Тело Сообщения пустое!"
+        if message.get("msg") in (None, ""):
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Тело Сообщения пустое!")
+        
         
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         

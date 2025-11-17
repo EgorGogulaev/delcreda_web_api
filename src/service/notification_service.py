@@ -1,6 +1,8 @@
 import datetime
 from typing import Dict, List, Literal, Optional, Tuple
 
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
@@ -31,10 +33,15 @@ class NotificationService:
         is_important: bool = False,
         time_importance_change: Optional[datetime.datetime] = None,
     ) -> None:
-        assert for_admin is not None, "Не указано для кого это создано: для Пользователей или Админа!"
-        assert data, "Нет тела Уведомления!"
+        if for_admin is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указано для кого это создано: для Пользователей или Админа!")
+        
+        if not data:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Нет тела Уведомления!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert not recipient_user_uuid, "Вы не можете делать Уведомления конкретному Пользователю!"
+            if recipient_user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления конкретному Пользователю!")
             
             if subject == "Заявка":
                 application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
@@ -44,7 +51,8 @@ class NotificationService:
                     requester_user_privilege=requester_user_privilege,
                     application_uuid=subject_uuid,
                 )
-                assert application_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-Заявки!"
+                if application_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Заявки!")
             
             elif subject == "ЮЛ":
                 le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
@@ -54,7 +62,8 @@ class NotificationService:
                     requester_user_privilege=requester_user_privilege,
                     legal_entity_uuid=subject_uuid,
                 )
-                assert le_check_access_response_object, "Вы не можете делать Уведомления по данному uuid-ЮЛ!"
+                if le_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-ЮЛ!")
         
         recipient_user_id = None
         if recipient_user_uuid:
@@ -63,16 +72,19 @@ class NotificationService:
                 
                 uuid=recipient_user_uuid
             )
-            assert recipient_user_id, "Пользователь с указанным uuid не существует!"
+            if recipient_user_id is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь с указанным UUID не существует!")
+        
         user_contact_data = None
         if recipient_user_id:
-            user_contact_data: UserContact = await UserQueryAndStatementManager.get_user_contact_data(
+            user_contact_data: Optional[UserContact] = await UserQueryAndStatementManager.get_user_contact_data(
                 session=session,
                 
                 user_id=recipient_user_id,
                 user_uuid=recipient_user_uuid,
             )
-            assert user_contact_data, "Контактные данные пользователя по заданному идентификатору не найдены, обратитесь к администратору!"
+            if user_contact_data is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Контактные данные пользователя по заданному идентификатору не найдены, обратитесь к администратору!")
         
         new_notification_uuid_coro = await SignalConnector.generate_identifiers(target="Уведомление", count=1)
         new_notification_uuid = new_notification_uuid_coro[0]
@@ -117,7 +129,8 @@ class NotificationService:
             recipient_user_uuid=None,
             notification_list_uuid=notification_list_uuid,
         )
-        assert notifications["data"], "Уведомлений по запрошенному списку uuid не существует!"
+        if not notifications["data"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Уведомлений по запрошенному списку UUID не существует!")
         
         notification_status_list: List[bool] = [True if notification.recipient_user_uuid == None or notification.recipient_user_uuid == user_uuid else False for notification in notifications["data"]]  # noqa: E711
         if all(notification_status_list):
@@ -146,29 +159,34 @@ class NotificationService:
         order: Optional[OrdersNotifications] = None,
     ) -> Dict[str, List[Optional[Notification]]|Optional[int]]:
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         if recipient_user_uuid:
             if recipient_user_uuid and requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-                assert recipient_user_uuid == requester_user_uuid, "Вы не можете просмотреть Уведомления других Пользователей!"
-            recipient_user_id: int = await UserQueryAndStatementManager.get_user_id_by_uuid(
+                if recipient_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления других Пользователей!")
+            
+            recipient_user_id: Optional[int] = await UserQueryAndStatementManager.get_user_id_by_uuid(
                 session=session,
                 
                 uuid=recipient_user_uuid,
             )
-            assert recipient_user_id, "Пользователь-получатель уведомления с указанным uuid не существует!"
+            if recipient_user_id is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь-получатель уведомления с указанным UUID не существует!")
         else:
             recipient_user_uuid = None
         
         if initiator_user_uuid:
-            initiator_user_id: int = await UserQueryAndStatementManager.get_user_id_by_uuid(
+            initiator_user_id: Optional[int] = await UserQueryAndStatementManager.get_user_id_by_uuid(
                 session=session,
                 
                 uuid=initiator_user_uuid,
             )
-            assert initiator_user_id, "Пользователь-инициатор уведомления с указанным uuid не существует!"
+            if initiator_user_id is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь-инициатор уведомления с указанным UUID не существует!")
         
         if for_admin and requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не можете просмотреть Уведомления для Администраторов!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления для Администраторов!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # TODO тут надо предусмотреть предварительные расчеты (только Админы) (!)
             if subject_uuid:
@@ -180,7 +198,8 @@ class NotificationService:
                         requester_user_privilege=requester_user_privilege,
                         application_uuid=subject_uuid,
                     )
-                    assert application_check_access_response_object, "Вы не можете просмотреть Уведомления по данной Заявке!"
+                    if application_check_access_response_object is None:
+                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления по данной Заявке!")
                 
                 elif subject == "ЮЛ":
                     le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
@@ -190,7 +209,8 @@ class NotificationService:
                         requester_user_privilege=requester_user_privilege,
                         legal_entity_uuid=subject_uuid,
                     )
-                    assert le_check_access_response_object, "Вы не можете просмотреть Уведомления по данному ЮЛ!"
+                    if le_check_access_response_object is None:
+                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления по данному ЮЛ!")
         
         notifications: Dict[str, List[Optional[Notification]]|Optional[int]] = await NotificationQueryAndStatementManager.get_notifications(
             session=session,
@@ -242,7 +262,8 @@ class NotificationService:
         
         notification_list_uuid: List[str],
     ) -> None:
-        assert notification_list_uuid, "Ничего не передано в список uuid-Уведомлений на изменение статуса прочтения!"
+        if not notification_list_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ничего не передано в список UUID-Уведомлений на изменение статуса прочтения!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             is_accessed: bool = await NotificationService.check_user_notification_access(
@@ -251,7 +272,8 @@ class NotificationService:
                 notification_list_uuid=notification_list_uuid,
                 user_uuid=requester_user_uuid
             )
-            assert is_accessed, "Вы не можете пометить прочитанными Уведомления других Пользователей!"
+            if is_accessed is False:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете пометить прочитанными Уведомления других Пользователей!")
         
         await NotificationQueryAndStatementManager.read_notifications(
             session=session,
@@ -268,7 +290,8 @@ class NotificationService:
         
         notification_list_uuid: List[str],
     ) -> None:
-        assert notification_list_uuid, "Ничего не передано в список uuid-Уведомлений к удалению!"
+        if not notification_list_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ничего не передано в список UUID-Уведомлений к удалению!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             is_accessed: bool = await NotificationService.check_user_notification_access(
@@ -277,7 +300,8 @@ class NotificationService:
                 notification_list_uuid=notification_list_uuid,
                 user_uuid=requester_user_uuid
             )
-            assert is_accessed, "Вы не можете удалить Уведомления других Пользователей!"
+            if is_accessed is False:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалить Уведомления других Пользователей!")
         
         await NotificationQueryAndStatementManager.delete_notifications(
             session=session,

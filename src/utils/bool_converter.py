@@ -9,4 +9,5 @@ def bool_converter(v: Optional[bool|str]) -> Optional[bool|str]:
             return True
         elif v in ("false", "False", "Нет", "нет", "No", "no"):
             return False
-    raise AssertionError(f"Не валидное значение для конвертации в bool - {v}")
+    
+    raise ValueError(f"Не валидное значение для конвертации в bool - {v}")

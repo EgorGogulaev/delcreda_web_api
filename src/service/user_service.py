@@ -31,8 +31,10 @@ class UserService:
         password: str,
     ) -> None:
         """Самостоятельная регистрация пользователей"""
-        assert len(email) >= 3, "Длина логина должна быть больше 2 символов!"
-        assert len(password) >= 8, "Длина пароля должна быть больше 7 символов!"
+        if len(email) < 3:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина логина должна быть больше 2 символов!")
+        if len(password) < 8:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина пароля должна быть больше 7 символов!")
         
         user_exist: bool = await UserQueryAndStatementManager.check_user_account_by_field_value(
             session=session,
@@ -80,27 +82,31 @@ class UserService:
     ) -> Dict[str, Any]:
         """Создает нового пользователя"""
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не можете создать пользователя, у Вас недостаточно прав!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать пользователя, у Вас недостаточно прав!")
         
-        assert len(login) >= 3, "Длина логина должна быть больше 2 символов!"
-        assert len(password) >= 8, "Длина пароля должна быть больше 7 символов!"
+        if len(login) < 3:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина логина должна быть больше 2 символов!")
+        if len(password) < 8:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина пароля должна быть больше 7 символов!")
         
         if not new_user_uuid:
             new_user_uuid_coro = await SignalConnector.generate_identifiers(target="Пользователь", count=1)
             new_user_uuid = new_user_uuid_coro[0]
         
-        assert not await UserQueryAndStatementManager.check_user_account_by_field_value(
+        if await UserQueryAndStatementManager.check_user_account_by_field_value(
             session=session,
             
             value=new_user_uuid,
             field_type="uuid",
-        ), "Пользователь с таким uuid уже существует!"
-        assert not await UserQueryAndStatementManager.check_user_account_by_field_value(
+        ) is True:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким uuid уже существует!")
+        if await UserQueryAndStatementManager.check_user_account_by_field_value(
             session=session,
             
             value=login,
             field_type="login",
-        ), "Пользователь с таким логином уже существует!"
+        ) is True:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким логином уже существует!")
         
         # Создание пользователя в S3
         s3_login_sanitized: str = sanitize_s3_username(login + new_user_uuid)
@@ -186,7 +192,8 @@ class UserService:
         password: str,
         for_flet: bool=False,
     ) -> Dict[str, str] | ResponseAuth:
-        assert all([login, password,]), "Нужно заполнить поля Логина и Пароля!"
+        if not login and not password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно заполнить поля Логина и Пароля!")
         
         user_token = await UserQueryAndStatementManager.get_user_token(
             session=session,
@@ -195,7 +202,7 @@ class UserService:
             password=password,
         )
         if user_token is None:
-            raise AssertionError("Не верный Логин или Пароль!")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Не верный Логин или Пароль!")
         
         user_data: UserSchema = await UserQueryAndStatementManager.get_current_user_data(            
             token=user_token,
@@ -241,12 +248,14 @@ class UserService:
         tz: Optional[str] = None,
     ) -> ResponseGetUsersInfo:
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if any([login, privilege, user_token, user_token_ilike]):
-                raise AssertionError("Вы не можете осуществлять поиск инфорамции о Пользователе по Правам, Логину или Токену (или по их комбинации)!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете осуществлять поиск инфорамции о Пользователе по Правам, Логину или Токену (или по их комбинации)!")
             if uuid is not None:
-                assert requester_user_uuid == uuid, "Вы не можете просмотреть данные о другом Пользователе!"
+                if requester_user_uuid != uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть данные о другом Пользователе!")
         
         response_content = ResponseGetUsersInfo(
             data=[],
@@ -354,9 +363,10 @@ class UserService:
         new_user_uuid: Optional[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не можете обновить информацию пользователя, у Вас недостаточно прав!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновить информацию пользователя, у Вас недостаточно прав!")
         
-        assert new_login or new_password or new_user_uuid, "Нужно указать, что будем изменять!"
+        if not any([new_login, new_password, new_user_uuid]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать, что будем изменять!")
         
         user_account_id: Optional[int] = await UserQueryAndStatementManager.check_user_account(
             session=session,
@@ -365,13 +375,17 @@ class UserService:
             uuid=target_user_uuid,
             login=target_login,
         )
-        assert user_account_id, "По заданным параметрам, пользователь не найден!"
+        if user_account_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="По заданным параметрам, пользователь не найден!")
         if new_login:
-            assert 255 >= len(new_login) >= 4, "Длина логина должна быть в диапазоне от 4 до 255 символов!"
+            if 255 < len(new_login) < 4:
+                raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина логина должна быть в диапазоне от 4 до 255 символов!")
         if new_password:
-            assert 255 >= len(new_password) >= 4, "Длина пароля должна быть в диапазоне от 5 до 255 символов!"
+            if 255 < len(new_password) < 8:
+                raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Длина пароля должна быть в диапазоне от 8 до 255 символов!")
         if new_user_uuid:
-            assert len(new_user_uuid) == 36, f"Длина UUID должна составлять 36 символов! (Например {str(uuid4())})"
+            if len(new_user_uuid) != 36:
+                raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail=f"Длина UUID должна составлять 36 символов! (Например {str(uuid4())})")
         
         await UserQueryAndStatementManager.update_user_info(
             session=session,
@@ -466,7 +480,7 @@ class UserService:
         uuids: List[str],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise AssertionError("Вы не можете удалить пользователя, у Вас недостаточно прав!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалить пользователя, у Вас недостаточно прав!")
         
         user_uuids: List[str] = []
         user_s3_logins: List[str] = []
@@ -480,9 +494,13 @@ class UserService:
                 
                 user_token=token,
             )
-            assert user_data.count > 0, f'Информация о пользователе с токеном - "{token}" не была найдена!'
-            assert user_data.count == 1, f'Коллизия! Пользователей с токеном - "{token}" было найдено более одного!'
-            assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (токен - "{token}")'
+            if user_data.count == 0:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Информация о пользователе с токеном - "{token}" не была найдена!')
+            if user_data.count > 1:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Коллизия! Пользователей с токеном - "{token}" было найдено более одного!')
+            
+            if PRIVILEGE_MAPPING[user_data.data[0].privilege] == PRIVILEGE_MAPPING["Admin"]:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не можете удалить Админа! (токен - "{token}")')
             user_uuids.append(user_data.data[0].uuid)
             user_s3_logins.append(user_data.data[0].s3_login)
         
@@ -495,9 +513,12 @@ class UserService:
                 
                 uuid=uuid,
             )
-            assert user_data.count > 0, f'Информация о пользователе с UUID - "{uuid}" не была найдена!'
-            assert user_data.count == 1, f'Коллизия! Пользователей с UUID - "{uuid}" было найдено более одного!'
-            assert PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"], f'Вы не можете удалить Админа! (UUID - "{uuid}")'
+            if user_data.count == 0:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Информация о пользователе с UUID - "{uuid}" не была найдена!')
+            if user_data.count > 1:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Коллизия! Пользователей с UUID - "{uuid}" было найдено более одного!')
+            if PRIVILEGE_MAPPING[user_data.data[0].privilege] != PRIVILEGE_MAPPING["Admin"]:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не можете удалить Админа! (UUID - "{uuid}")')
             user_uuids.append(user_data.data[0].uuid)
         
         
@@ -570,7 +591,7 @@ class UserService:
         user_uuid: str,
     ) -> ClientState:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert user_uuid == requester_user_uuid, "Вы не можете получить состояние другого пользователя!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете получить состояние другого пользователя!")
         
         data: ClientState = await UserQueryAndStatementManager.get_client_state(
             client_uuid=user_uuid,
@@ -587,7 +608,7 @@ class UserService:
         ttl,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert requester_user_uuid == client_uuid, "Вы не можете менять состояние других клиентов, у Вас недостаточно прав!"
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете менять состояние других клиентов, у Вас недостаточно прав!")
         
         await UserQueryAndStatementManager.record_client_states(
             client_uuid=client_uuid,
@@ -615,10 +636,13 @@ class UserService:
         new_user_contact_data: UpdateUserContactData,
         user_uuid: Optional[str] = None,
     ) -> None:
-        assert user_uuid, "Для обновление контактный данных пользователя нужно указать его UUID!"
+        if not user_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для обновление контактный данных пользователя нужно указать его UUID!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if user_uuid:
-                assert requester_user_uuid == user_uuid, "Вы не можете обновлять контактные данные других пользователей!"
+                if requester_user_uuid != user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять контактные данные других пользователей!")
         
         user_info: ResponseGetUsersInfo = await cls.get_users_info(
             session=session,

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import urllib.parse
 
+from fastapi import status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
@@ -36,16 +37,20 @@ class FileStoreService:
         tz: Optional[str] = None,
     ) -> Dict[str, Any]:
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
             if owner_user_uuid:
-                assert owner_user_uuid == requester_user_uuid, "Вы не можете просмотреть Директорию другого Пользователя!"
+                if owner_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Директорию другого Пользователя!")
             else:
                 owner_user_uuid = requester_user_uuid
             if uploader_user_uuid:
-                assert uploader_user_uuid == requester_user_uuid, "Вы не можете просмотреть Директорию другого Пользователя!"
+                if uploader_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Директорию другого Пользователя!")
             if visible is not None:
-                assert visible, "Вы не можете просмотреть информацию о скрытой Директории!"
+                if visible is False:
+                    raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Вы не можете просмотреть информацию о скрытой Директории!")
         
         result = {
             "data": {},
@@ -128,34 +133,40 @@ class FileStoreService:
         tz: Optional[str] = None,
     ) -> Dict[str, Any]:
         if page or page_size:
-            assert page and page_size and page > 0 and page_size > 0, "Не корректное разделение на страницы, вывода данных!"
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
             if owner_user_uuid:
-                assert owner_user_uuid == requester_user_uuid, "Вы не можете получить данные Докуметов других Пользователей!"
+                if owner_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете получить данные Докуметов других Пользователей!")
             else:
                 owner_user_uuid = requester_user_uuid
             if uploader_user_uuid:
-                assert uploader_user_uuid == requester_user_uuid, "Вы не можете получить данные Докуметов других Пользователей!"
+                if uploader_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете получить данные Докуметов других Пользователей!")
             if visible is not None:
-                assert visible, "Вы не можете просмотреть информацию о скрытых Файлах!"
+                if visible is False:
+                    raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Вы не можете просмотреть информацию о скрытых Файлах!")
             if directory_uuid:
-                assert await FileStoreQueryAndStatementManager.check_access(
+                if await FileStoreQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
                     directory_uuid=directory_uuid,
-                ), "У Вас нет доступа к Директории!"
+                ) is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас нет доступа к Директории!")
             if file_uuids:
                 for file_uuid in file_uuids:
-                    assert await FileStoreQueryAndStatementManager.check_access(
+                    if await FileStoreQueryAndStatementManager.check_access(
                         session=session,
                         
                         requester_user_uuid=requester_user_uuid,
                         requester_user_privilege=requester_user_privilege,
                         file_uuid=file_uuid,
-                    ), f'У Вас нет доступа к Файлу с uuid - "{file_uuid}"!'
+                    ) is None:
+                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'У Вас нет доступа к Файлу с UUID - "{file_uuid}"!')
         
         result = {
             "data": {},
@@ -241,9 +252,13 @@ class FileStoreService:
         if doc_info_dct["data"] and len(doc_info_dct["data"]) < 2:
             document = doc_info_dct["data"][0]
             if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
-                assert document.owner_user_uuid == requester_user_uuid, "Вы не можете скачать Документ другого Пользователя!"
-                assert document.visible is True, "Вы не можете скачать скрытый Документ!"
-            assert not document.is_deleted, "Вы не можете скачать удаленный Документ!"
+                if document.owner_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете скачать Документ другого Пользователя!")
+                if document.visible is False:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете скачать скрытый Документ!")
+            
+            if document.is_deleted is True:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Вы не можете скачать удаленный Документ!")
             
             data: StreamingResponse = await SignalConnector.download_s3(
                 path=document.path,
@@ -252,7 +267,10 @@ class FileStoreService:
             return data
         
         else:
-            raise AssertionError(f'Файл с uuid - "{file_uuid}" не найден!' if not doc_info_dct["data"] else f'Целостность данных нарушена, существует более 1 записи о файле с uuid - "{file_uuid}"')
+            if not doc_info_dct["data"]:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Файл с UUID - "{file_uuid}" не найден!')
+            else:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о файле с UUID - "{file_uuid}"!')
     
     @classmethod
     async def upload(
@@ -268,11 +286,16 @@ class FileStoreService:
         new_file_uuid: Optional[str]=None,
         file_type: Optional[str]=None,
     ) -> str:
-        assert directory_uuid, "Нужно указать uuid директории для загрузки!"
-        assert file_object.size <= 20 * 1024 * 1024, "Файл не должен превышать 20 мб!"
+        if not directory_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать uuid директории для загрузки!")
+        
+        if file_object.size >= 20 * 1024 * 1024:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Файл должен быть менее 20 мб!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
             if owner_user_uuid:
-                assert owner_user_uuid == requester_user_uuid, "Не будучи Админом, Вы не можете загружать Файл для другого Пользователя!"
+                if owner_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл для другого Пользователя!")
         
         dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
             session=session,
@@ -290,7 +313,7 @@ class FileStoreService:
                     target="Документ",
                     uuid=new_file_uuid,
                 ) is not False:  # Если uuid занят
-                    raise AssertionError("Директория с данным uuid уже используется!")
+                    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Документ с данным UUID уже используется!")
             
             if len(file_object.filename.split(".")) > 1:
                 file_name = ".".join(file_object.filename.split(".")[:-1])
@@ -345,7 +368,10 @@ class FileStoreService:
                 }
             )
         else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
-            raise AssertionError(f'Директория "{directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!' if dir_data["count"] == 0 else f'Целостность данных нарушена, существует более 1 записи о папке с uuid - "{directory_uuid}"!')
+            if dir_data["count"] == 0:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Директория "{directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!')
+            else:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о Директории с UUID - "{directory_uuid}"!')
         
         return new_file_uuid
     # _____________________________________________________________________________________________________
@@ -365,10 +391,11 @@ class FileStoreService:
     ) -> Dict[str, Any]:
         """Создает директорию и возвращает uuid и id нововой директории"""
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
-            
-            assert directory_type, "Вам обязательно нужно указать Тип Директории при создании!"
+            if directory_type is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Вам нужно обязательно указать Тип Директории при создании!")
             if owner_user_uuid:
-                assert owner_user_uuid == requester_user_uuid, "Вы не можете создать Директорию для другого Пользователя!"
+                if owner_user_uuid != requester_user_uuid:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Директорию для другого Пользователя!")
         
         if parent_directory_uuid is not None:
             parent_dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
@@ -388,7 +415,7 @@ class FileStoreService:
                         target="Директория",
                         uuid=new_directory_uuid,
                     ) is not False:  # Если uuid занят
-                        raise AssertionError("Директория с данным uuid уже используется!")
+                        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Директория с данным UUID уже используется!")
                 new_directory_path = posixpath.normpath(posixpath.join(parent_dir_data["data"][list(parent_dir_data["data"])[0]]["path"], new_directory_uuid))
                 
                 dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
@@ -405,7 +432,10 @@ class FileStoreService:
                 )
             
             else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
-                raise AssertionError(f'Родительская директория "{parent_directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!' if parent_dir_data["count"] == 0 else f'Целостность данных нарушена, существует более 1 записи о папке с uuid - "{parent_directory_uuid}"!')
+                if parent_dir_data["count"] == 0:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Родительская директория "{parent_directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!')
+                else:
+                    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о папке с UUID - "{parent_directory_uuid}"!')
         
         else:
             if new_directory_uuid is None:
@@ -416,7 +446,8 @@ class FileStoreService:
                     target="Директория",
                     uuid=new_directory_uuid,
                 ) is not False:  # Если uuid занят
-                    raise AssertionError("Директория с данным uuid уже используется!")
+                    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Директория с данным UUID уже используется!")
+            
             new_directory_path = posixpath.normpath(posixpath.join(owner_s3_login, new_directory_uuid))
             
             dir_id: int = await FileStoreQueryAndStatementManager.create_dir_info(
@@ -450,8 +481,9 @@ class FileStoreService:
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if visibility_status is True:
-                raise AssertionError("Вы не можете изменить статус видимости Документа на видимый!")
-        assert uuids, "Для изменения видимости Файлов/Директорий нужно указать хотя бы один uuid!"
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете изменить статус видимости Документа на видимый!")
+        if not uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для изменения видимости Файлов/Директорий нужно указать хотя бы один uuid!")
         
         if is_document:
             object_info = await FileStoreService.get_doc_info_from_db(
@@ -472,14 +504,17 @@ class FileStoreService:
                 owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else None,
             )
         
-        assert object_info["count"] >= 1, f'{"Файл/ы" if is_document else "Директория/ии"} c uuid "{", ".join(uuids)}" либо отсутствует/ют, либо у Вас недостаточно прав!'
-        assert not object_info["data"][list(object_info["data"])[0]]["is_deleted"], f"{'Документ удален' if is_document else 'Директория удалена'}!"
+        if object_info["count"] < 1:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{"Файл/ы" if is_document else "Директория/ии"} c UUID "{", ".join(uuids)}" либо отсутствует/ют, либо у Вас недостаточно прав!')
+        if object_info["data"][list(object_info["data"])[0]]["is_deleted"] is True:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{'Документ удален' if is_document else 'Директория удалена'}!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            assert object_info["data"][list(object_info["data"])[0]]["owner_user_uuid"] == requester_user_uuid, f"Вы не можете изменить видимость не своe{"го/их Файла/ов" if is_document else "ей/их Директории/ий"}!"
+            if object_info["data"][list(object_info["data"])[0]]["owner_user_uuid"] != requester_user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Вы не можете изменить видимость не своe{"го/их Файла/ов" if is_document else "ей/их Директории/ий"}!")
         
         visible = object_info["data"][list(object_info["data"])[0]]["visible"]
         if visible == visibility_status:
-            raise AssertionError(f'Видимость {"Файла/ов" if is_document else "Директории/ий"} c uuid "{", ".join(uuids)}" уже в статусе {visibility_status}!')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Видимость {"Файла/ов" if is_document else "Директории/ий"} c uuid "{", ".join(uuids)}" уже в статусе {visibility_status}!')
         else:
             await FileStoreQueryAndStatementManager.change_visibility(
                 session=session,
@@ -502,7 +537,8 @@ class FileStoreService:
         for_user: bool = False,
     ) -> None:
         if for_user is False:
-            assert requester_user_privilege == PRIVILEGE_MAPPING["Admin"], "Не достаточно прав!"
+            if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Не достаточно прав!")
         
         if is_document:
             object_info = await FileStoreService.get_doc_info_from_db(
@@ -523,10 +559,14 @@ class FileStoreService:
                 owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else None,
             )
         
-        assert object_info["count"] == 1, f'{"Файл" if is_document else "Директория"} c uuid "{uuid}" либо отсутствует, либо у Вас недостаточно прав!' if object_info["count"] == 0 else f'Целостность данных нарушена, существует более 1 записи о {"Файле" if is_document else "Директории"} с uuid - "{uuid}"!'
+        if object_info["count"] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{"Файл" if is_document else "Директория"} c UUID "{uuid}" либо отсутствует, либо у Вас недостаточно прав!')
+        if object_info["count"] > 1:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о {"Файле" if is_document else "Директории"} с UUID - "{uuid}"!')
+        
         is_deleted = object_info["data"][list(object_info["data"])[0]]["is_deleted"]
         if is_deleted:
-            raise AssertionError(f'{"Файл" if is_document else "Директория"} c uuid "{uuid}" уже удален{"" if is_document else "а"}!')
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{"Файл" if is_document else "Директория"} c UUID "{uuid}" уже удален{"" if is_document else "а"}!')
         else:
             path: str = object_info["data"][list(object_info["data"])[0]]["path"]
             try:
