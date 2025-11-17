@@ -15,38 +15,6 @@ from src.utils.reference_mapping_data.notification.mapping import NOTIFICATION_S
 
 
 class NotificationQueryAndStatementManager:
-    @staticmethod
-    async def __notify_email_telegram(
-        email_notification: bool,
-        email: Optional[str],
-        telegram_notification: bool,
-        telegram: Optional[str],
-        
-        message: str,
-    ) -> None:
-        notification_ex = None
-        if email_notification:
-            if email:
-                try:
-                    await SignalConnector.notify_email(
-                        emails=[email],
-                        subject="Уведомление MT",
-                        body=message,
-                    )
-                except Exception as e:
-                    notification_ex = e
-        if telegram_notification:
-            if telegram:
-                try:
-                    await SignalConnector.notify_telegram(
-                        tg_user_name=telegram,
-                        message=message,
-                    )
-                except Exception as e:
-                    notification_ex = e
-        if notification_ex is not None:
-            raise notification_ex
-    
     @classmethod
     async def notify(
         cls,
@@ -334,3 +302,35 @@ class NotificationQueryAndStatementManager:
         )
         await session.execute(stmt)
         await session.commit()
+    
+    @staticmethod
+    async def __notify_email_telegram(
+        email_notification: bool,
+        email: Optional[str],
+        telegram_notification: bool,
+        telegram: Optional[str],
+        
+        message: str,
+    ) -> None:
+        notification_ex = None
+        if email_notification:
+            if email:
+                try:
+                    await SignalConnector.notify_email(
+                        emails=[email],
+                        subject="Уведомление MT",
+                        body=message,
+                    )
+                except Exception as e:
+                    notification_ex = e
+        if telegram_notification:
+            if telegram:
+                try:
+                    await SignalConnector.notify_telegram(
+                        tg_user_name=telegram,
+                        message=message,
+                    )
+                except Exception as e:
+                    notification_ex = e
+        if notification_ex is not None:
+            raise notification_ex
