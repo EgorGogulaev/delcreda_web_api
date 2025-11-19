@@ -1,13 +1,11 @@
-import os
 import traceback
 from typing import Any, Dict, List, Literal, Optional
 
-import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Body, Depends, Form, Query, Request, HTTPException, status
+from fastapi import APIRouter, Body, Depends, Form, Query, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from config import ADMIN_UUID, APP_URL, JINJA2_TEMPLATES, ROOT_DIR
+from config import ADMIN_UUID, APP_URL, JINJA2_TEMPLATES
 from connection_module import get_async_session
 from security import check_app_auth
 from src.service.reference_service import ReferenceService
