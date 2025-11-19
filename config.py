@@ -13,7 +13,7 @@ IS_PROD = bool(int(os.getenv("IS_PROD")))
 PORT = os.getenv("PORT")
 APP_LOGIN = os.getenv("APP_LOGIN")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
-APP_URL = os.getenv("APP_URL")
+APP_URL = os.getenv("APP_URL")[:-1] if os.getenv("APP_URL").endswith("/") else os.getenv("APP_URL")
 JINJA2_TEMPLATES = Jinja2Templates(directory=os.path.join(ROOT_DIR, "src", "static"))
 
 DB_USER = os.getenv("DB_USER")
