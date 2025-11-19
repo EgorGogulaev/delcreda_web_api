@@ -69,6 +69,57 @@ class UserService:
             emails=[email],
         )
     
+    @staticmethod
+    async def reset_password(
+        session: AsyncSession,
+        
+        email: str,
+    ) -> None:
+        """Сброс пароля с использованием email"""
+        if len(email) < 3:
+            raise HTTPException(status_code=status.HTTP_411_LENGTH_REQUIRED, detail="Слишком короткий логин!")
+        
+        user_exist: bool = await UserQueryAndStatementManager.check_user_account_by_field_value(
+            session=session,
+            
+            value=email,
+            field_type="login",
+        )
+        if user_exist is False:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким логином не зарегистрирован!")
+        
+        async with RedisConnector.get_async_redis_session() as redis:
+            key_token: str = secrets.token_urlsafe(48)
+            key_token_for_confirmation_v2: str = secrets.token_urlsafe(48)
+            exists = await redis.exists(key_token) or await redis.exists(key_token_for_confirmation_v2)
+            
+            while exists:  # проверка на всякий случай, для точного избегания коллизий
+                key_token: str = secrets.token_urlsafe(48)
+                key_token_for_confirmation_v2: str = secrets.token_urlsafe(48)
+                exists = await redis.exists(key_token) or await redis.exists(key_token_for_confirmation_v2)
+            
+            data = {
+                "type": "resetpassword",
+                "email": email,
+                "key": key_token_for_confirmation_v2,
+            }
+            data_for_confirmation_v2 = {
+                "type": "resetpassword_confirmation",
+                "email": email,
+            }
+            
+            data_dump = json.dumps(data, ensure_ascii=False)
+            data_dump_for_confirmation_v2 = json.dumps(data_for_confirmation_v2, ensure_ascii=False)
+            await redis.set(key_token, data_dump, expire=ACCESS_TTL)
+            await redis.set(key_token_for_confirmation_v2, data_dump_for_confirmation_v2, expire=ACCESS_TTL)
+        
+        url = urljoin(APP_URL, "confirmation/" + key_token)
+        await SignalConnector.notify_email(  # FIXME тут нужна верствка
+            subject="Сброс пароля",
+            body=f"Для смены пароля Вам нужно пройти по ссылке и заполнить форму:\n{url}\n\n\nНикому не показывайте это сообщение!\nНе нужно отвечать на данное сообщение, оно создано автоматически.",
+            emails=[email],
+        )
+    
     @classmethod
     async def create_user(
         cls,

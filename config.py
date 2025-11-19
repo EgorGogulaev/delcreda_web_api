@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os
 
+from fastapi.templating import Jinja2Templates
+
 
 load_dotenv()
 
@@ -12,6 +14,7 @@ PORT = os.getenv("PORT")
 APP_LOGIN = os.getenv("APP_LOGIN")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 APP_URL = os.getenv("APP_URL")
+JINJA2_TEMPLATES = Jinja2Templates(directory=os.path.join(ROOT_DIR, "src", "static"))
 
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")

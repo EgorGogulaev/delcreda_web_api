@@ -4,14 +4,14 @@ from typing import Any, Dict, List, Literal, Optional
 
 import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Body, Depends, Query, Request, HTTPException
+from fastapi import APIRouter, Body, Depends, Form, Query, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from config import ADMIN_UUID, ROOT_DIR
+from config import ADMIN_UUID, APP_URL, JINJA2_TEMPLATES, ROOT_DIR
 from connection_module import get_async_session
 from security import check_app_auth
 from src.service.reference_service import ReferenceService
-from src.schemas.user_schema import AuthData, ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData
+from src.schemas.user_schema import AuthData, ClientState, ConfirmationV2Data, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData
 from src.service.user_service import UserService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -97,7 +97,12 @@ async def confirmation(
             unique_path=unique_path,
         )
         html_type = data.get("type")
-        if html_type == "confirmationnewaccount":
+        if html_type == "notfound":
+            return JINJA2_TEMPLATES.TemplateResponse(
+                request=request,
+                name="notfound.html",
+            )
+        elif html_type == "confirmationnewaccount":
             await UserService.create_user(
                 session=session,
                 
@@ -120,10 +125,16 @@ async def confirmation(
                 new_password=data.get("password"),
                 new_user_uuid=None,
             )
-        
-        async with aiofiles.open(os.path.join(ROOT_DIR, "src", "static", html_type + ".html"), "r", encoding="utf-8") as f:
-            html_content = await f.read()
-        return HTMLResponse(content=html_content)
+        elif html_type == "resetpassword":
+            return JINJA2_TEMPLATES.TemplateResponse(
+                request=request,
+                name="resetpassword.html",
+                context={
+                    "app_url": APP_URL,
+                    "unique_path": data.get("key")
+                }
+            )
+    
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -142,6 +153,133 @@ async def confirmation(
                 endpoint="confirmation",
                 params={
                     "unique_path": unique_path,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid="-",
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.post(
+    "/confirmation_v2/{unique_path}",
+    description="""
+    Подтверждение регистрации аккаунта.
+    """,
+)
+async def confirmation_v2(
+    request: Request,
+    
+    unique_path: str,
+    body_data: ConfirmationV2Data = Form(..., description="Данные для подтверждение через email."),
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> HTMLResponse:
+    try:
+        data: Dict[str, str] = await UserService.confirmation(
+            session=session,
+            
+            unique_path=unique_path,
+        )
+        
+        body_data_dct = body_data.model_dump()
+        html_type = data.get("type")
+        
+        if html_type == "notfound":
+            return JINJA2_TEMPLATES.TemplateResponse(
+                request=request,
+                name="notfound.html"
+            )
+        elif html_type == "resetpassword_confirmation":
+            email = data.get("email")
+            new_password = body_data_dct.get("new_password")
+            
+            await UserService.update_user_info(
+                session=session,
+                
+                requester_user_uuid=ADMIN_UUID,
+                requester_user_privilege=PRIVILEGE_MAPPING["Admin"],
+                target_token=None,
+                target_user_uuid=None,
+                target_login=email,
+                new_login=None,
+                new_password=new_password,
+                new_user_uuid=None,
+            )
+            
+            return JINJA2_TEMPLATES.TemplateResponse(
+                request=request,
+                name="confirmationnewpassword.html"
+            )
+    
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
+                endpoint="confirmation_v2",
+                params={
+                    "unique_path": unique_path,
+                    "body_data": body_data.model_dump(),
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid="-",
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.patch(
+    "/reset_password",
+    description="""
+    Сброс пароля с формой на email.
+    """
+)
+@limiter.limit("30/minute")
+async def reset_password(
+    request: Request,
+    
+    email: str,
+    
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        await UserService.reset_password(
+            session=session,
+            
+            email=email,
+        )
+        
+        response_content = {"msg": "На почту выслано сообщение с ссылкой на изменение пароля."}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(  # FIXME Логирование в этом месте потенциально опасно (может переполнить холодную память)
+                endpoint="reset_password",
+                params={
+                    "email": email,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid="-",

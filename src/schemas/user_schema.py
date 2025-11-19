@@ -100,3 +100,6 @@ class UpdateUserContactData(BaseModel):
     
     new_telegram: Optional[str] = Field("~", description="Новое имя пользователя telegram (@durov).")
     telegram_notification: str|bool = Field("~", description="Пользователь хочет получать уведомления в telegram(требуется подписка на бота - @delcreda_notifications_bot)? (True-да/False-нет)")
+
+class ConfirmationV2Data(BaseModel):
+    new_password: Optional[str] = Field(None, description="Новый пароль")
