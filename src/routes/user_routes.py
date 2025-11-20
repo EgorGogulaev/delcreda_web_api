@@ -33,8 +33,18 @@ router = APIRouter(
 async def register_client(
     request: Request,
     
-    email: str,
-    password: str,
+    email: str = Query(
+        ...,
+        description="email-адрес потенциального клиента.",
+        min_length=6,
+        max_length=240,
+    ),
+    password: str = Query(
+        ...,
+        description="Пароль от аккаунта",
+        min_length=8,
+        max_length=240,
+    ),
     
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
@@ -77,7 +87,7 @@ async def register_client(
 @router.get(
     "/confirmation/{unique_path}",
     description="""
-    Подтверждение регистрации аккаунта.
+    Подтверждение.
     """,
 )
 @limiter.limit("30/minute")
@@ -162,13 +172,13 @@ async def confirmation(
 @router.post(
     "/confirmation_v2/{unique_path}",
     description="""
-    Подтверждение регистрации аккаунта.
+    Подтверждение.
     """,
 )
 async def confirmation_v2(
     request: Request,
     
-    unique_path: str,
+    unique_path: str = Query(..., description=""),
     body_data: ConfirmationV2Data = Form(..., description="Данные для подтверждение через email."),
     
     session: AsyncSession = Depends(get_async_session),
@@ -247,7 +257,7 @@ async def confirmation_v2(
 async def reset_password(
     request: Request,
     
-    email: str,
+    email: str = Query(..., description="Email-логин аккаунта на котором будет сбрасываться пароль."),
     
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
@@ -581,9 +591,9 @@ async def get_users_info(
 async def change_password(
     request: Request,
     
-    email: str,
-    old_password: str,
-    new_password: str,
+    email: str = Query(..., description="Email-логин аккаунта в котором будет изменен пароль."),
+    old_password: str = Query(..., description="Старый пароль."),
+    new_password: str = Query(..., description="Новый пароль."),
     
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:

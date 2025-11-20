@@ -57,7 +57,6 @@ class CommentSubjectService:
         subject_uuid: str,
     ) -> List[Optional[CommentSubject]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            
             subject = {v: k for k, v in COMMENT_SUBJECT_MAPPING.items()}[subject_id]
             
             if subject == "Заявка":

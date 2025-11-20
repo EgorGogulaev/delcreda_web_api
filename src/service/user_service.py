@@ -132,6 +132,7 @@ class UserService:
         new_user_uuid: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Создает нового пользователя"""
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать пользователя, у Вас недостаточно прав!")
         

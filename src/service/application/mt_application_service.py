@@ -106,8 +106,12 @@ class MTApplicationService:
         
         comment: Optional[str],
     ) -> Tuple[Tuple[Application, MTApplicationData], Dict[str, str|int]]:
+        if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Заявку для другого Пользователя!")
+            if requester_user_uuid != user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Заявку для другого Пользователя!")
         
         le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
             session=session,
@@ -285,6 +289,9 @@ class MTApplicationService:
         filter: Optional[FiltersApplications] = None,
         order: Optional[OrdersApplications] = None,
     ) -> Dict[str, List[Optional[Application]]|Optional[int]]:
+        if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
+        
         if page or page_size:
             if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
@@ -342,6 +349,9 @@ class MTApplicationService:
         application_uuid_list: List[Optional[str]],
         legal_entity_uuid: Optional[str],
     ) -> List[Optional[MTApplicationData]]:
+        if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if not application_uuid_list and not legal_entity_uuid:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать хотябы один UUID-Заявки или UUID-ЮЛ по которому будут запрошены данные Заявки!")
@@ -453,6 +463,9 @@ class MTApplicationService:
         sender_country: Optional[Literal[*COUNTRY_MAPPING, "~"]], # type: ignore
         comment: Optional[str],
     ) -> None:
+        if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
+        
         application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
             session=session,
             

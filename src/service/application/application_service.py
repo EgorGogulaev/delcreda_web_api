@@ -83,6 +83,9 @@ class ApplicationService:
         
         applications_uuids: List[str],
     ) -> None:
+        if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
+        
         if not applications_uuids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления Заявки, нужно указать хотя бы 1 UUID!")
         
