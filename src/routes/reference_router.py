@@ -479,7 +479,7 @@ async def get_countries(
         content=COUNTRY_MAPPING_RUSSIA
     )
 
-@router.get("/test")
+@router.get("/test", dependencies=[Depends(check_app_auth)],)
 @limiter.limit("1/second")
 async def test(
     request: Request,
