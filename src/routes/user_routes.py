@@ -178,7 +178,7 @@ async def confirmation(
 async def confirmation_v2(
     request: Request,
     
-    unique_path: str = Query(..., description=""),
+    unique_path: str,
     body_data: ConfirmationV2Data = Form(..., description="Данные для подтверждение через email."),
     
     session: AsyncSession = Depends(get_async_session),
