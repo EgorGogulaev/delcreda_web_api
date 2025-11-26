@@ -525,4 +525,3 @@ class SignalConnector:
                 'username': username,
             },
         )
-    # FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ

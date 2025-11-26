@@ -16,7 +16,7 @@ class Document(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     uuid = Column(String(length=36), nullable=False, unique=True)
     
-    name = Column(String(length=127), nullable=False)
+    name = Column(String(length=255), nullable=False)
     extansion = Column(String(length=6))
     size = Column(BigInteger)
     
