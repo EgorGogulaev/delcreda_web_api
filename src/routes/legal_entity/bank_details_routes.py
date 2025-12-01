@@ -66,8 +66,16 @@ async def create_banks_details(
                 subject="ЮЛ",
                 subject_uuid=new_banks_details.new_banks_details[0].legal_entity_uuid,
                 for_admin=True,
-                data=f'Пользователь "{user_data["user_uuid"]}" добавил банковские реквизиты в ЮЛ "{le_uuid}".',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) добавил банковские реквизиты в ЮЛ "<legal_entity>" ({le_uuid}).',
                 recipient_user_uuid=None,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<legal_entity>": {
+                        "uuid": le_uuid,
+                    },
+                }
             )
         
         return JSONResponse(content={"msg": "Банковские реквизиты созданы."})

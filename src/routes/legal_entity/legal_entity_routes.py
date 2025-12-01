@@ -124,8 +124,20 @@ async def create_legal_entity(
             subject="ЮЛ",
             subject_uuid=new_le_with_data[0][0].uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "{user_data["user_uuid"]}" создал новое ЮЛ "{new_le_with_data[0][0].registration_identifier_value}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новое ЮЛ "{new_le_with_data[0][0].registration_identifier_value}".',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новое ЮЛ "<legal_entity>" ({new_le_with_data[0][0].registration_identifier_value}).' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новое ЮЛ "<legal_entity>" ({new_le_with_data[0][0].registration_identifier_value}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
+            request_options={
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<legal_entity>": {
+                    "uuid": new_le_with_data[0][0].uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<legal_entity>": {
+                    "uuid": new_le_with_data[0][0].uuid,
+                },
+            },
         )
         
         return JSONResponse(
@@ -474,8 +486,20 @@ async def update_legal_entity(
             subject="ЮЛ",
             subject_uuid=legal_entity_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "{user_data["user_uuid"]}"' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о ЮЛ "{legal_entity_uuid}".',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о ЮЛ "<legal_entity>" ({legal_entity_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
+            request_options={
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            },
         )
         
         return JSONResponse(content={"msg": "Основная информация о ЮЛ успешно обновлена."})
@@ -726,8 +750,20 @@ async def update_legal_entity_data(
             subject="ЮЛ",
             subject_uuid=legal_entity_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "{user_data["user_uuid"]}"' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в данные о ЮЛ "{legal_entity_uuid}".',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в данные о ЮЛ "<legal_entity>" ({legal_entity_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
+            request_options={
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            },
         )
         
         return JSONResponse(content={"msg": "Данные ЮЛ успешно обновлены."})
@@ -864,8 +900,16 @@ async def create_persons(
                 subject="ЮЛ",
                 subject_uuid=le_uuid,
                 for_admin=True,
-                data=f'Пользователь "{user_data["user_uuid"]}" создал новую/ые запись/и о ФЛ с ID: "{", ".join([str(new_person_id) for new_person_id in new_person_ids])}" в ЮЛ "{le_uuid}".',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую/ые запись/и о ФЛ с ID: "{", ".join([str(new_person_id) for new_person_id in new_person_ids])}" в ЮЛ "<legal_entity>" ({le_uuid}).',
                 recipient_user_uuid=None,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<legal_entity>": {
+                        "uuid": le_uuid,
+                    }
+                },
             )
         
         return JSONResponse(content={"msg": "ФЛ для ЮЛ создано/ы."})
@@ -1080,8 +1124,16 @@ async def update_person(
                 subject="ЮЛ",
                 subject_uuid=le_uuid,
                 for_admin=True,
-                data=f'Пользователь "{user_data["user_uuid"]}" внес изменения в информацию о ФЛ с ID "{person_id}".',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) внес изменения в информацию о ФЛ с ID "{person_id}"; "<legal_entity>" ({le_uuid}).',
                 recipient_user_uuid=None,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<legal_entity>": {
+                        "uuid": le_uuid,
+                    }
+                },
             )
         
         return JSONResponse(content={"msg": "Данные ФЛ успешно обновлены."})
@@ -1156,8 +1208,16 @@ async def delete_persons(
                 subject="ЮЛ",
                 subject_uuid=le_uuid,
                 for_admin=True,
-                data=f'Пользователь "{user_data["user_uuid"]}" удалил информацию о ФЛ с ID "{", ".join([str(person_id) for person_id in person_ids])}".',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) удалил информацию о ФЛ с ID "{", ".join([str(person_id) for person_id in person_ids])}".',
                 recipient_user_uuid=None,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<legal_entity>": {
+                        "uuid": le_uuid,
+                    }
+                },
             )
         
         return JSONResponse(content={"msg": "Информация о ФЛ успешно удалена."})

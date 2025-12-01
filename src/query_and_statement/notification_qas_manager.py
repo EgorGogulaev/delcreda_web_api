@@ -20,8 +20,58 @@ class NotificationQueryAndStatementManager:
         cls,
         session: AsyncSession,
         
+        data: str,
         notification_options: Dict[str, Any],
+        request_options: Dict[str, str] = {},
     ) -> None:
+        if request_options:
+            fields = []
+            selects = []
+            params = {}
+            
+            if "<user>" in request_options:
+                selects.append("(SELECT login FROM user_account WHERE uuid = :user_uuid) AS user_login")
+                params["user_uuid"] = request_options["<user>"]["uuid"]
+                fields.append("<user>")
+            
+            if "<legal_entity>" in request_options:
+                selects.append(
+                    """(
+                        SELECT name_national
+                        FROM legal_entity_data
+                        JOIN legal_entity ON legal_entity.data_id = legal_entity_data.id
+                        WHERE legal_entity.uuid = :le_uuid
+                    ) AS legal_entity_name"""
+                )
+                params["le_uuid"] = request_options["<legal_entity>"]["uuid"]
+                fields.append("<legal_entity>")
+            
+            if "<application>" in request_options:
+                selects.append('(SELECT name FROM "order" WHERE uuid = :order_uuid) AS order_name')
+                params["order_uuid"] = request_options["<application>"]["uuid"]
+                fields.append("<application>")
+            
+            if "<file>" in request_options:
+                selects.append("(SELECT name FROM document WHERE uuid = :doc_uuid) AS document_name")
+                params["doc_uuid"] = request_options["<file>"]["uuid"]
+                fields.append("<file>")
+            
+            if not selects:
+                pass
+            else:
+                query_text = "SELECT " + ",\n       ".join(selects)
+                
+                response = await session.execute(text(query_text), params)
+                row = response.fetchone()
+                
+                if row is None:
+                    values = [""] * len(fields)
+                else:
+                    values = [str(v) if v is not None else "" for v in row]
+                
+                for idx, field in enumerate(fields):
+                    data = data.replace(field, values[idx])
+        
         stmt = (
             insert(Notification)
             .values(
@@ -33,7 +83,7 @@ class NotificationQueryAndStatementManager:
                 initiator_user_uuid=notification_options["initiator_user_uuid"],
                 recipient_user_id=notification_options["recipient_user_id"],
                 recipient_user_uuid=notification_options["recipient_user_uuid"],
-                data=notification_options["data"],
+                data=data,
                 
                 is_important=notification_options["is_important"],
                 time_importance_change=notification_options["time_importance_change"],
@@ -56,7 +106,7 @@ class NotificationQueryAndStatementManager:
                     telegram_notification=telegram_notification,
                     telegram=telegram,
                     
-                    message=notification_options["data"]
+                    message=data,
                 )
             
             elif notification_options["for_admin"] is True:
@@ -79,7 +129,7 @@ class NotificationQueryAndStatementManager:
                         telegram_notification=telegram_notification,
                         telegram=telegram,
                         
-                        message=notification_options["data"]
+                        message=data,
                     )
     
     @staticmethod

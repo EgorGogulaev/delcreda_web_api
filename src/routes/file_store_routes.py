@@ -182,7 +182,23 @@ async def upload_file(
             
             directory_uuid=directory_uuid,
         )
-        
+        subject = {v:k for k, v in FILE_STORE_SUBJECT_MAPPING.items()}[subject_id]
+        request_options = {
+            "<user>": {
+                "uuid": user_data["user_uuid"],
+            },
+            "<file>": {
+                "uuid": new_file_uuid,
+            },
+        } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+            "<file>": {
+                "uuid": new_file_uuid,
+            },
+        }
+        if subject == "Поручение":
+            request_options.update({"<application>": {"uuid": subject_uuid}})
+        elif subject == "ЮЛ":
+            request_options.update({"<legal_entity>": {"uuid": subject_uuid}})
         await NotificationService.notify(
             session=session,
             
@@ -190,10 +206,10 @@ async def upload_file(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject={v:k for k, v in FILE_STORE_SUBJECT_MAPPING.items()}[subject_id],
+            subject=subject,
             subject_uuid=subject_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "{user_data["user_uuid"]}" загрузил Документ "{new_file_uuid}" в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "{new_file_uuid}".',
+            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в ЮЛ "<legal_entity>" ({subject_uuid}).'),
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
             
             is_important=True,

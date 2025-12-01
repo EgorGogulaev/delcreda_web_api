@@ -167,8 +167,26 @@ async def create_application(
             subject="Заявка",
             subject_uuid=new_application_with_data[0][0].uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "{user_data["user_uuid"]}" создал Заявку с ID "{new_application_with_data[0][0].id}".',
+            data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' создал Заявку "<application>" ({new_application_with_data[0][0].uuid}). ЮЛ - "<legal_entity>" ({legal_entity_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else user_uuid,
+            request_options={
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<application>": {
+                    "uuid": new_application_with_data[0][0].uuid,
+                },
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<application>": {
+                    "uuid": new_application_with_data[0][0].uuid,
+                },
+                "<legal_entity>": {
+                    "uuid": legal_entity_uuid,
+                },
+            },
         )
         
         return JSONResponse(
@@ -681,8 +699,20 @@ async def update_application_data(
             subject="Заявка",
             subject_uuid=application_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=(f'Пользователь "{user_data["user_uuid"]}"' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' внес изменения в данные Заявки "{application_uuid}".',
+            data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' внес изменения в данные о Заявке "<application>" ({application_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
+            request_options={
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<application>": {
+                    "uuid": application_uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<application>": {
+                    "uuid": application_uuid,
+                },
+            },
         )
         
         return JSONResponse(content={"msg": "Данные Заявки успешно обновлены."})

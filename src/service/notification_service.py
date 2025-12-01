@@ -29,6 +29,7 @@ class NotificationService:
         for_admin: bool,
         data: str,
         recipient_user_uuid: Optional[str],
+        request_options: Dict[str, str] = {},
         
         is_important: bool = False,
         time_importance_change: Optional[datetime.datetime] = None,
@@ -98,7 +99,6 @@ class NotificationService:
             "initiator_user_uuid": requester_user_uuid,
             "recipient_user_id": recipient_user_id,
             "recipient_user_uuid": recipient_user_uuid,
-            "data": data,
             
             "is_important": is_important,
             "time_importance_change": time_importance_change,
@@ -109,7 +109,9 @@ class NotificationService:
         await NotificationQueryAndStatementManager.notify(
             session=session,
             
+            data=data,
             notification_options=notification_options,
+            request_options=request_options,
         )
     
     @staticmethod
