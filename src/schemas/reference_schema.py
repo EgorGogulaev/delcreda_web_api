@@ -57,7 +57,7 @@ class OrdersServiceNote(BaseModel):
 # RESPONSES
 class ServiceNoteData(BaseModel):
     id: int = Field(..., description="ID служебной заметки.")
-    subject: Optional[str] = Field(None, description="Тип субъекта служебной заметки (Заявка/ЮЛ/Документ/Пользователь).")
+    subject: Optional[str] = Field(None, description="Тип субъекта служебной заметки (Заявка/Контрагент/Документ/Пользователь).")
     subject_uuid: Optional[str] = Field(None, description="UUID субъекта служебной заметки.")
     creator_id: int = Field(..., description="ID создателя служебной заметки.")
     creator_uuid: str = Field(..., description="UUID создателя служебной заметки.")

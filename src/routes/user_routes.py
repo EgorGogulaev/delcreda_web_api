@@ -83,6 +83,8 @@ async def register_client(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.get(
     "/confirmation/{unique_path}",
@@ -168,6 +170,8 @@ async def confirmation(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/confirmation_v2/{unique_path}",
@@ -246,6 +250,8 @@ async def confirmation_v2(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.patch(
     "/reset_password",
@@ -295,6 +301,8 @@ async def reset_password(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 
 @router.post(
@@ -380,6 +388,8 @@ async def register(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/auth",
@@ -411,6 +421,8 @@ async def auth(  # TODO этот метод будет использовать�
         
         response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
         return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 
 @router.post(
@@ -449,6 +461,8 @@ async def auth_v2(
         
         response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
         return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 
 @router.post(
@@ -579,6 +593,8 @@ async def get_users_info(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/change_password",
@@ -634,6 +650,8 @@ async def change_password(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_user_info",
@@ -736,6 +754,8 @@ async def update_user_info(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_users",
@@ -811,6 +831,8 @@ async def delete_users(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.get(
     "/get_client_states",
@@ -981,3 +1003,5 @@ async def update_user_contact(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

@@ -104,7 +104,7 @@ class ApplicationService:
                 if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию о Заявках других Пользователей или же доступ к редактирования данной Заявки ограничен!")
                 else:
-                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Информация о ЮЛ не была найдена!")
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Информация о Контрагенте не была найдена!")
             
             application_ids_with_application_data_ids_with_dir_uuid.append(application_check_access_response_object)
         

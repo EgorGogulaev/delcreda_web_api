@@ -8,15 +8,16 @@ from sqlalchemy import (
 from connection_module import Base
 
 
-class LegalEntity(Base):
-    __tablename__ = "legal_entity"
+class Counterparty(Base):
+    __tablename__ = "counterparty"
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     uuid = Column(String(length=36), unique=True, nullable=False)
+    type = Column(SmallInteger, ForeignKey("counterparty_type.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     
     country = Column(SmallInteger, ForeignKey("country.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
-    registration_identifier_type = Column(String)
-    registration_identifier_value = Column(String, nullable=False)
+    identifier_type = Column(String)
+    identifier_value = Column(String, nullable=False)
     tax_identifier = Column(String, nullable=False)
     
     user_id = Column(Integer, ForeignKey("user_account.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
@@ -25,7 +26,7 @@ class LegalEntity(Base):
     directory_uuid = Column(String(length=36), nullable=False)
     is_active = Column(Boolean, server_default="false", nullable=False)
     
-    data_id = Column(BigInteger, ForeignKey("legal_entity_data.id", ondelete="CASCADE", onupdate="CASCADE"))
+    data_id = Column(BigInteger)  # В комбинации с type можно определить откуда делать join данных контрагента (ФЛ/ЮЛ)
     can_be_updated_by_user = Column(Boolean, server_default="true")
     
     application_access_list = Column(BigInteger, ForeignKey("application_access_list.id", ondelete="CASCADE", onupdate="CASCADE"))
@@ -35,10 +36,18 @@ class LegalEntity(Base):
     
     __table_args__ = (
         UniqueConstraint(
-            'country', 'registration_identifier_type', 'registration_identifier_value', 
-            name='uq_country_reg_type_reg_value'
+            'country', 'identifier_type', 'identifier_value', 
+            name='uq_country_id_type_id_value'
         ),
     )
+
+class CounterpartyType(Base):
+    __tablename__ = "counterparty_type"
+    
+    id = Column(SmallInteger, primary_key=True, autoincrement=True)
+    
+    name = Column(String, nullable=False)
+
 
 class LegalEntityData(Base):
     __tablename__ = "legal_entity_data"
@@ -58,6 +67,15 @@ class LegalEntityData(Base):
     legal_address = Column(String)
     postal_address = Column(String)
     additional_address = Column(String)
+    
+    updated_at = Column(DateTime(timezone=True))
+
+class IndividualData(Base):
+    __tablename__ = "individual_data"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    # TODO тут будут реализованы поля для ФЛ
     
     updated_at = Column(DateTime(timezone=True))
 
@@ -89,7 +107,7 @@ class Person(Base):
     phone = Column(String)
     contact = Column(String)
     
-    legal_entity_uuid = Column(String(length=36), nullable=False)
+    counterparty_uuid = Column(String(length=36), nullable=False)
     
     updated_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)

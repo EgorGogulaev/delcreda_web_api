@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from security import encrypt
 from config import ACCESS_TTL, APP_URL, SECRET_KEY
 from connection_module import RedisConnector, SignalConnector
-from src.models.legal_entity.legal_entity_models import LegalEntity
-from src.service.legal_entity.legal_entity_service import LegalEntityService
+from src.models.counterparty.counterparty_models import Counterparty
+from src.service.counterparty.counterparty_service import CounterpartyService
 from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
 from src.models.user_models import UserAccount
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
@@ -587,26 +587,26 @@ class UserService:
                 if dirs_info["data"][dir_id]["parent"] is None:
                     dir_uuids.append(dirs_info["data"][dir_id]["uuid"])
             
-            le_uuids: List[str] = []
-            le_dct: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
+            counterparty_uuids: List[str] = []
+            counterparty_dct: Dict[str, List[Optional[Counterparty|int|bool]] | List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyService.get_counterparties(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 user_uuid=user_uuid,
             )
-            for le in le_dct["data"]:
-                le_uuids.append(le.uuid)
+            for counterparty in counterparty_dct["data"]:
+                counterparty_uuids.append(counterparty.uuid)
             
             try:
-                await LegalEntityService.delete_legal_entities(
+                await CounterpartyService.delete_counterparties(
                     session=session,
                     
                     requester_user_id=requester_user_id,
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
                     
-                    legal_entities_uuids=le_uuids,
+                    counterparty_uuids=counterparty_uuids,
                 )
             except: ...  # noqa: E722
         

@@ -46,15 +46,15 @@ router = APIRouter(
 async def create_application(
     request: Request,
     application_data: CreateMTApplicationDataSchema,
-    legal_entity_uuid: str = Query(
+    counterparty_uuid: str = Query(
         ...,
-        description="UUID ЮЛ по которому создается MT-Заявка.",
+        description="UUID Контрагента по которому создается MT-Заявка.",
         min_length=36,
         max_length=36
     ),
     user_uuid: str = Query(
         ...,
-        description="UUID Пользователя-владельца ЮЛ по которому создается MT-Заявка.",
+        description="UUID Пользователя-владельца карточки Контрагента по которому создается MT-Заявка.",
         min_length=36,
         max_length=36
     ),
@@ -79,7 +79,7 @@ async def create_application(
             requester_user_privilege=user_data["privilege_id"],
             
             user_uuid=user_uuid,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             new_directory_uuid=new_directory_uuid,
             
             # ApplicationData
@@ -167,7 +167,7 @@ async def create_application(
             subject="Заявка",
             subject_uuid=new_application_with_data[0][0].uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' создал Заявку "<application>" ({new_application_with_data[0][0].uuid}). ЮЛ - "<legal_entity>" ({legal_entity_uuid}).',
+            data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' создал Заявку "<application>" ({new_application_with_data[0][0].uuid}). Контрагент - "<counterparty>" ({counterparty_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else user_uuid,
             request_options={
                 "<user>": {
@@ -176,15 +176,15 @@ async def create_application(
                 "<application>": {
                     "uuid": new_application_with_data[0][0].uuid,
                 },
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
                 "<application>": {
                     "uuid": new_application_with_data[0][0].uuid,
                 },
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             },
         )
@@ -215,7 +215,7 @@ async def create_application(
                 endpoint="create_application",
                 params={
                     "application_data": application_data.model_dump() if application_data else application_data,
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                     "user_uuid": user_uuid,
                     "new_directory_uuid": new_directory_uuid,
                 },
@@ -225,6 +225,8 @@ async def create_application(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_applications",
@@ -241,9 +243,9 @@ async def create_application(
 @limiter.limit("30/second")
 async def get_applications(
     request: Request,
-    legal_entity_uuid: Optional[str] = Query(
+    counterparty_uuid: Optional[str] = Query(
         None,
-        description="(Опционально) Фильтр по UUID ЮЛ, по которому будут искаться Заявки (точное совпадение).",
+        description="(Опционально) Фильтр по UUID Контрагента, по которому будут искаться Заявки (точное совпадение).",
         min_length=36,
         max_length=36
     ),
@@ -266,9 +268,8 @@ async def get_applications(
     
     legal_entity_name: Optional[str] = Query(
         None,
-        description="(Опционально, если extended_output==true (!)) Фильтр для поиска по наименованию ЮЛ (латиница/национальное написание)."
+        description="(Опционально, если extended_output==true (!)) Фильтр для поиска по наименованию Контрагента(ЮЛ) (латиница/национальное написание)."
     ),
-    
     
     page: Optional[int] = Query(
         None,
@@ -307,7 +308,7 @@ async def get_applications(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             user_uuid=user_uuid,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             extended_output=extended_output,
             
@@ -328,7 +329,7 @@ async def get_applications(
             total_pages=None,
         )
         
-        for application in applications["data"]:
+        for application in applications["data"]:  # FIXME
             if extended_output:
                 response_content.data.append(
                     ExtendedMTApplication(
@@ -346,8 +347,8 @@ async def get_applications(
                         
                         user_id=application["application"].user_id,
                         user_uuid=application["application"].user_uuid,
-                        legal_entity_id=application["application"].legal_entity_id,
-                        legal_entity_uuid=application["application"].legal_entity_uuid,
+                        counterparty_id=application["application"].counterparty_id,
+                        counterparty_uuid=application["application"].counterparty_uuid,
                         directory_id=application["application"].directory_id,
                         directory_uuid=application["application"].directory_uuid,
                         type="MT",
@@ -365,8 +366,8 @@ async def get_applications(
                         name=application.name,
                         user_id=application.user_id,
                         user_uuid=application.user_uuid,
-                        legal_entity_id=application.legal_entity_id,
-                        legal_entity_uuid=application.legal_entity_uuid,
+                        counterparty_id=application.counterparty_id,
+                        counterparty_uuid=application.counterparty_uuid,
                         directory_id=application.directory_id,
                         directory_uuid=application.directory_uuid,
                         type="MT",
@@ -399,7 +400,7 @@ async def get_applications(
             log_id = await ReferenceService.create_errlog(
                 endpoint="get_applications",
                 params={
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                     "user_uuid": user_uuid,
                     "extended_output": extended_output,
                     "user_login_ilike": user_login_ilike,
@@ -415,6 +416,8 @@ async def get_applications(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_applications_data",
@@ -432,9 +435,9 @@ async def get_applications_data(
         [],
         description="(Опционально) Массив UUID, подробные данные которых нужно получить."
     ),
-    legal_entity_uuid: Optional[str] = Query(
+    counterparty_uuid: Optional[str] = Query(
         None,
-        description="(Опционально для Админа) Фильтр по UUID ЮЛ, по Заявкам которого будет взята подробная информация (точное совпадение).",
+        description="(Опционально для Админа) Фильтр по UUID Контрагента, по Заявкам которого будет взята подробная информация (точное совпадение).",
         min_length=36,
         max_length=36
     ),
@@ -463,7 +466,7 @@ async def get_applications_data(
             requester_user_privilege=user_data["privilege_id"],
             
             application_uuid_list=application_uuid_list,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
         )
         
         response_content = {"data": {}, "count": 0}
@@ -570,7 +573,7 @@ async def get_applications_data(
                 endpoint="get_applications_data",
                 params={
                     "application_uuid_list": application_uuid_list,
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -578,6 +581,8 @@ async def get_applications_data(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_application_data",
@@ -742,3 +747,5 @@ async def update_application_data(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

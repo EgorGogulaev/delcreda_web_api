@@ -15,7 +15,7 @@ class ChatService:
     async def create_chat(
         session: AsyncSession,
         
-        chat_subject: Literal["Заявка", "ЮЛ",],
+        chat_subject: Literal["Заявка", "Контрагент",],
         subject_uuid: str,
     ) -> Dict[str, str|int]:
         
@@ -42,7 +42,7 @@ class ChatService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "ЮЛ"],
+        chat_subject: Literal["Заявка", "Контрагент"],
         subject_uuid: str,
         message: str,
     ) -> None:
@@ -77,7 +77,7 @@ class ChatService:
         
         requester_user_uuid: str, requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "ЮЛ"],
+        chat_subject: Literal["Заявка", "Контрагент"],
         subject_uuid: str,
         
         page: Optional[int] = 1,

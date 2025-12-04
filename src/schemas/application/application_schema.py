@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 # FILTERS
 class FilterApplications(BaseModel):
     field: Literal[
-        "id", "uuid", "name", "user_id", "user_uuid", "legal_entity_id", "legal_entity_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
+        "id", "uuid", "name", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
     operator: Literal["eq", "ne", "gt", "lt", "ge", "le", "like", "in"] = Field(
         ...,
@@ -28,7 +28,7 @@ class FiltersApplications(BaseModel):
 
 class OrderApplications(BaseModel):
     field: Literal[
-        "id", "uuid", "name", "user_id", "user_uuid", "legal_entity_id", "legal_entity_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
+        "id", "uuid", "name", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "directory_id", "directory_uuid", "type", "status", "data_id", "created_at",
     ] = Field(
         ...,
         description="Поля по которым можно сортировать записи."
@@ -51,8 +51,8 @@ class BaseApplication(BaseModel):
     name: str = Field(..., description="Человекочитаемое уникальное название заявки.")
     user_id: int = Field(..., description="ID пользователя.")
     user_uuid: str = Field(..., description="UUID пользователя.")
-    legal_entity_id: int = Field(..., description="ID юридического лица.")
-    legal_entity_uuid: str = Field(..., description="UUID юридического лица.")
+    counterparty_id: int = Field(..., description="ID юридического лица.")
+    counterparty_uuid: str = Field(..., description="UUID юридического лица.")
     directory_id: int = Field(..., description="ID директории.")
     directory_uuid: str = Field(..., description="UUID директории.")
     type: Optional[str] = Field(..., description="Тип заявки (вид услуги).")

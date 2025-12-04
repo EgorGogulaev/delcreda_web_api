@@ -7,65 +7,63 @@ from sqlalchemy.dialects.postgresql import insert
 
 from src.models.application.mt_models import MTApplicationData
 from src.models.application.application_models import Application
-from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, CreatePersonsSchema
-from src.models.legal_entity.bank_details_models import BankDetails
-from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, ApplicationAccessList, Person
+from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualSchema
+from src.models.counterparty.bank_details_models import BankDetails
+from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, ApplicationAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.application.mapping import APPLICATION_TYPE_MAPPING
+from src.utils.reference_mapping_data.counterparty.mapping import COUNTERPARTY_TYPE_MAPPING
 
 
-class LegalEntityQueryAndStatementManager:
+class CounterpartyQueryAndStatementManager:
     @staticmethod
-    async def create_legal_entity(
+    async def create_counterparty(
         session: AsyncSession,
+        
+        counterparty_type: Literal["ФЛ", "ЮЛ"],
         
         owner_user_id: int,
         owner_user_uuid: str,
-        new_legal_entity_uuid: str,
+        new_counterparty_uuid: str,
         directory_id: int,
         directory_uuid: str,
         
         application_access_list_id: int,
         
         country: int,
-        registration_identifier_type: str,
-        registration_identifier_value: str,
+        identifier_type: str,
+        identifier_value: str,
         tax_identifier: str,
         
-        # LegalEntityData
-        name_latin: Optional[str],
-        name_national: Optional[str],
-        organizational_and_legal_form_latin: Optional[str],
-        organizational_and_legal_form_national: Optional[str],
-        site: Optional[str],
-        registration_date: datetime.date,
-        legal_address: str,
-        postal_address: Optional[str],
-        additional_address: Optional[str],
-    ) -> Tuple[LegalEntity, LegalEntityData]:
-        # LegalEntityData
-        new_le_data = LegalEntityData(
-            name_latin=name_latin,
-            name_national=name_national,
-            organizational_and_legal_form_latin=organizational_and_legal_form_latin,
-            organizational_and_legal_form_national=organizational_and_legal_form_national,
-            site=site,
-            registration_date=registration_date,
-            legal_address=legal_address,
-            postal_address=postal_address,
-            additional_address=additional_address,
-        )
-        session.add(new_le_data)
+        counterparty_data: CreateLegalEntityDataSchema|CreateIndividualDataSchema,
+    ) -> Tuple[Counterparty, LegalEntityData|IndividualData]:
+        if counterparty_type == "ЮЛ":
+            # LegalEntityData  # FIXME
+            new_counterparty_data = LegalEntityData(
+                name_latin=counterparty_data.name_latin,
+                name_national=counterparty_data.name_national,
+                organizational_and_legal_form_latin=counterparty_data.organizational_and_legal_form_latin,
+                organizational_and_legal_form_national=counterparty_data.organizational_and_legal_form_national,
+                site=counterparty_data.site,
+                registration_date=counterparty_data.registration_date,
+                legal_address=counterparty_data.legal_address,
+                postal_address=counterparty_data.postal_address,
+                additional_address=counterparty_data.additional_address,
+            )
+        else:
+            ...  # TODO тут должна быть логика для ФЛ
+        session.add(new_counterparty_data)
         await session.flush()  # Генерируем ID для new_le_data
         
-        # LegalEntity
-        new_le = LegalEntity(
-            uuid=new_legal_entity_uuid,
+        # Counterparty
+        new_counterparty = Counterparty(
+            uuid=new_counterparty_uuid,
+            type=counterparty_type,
             
             country=country,
-            registration_identifier_type=registration_identifier_type,
-            registration_identifier_value=registration_identifier_value,
+            identifier_type=identifier_type,
+            identifier_value=identifier_value,
             tax_identifier=tax_identifier,
             
             user_id=owner_user_id,
@@ -73,15 +71,15 @@ class LegalEntityQueryAndStatementManager:
             directory_id=directory_id,
             directory_uuid=directory_uuid,
             application_access_list=application_access_list_id,
-            data_id=new_le_data.id,
+            data_id=new_counterparty_data.id,
         )
-        session.add(new_le)
+        session.add(new_counterparty)
         await session.commit()
         
-        await session.refresh(new_le)
-        await session.refresh(new_le_data)
+        await session.refresh(new_counterparty)
+        await session.refresh(new_counterparty_data)
         
-        return (new_le, new_le_data)
+        return (new_counterparty, new_counterparty_data)
     
     @staticmethod
     async def create_application_access_list(
@@ -98,14 +96,14 @@ class LegalEntityQueryAndStatementManager:
         return new_application_list_access_id
     
     @staticmethod
-    async def get_user_uuid_by_legal_entity_uuid(
+    async def get_user_uuid_by_counterparty_uuid(
         session: AsyncSession,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
     ) -> Optional[str]:
         query = (
-            select(LegalEntity.user_uuid)
-            .filter(LegalEntity.uuid == legal_entity_uuid)
+            select(Counterparty.user_uuid)
+            .filter(Counterparty.uuid == counterparty_uuid)
         )
         
         response = await session.execute(query)
@@ -114,32 +112,33 @@ class LegalEntityQueryAndStatementManager:
         return result
     
     @staticmethod
-    async def get_legal_entities(
+    async def get_counterparties(  # FIXME
         session: AsyncSession,
         
+        counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]],
         user_uuid: Optional[str],
         legal_entity_name_ilike: Optional[str] = None,
-        le_id_list: Optional[List[int]] = None,
+        counterparty_id_list: Optional[List[int]] = None,
         
         extended_output: bool = False,
         
         page: Optional[int] = None,
         page_size: Optional[int] = None,
         
-        filter: Optional[FiltersLegalEntities] = None,
-        order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
+        filter: Optional[FiltersCounterparties] = None,
+        order: Optional[OrdersCounterparties] = None,
+    ) -> Dict[str, List[Optional[Counterparty|int|bool]] | List[Optional[Tuple[Counterparty, bool]]]]:
         _filters = []
         
         if user_uuid:
-            _filters.append(LegalEntity.user_uuid == user_uuid)
+            _filters.append(Counterparty.user_uuid == user_uuid)
         
-        if le_id_list:
-            _filters.append(LegalEntity.id.in_(le_id_list))
+        if counterparty_id_list:
+            _filters.append(Counterparty.id.in_(counterparty_id_list))
         
         if filter is not None and filter.filters:
             for filter_item in filter.filters:
-                column = getattr(LegalEntity, filter_item.field)
+                column = getattr(Counterparty, filter_item.field)
                 if filter_item.operator == "eq":
                     cond = column == filter_item.value
                 elif filter_item.operator == "ne":
@@ -171,7 +170,7 @@ class LegalEntityQueryAndStatementManager:
         if order is not None and order.orders:
             for order_item in order.orders:
                 # Получаем атрибут модели для сортировки
-                column = getattr(LegalEntity, order_item.field)
+                column = getattr(Counterparty, order_item.field)
                 
                 # Добавляем условие сортировки в зависимости от направления
                 if order_item.direction == "asc":
@@ -180,38 +179,43 @@ class LegalEntityQueryAndStatementManager:
                     _order_clauses.append(column.desc().nulls_last())
         
         if not _order_clauses:
-            _order_clauses.append(LegalEntity.id.asc())
+            _order_clauses.append(Counterparty.id.asc())
         # ===== КОНЕЦ блока сортировки =====
         
         if extended_output:
-            query = (
-                select(
-                    LegalEntity,
-                    
-                    LegalEntityData.name_latin,
-                    LegalEntityData.name_national,
-                    LegalEntityData.organizational_and_legal_form_latin,
-                    LegalEntityData.organizational_and_legal_form_national,
-                    LegalEntityData.updated_at,
-                    # TODO тут можно добавить вывод полей (согласовать с Юрием)
-                    
-                    ApplicationAccessList.mt,
-                )
-                .outerjoin(LegalEntityData, LegalEntity.data_id == LegalEntityData.id)
-                .outerjoin(ApplicationAccessList, LegalEntity.application_access_list == ApplicationAccessList.id)
-                .filter(and_(*_filters))
-            )
-            if legal_entity_name_ilike:
-                query = query.filter(
-                    or_(
-                        LegalEntityData.name_national.ilike(f"%{legal_entity_name_ilike}%"),
-                        LegalEntityData.name_latin.ilike(f"%{legal_entity_name_ilike}%"),
+            if counterparty_type == "ЮЛ":
+                query = (
+                    select(
+                        Counterparty,
+                        
+                        LegalEntityData.name_latin,
+                        LegalEntityData.name_national,
+                        LegalEntityData.organizational_and_legal_form_latin,
+                        LegalEntityData.organizational_and_legal_form_national,
+                        LegalEntityData.updated_at,
+                        # TODO тут можно добавить вывод полей (согласовать с Юрием)
+                        
+                        ApplicationAccessList.mt,
                     )
+                    .outerjoin(LegalEntityData, Counterparty.data_id == LegalEntityData.id)
+                    .outerjoin(ApplicationAccessList, Counterparty.application_access_list == ApplicationAccessList.id)
+                    .filter(and_(*_filters))
                 )
-            query = query.order_by(*_order_clauses)
+                if legal_entity_name_ilike:
+                    query = query.filter(
+                        or_(
+                            LegalEntityData.name_national.ilike(f"%{legal_entity_name_ilike}%"),
+                            LegalEntityData.name_latin.ilike(f"%{legal_entity_name_ilike}%"),
+                        )
+                    )
+                query = query.order_by(*_order_clauses)
+            elif counterparty_type == "ФЛ":
+                ...  # TODO тут логика для ФЛ
+            else:
+                ...  # TODO тут логика для комбинированного набора данных
         else:
             query = (
-                select(LegalEntity)
+                select(Counterparty)
                 .filter(and_(*_filters))
                 .order_by(*_order_clauses)
             )
@@ -224,27 +228,32 @@ class LegalEntityQueryAndStatementManager:
             page_size = 50
         
         query = query.limit(page_size).offset((page - 1) * page_size)
-        count_query = select(func.count()).select_from(LegalEntity).filter(and_(*_filters))
+        count_query = select(func.count()).select_from(Counterparty).filter(and_(*_filters))
         
         total_records = (await session.execute(count_query)).scalar()
         total_pages = (total_records + page_size - 1) // page_size if total_records else 0
         
         response = await session.execute(query)
         if extended_output:
-            data = [{
-                "legal_entity": item[0],
-                
-                "name_latin": item[1],
-                "name_national": item[2],
-                "organizational_and_legal_form_latin": item[3],
-                "organizational_and_legal_form_national": item[4],
-                "updated_at": item[5],
-                # TODO тут можно добавить вывод полей (согласовать с Юрием)
-                
-                "mt": item[6],
-            } for item in response.fetchall()]
+            if counterparty_type == "ЮЛ":
+                data = [{
+                    "counterparty": item[0],
+                    
+                    "name_latin": item[1],
+                    "name_national": item[2],
+                    "organizational_and_legal_form_latin": item[3],
+                    "organizational_and_legal_form_national": item[4],
+                    "updated_at": item[5],
+                    # TODO тут можно добавить вывод полей (согласовать с Юрием)
+                    
+                    "mt": item[6],
+                } for item in response.fetchall()]
+            elif counterparty_type == "ФЛ":
+                ...  # TODO тут логики для
+            else:
+                ...  # TODO тут логика для комбинированного набора данных
         else:
-            data = [(item[0], item[1]) for item in response.fetchall()]
+            data = [(item[0], item[1]) for item in response.fetchall()]  # FIXME при вводе ФЛ тут нужны будут правки
         
         return {
             "data": data,
@@ -253,14 +262,14 @@ class LegalEntityQueryAndStatementManager:
         }
     
     @staticmethod
-    async def get_application_access_list_id_by_legal_entity_uuid(
+    async def get_application_access_list_id_by_counterparty_uuid(
         session: AsyncSession,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
     ) -> Optional[int]:
         query = (
-            select(LegalEntity.application_access_list)
-            .filter(LegalEntity.uuid == legal_entity_uuid)
+            select(Counterparty.application_access_list)
+            .filter(Counterparty.uuid == counterparty_uuid)
         )
         response = await session.execute(query)
         application_access_list_id: Optional[int] = response.scalar()
@@ -268,31 +277,27 @@ class LegalEntityQueryAndStatementManager:
         return application_access_list_id
     
     @staticmethod
-    async def update_legal_entity(
+    async def update_counterparty(
         session: AsyncSession,
         
-        legal_entity_id: int,
+        counterparty_id: int,
         
-        country: Literal[*COUNTRY_MAPPING, "~"], # type: ignore
-        registration_identifier_type: Optional[str],
-        registration_identifier_value: str,
-        tax_identifier: str,
-        is_active: bool|str,
+        data_for_update: UpdateCounterpartySchema,
     ) -> None:
         values_for_update = {
-            "country": COUNTRY_MAPPING[country] if country != "~" else "~",
-            "registration_identifier_type": registration_identifier_type,
-            "registration_identifier_value": registration_identifier_value,
-            "tax_identifier": tax_identifier,
-            "is_active": is_active,
+            "country": COUNTRY_MAPPING[data_for_update.country] if data_for_update.country != "~" else "~",
+            "identifier_type": data_for_update.identifier_type,
+            "identifier_value": data_for_update.identifier_value,
+            "tax_identifier": data_for_update.tax_identifier,
+            "is_active": data_for_update.is_active,
             
             "updated_at": datetime.datetime.now(tz=datetime.timezone.utc),
         }
         new_values = {k: v for k, v in values_for_update.items() if v != "~"}
         
         stmt = (
-            update(LegalEntity)
-            .filter(LegalEntity.id == legal_entity_id)
+            update(Counterparty)
+            .filter(Counterparty.id == counterparty_id)
             .values(**new_values)
         )
         
@@ -300,15 +305,15 @@ class LegalEntityQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def change_legal_entities_edit_status(
+    async def change_counterparties_edit_status(
         session: AsyncSession,
         
-        legal_entity_uuids: List[str],
+        counterparty_uuids: List[str],
         edit_status: bool,
     ) -> None:
         stmt = (
-            update(LegalEntity)
-            .where(LegalEntity.uuid.in_(legal_entity_uuids))
+            update(Counterparty)
+            .where(Counterparty.uuid.in_(counterparty_uuids))
             .values(
                 can_be_updated_by_user=edit_status,
             )
@@ -337,24 +342,29 @@ class LegalEntityQueryAndStatementManager:
         await session.commit()
         
     @staticmethod
-    async def get_legal_entities_data(
+    async def get_counterparties_data(
         session: AsyncSession,
         
-        legal_entity_data_ids: List[Optional[int]],
-    ) -> List[Optional[LegalEntityData]]:
+        counterparty_type: Literal["ЮЛ", "ФЛ"],
+        
+        counterparty_data_ids: List[Optional[int]],
+    ) -> List[Optional[LegalEntityData|IndividualData]]:
         _filters = []
         
-        if legal_entity_data_ids:
-            _filters.append(LegalEntityData.id.in_(legal_entity_data_ids))
-        
-        query = (
-            select(LegalEntityData)
-            .filter(
-                and_(
-                    *_filters
+        if counterparty_type == "ЮЛ":
+            if counterparty_data_ids:
+                _filters.append(LegalEntityData.id.in_(counterparty_data_ids))
+            
+            query = (
+                select(LegalEntityData)
+                .filter(
+                    and_(
+                        *_filters
+                    )
                 )
             )
-        )
+        else:
+            ...  # TODO тут логика для ФЛ
         
         response = await session.execute(query)
         result = [item[0] for item in response.all()]
@@ -367,25 +377,24 @@ class LegalEntityQueryAndStatementManager:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
         
         for_create_application: bool = False,
-        for_update_or_delete_legal_entity: bool = False,
-    ) -> Optional[Tuple[int, int, str]]:
-        _filters = [LegalEntity.uuid == legal_entity_uuid]
+        for_update_or_delete_counterparty: bool = False,
+    ) -> Optional[Tuple[int, int, int, str]]:
+        _filters = [Counterparty.uuid == counterparty_uuid]
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            _filters.append(LegalEntity.user_uuid == requester_user_uuid)
-            if for_update_or_delete_legal_entity:
-                _filters.append(LegalEntity.can_be_updated_by_user == True)  # noqa: E712
+            _filters.append(Counterparty.user_uuid == requester_user_uuid)
+            if for_update_or_delete_counterparty:
+                _filters.append(Counterparty.can_be_updated_by_user == True)  # noqa: E712
         
         if for_create_application:
-            _filters.append(LegalEntity.is_active == True)  # noqa: E712
-        
+            _filters.append(Counterparty.is_active == True)  # noqa: E712
         
         
         query = (
-            select(LegalEntity.id, LegalEntity.data_id, LegalEntity.directory_uuid,)
+            select(Counterparty.id, Counterparty.type, Counterparty.data_id, Counterparty.directory_uuid,)
             .filter(
                 and_(
                     *_filters
@@ -399,10 +408,10 @@ class LegalEntityQueryAndStatementManager:
         return result
     
     @staticmethod
-    async def update_legal_entity_data(
+    async def update_counterparty_data(
         session: AsyncSession,
         
-        legal_entity_data_id: int,
+        counterparty_data_id: int,
         
         name_latin: Optional[str],
         name_national: Optional[str],
@@ -431,7 +440,7 @@ class LegalEntityQueryAndStatementManager:
         
         stmt = (
             update(LegalEntityData)
-            .filter(LegalEntityData.id == legal_entity_data_id)
+            .filter(LegalEntityData.id == counterparty_data_id)
             .values(**new_values)
         )
         
@@ -439,14 +448,17 @@ class LegalEntityQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def delete_legal_entities(
+    async def delete_counterparties(  # FIXME ПРОВЕРЬ ВЕЗДЕ !!!
         session: AsyncSession,
         
-        legal_entities_uuids: List[str],
-        le_ids_with_le_data_ids_with_dir_uuid: List[Tuple[int, int, str]],
+        counterparty_uuids: List[str],
+        counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid: List[Tuple[int, int, int, str]],
     ) -> None:
-        le_ids = [le_id for le_id, _, _ in le_ids_with_le_data_ids_with_dir_uuid]
-        le_data_ids = [le_data_id for _, le_data_id, _ in le_ids_with_le_data_ids_with_dir_uuid]
+        counterparty_ids = [counterparty_id for counterparty_id, _, _, _ in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid]
+        
+        counterparty_ids_with_type_ids = [(counterparty_id, counterparty_type_id) for counterparty_id, counterparty_type_id, _, _ in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid]
+        counterparty_le_ids = [le_id for le_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ЮЛ"]]
+        counterparty_individual_ids = [individual_id for individual_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ФЛ"]]
         
         application_ids = []
         
@@ -456,7 +468,7 @@ class LegalEntityQueryAndStatementManager:
             .where(
                 and_(
                     Application.type == APPLICATION_TYPE_MAPPING["MT"],
-                    Application.legal_entity_id.in_(le_ids),
+                    Application.counterparty_id.in_(counterparty_ids),
                 )
             )
         )
@@ -477,14 +489,14 @@ class LegalEntityQueryAndStatementManager:
         
         application_ids.extend(application_ids_from_MT)
         
-        stmt_delete_le_bank_details = (
+        stmt_delete_counterparty_bank_details = (
             delete(BankDetails)
-            .where(BankDetails.legal_entity_uuid.in_(legal_entities_uuids))
+            .where(BankDetails.counterparty_uuid.in_(counterparty_uuids))
         )
         
-        stmt_delete_le_persons = (
+        stmt_delete_counterparty_persons = (
             delete(Person)
-            .where(Person.legal_entity_uuid.in_(legal_entities_uuids))
+            .where(Person.counterparty_uuid.in_(counterparty_uuids))
         )
         
         stmt_delete_applications = (
@@ -499,25 +511,30 @@ class LegalEntityQueryAndStatementManager:
                 .where(MTApplicationData.id.in_(application_data_ids_from_MT))
             )
         # ...  TODO тут будут другие бизнес-направления
-        
-        stmt_delete_le_data = (
+        stmt_delete_counterparty_data_le = (
             delete(LegalEntityData)
-            .where(LegalEntityData.id.in_(le_data_ids))
-        )
-        stmt_delete_le = (
-            delete(LegalEntity)
-            .where(LegalEntity.id.in_(le_ids))
+            .where(LegalEntityData.id.in_(counterparty_le_ids))
         )
         
-        await session.execute(stmt_delete_le_bank_details)
-        await session.execute(stmt_delete_le_persons)
+        stmt_delete_counterparty_data_individual = (
+            delete(IndividualData)
+            .where(IndividualData.id.in_(counterparty_individual_ids))
+        )
+        stmt_delete_counterparty = (
+            delete(Counterparty)
+            .where(Counterparty.id.in_(counterparty_ids))
+        )
+        
+        await session.execute(stmt_delete_counterparty_bank_details)
+        await session.execute(stmt_delete_counterparty_persons)
         await session.execute(stmt_delete_applications)
         # MT
         if application_data_ids_from_MT:
             await session.execute(stmt_delete_applications_data_from_MT)
         # ...  TODO тут будут другие бизнес-направления
-        await session.execute(stmt_delete_le)
-        await session.execute(stmt_delete_le_data)
+        await session.execute(stmt_delete_counterparty)
+        await session.execute(stmt_delete_counterparty_data_le)
+        await session.execute(stmt_delete_counterparty_data_individual)
         
         await session.commit()
     
@@ -566,7 +583,7 @@ class LegalEntityQueryAndStatementManager:
         session: AsyncSession,
         
         person_ids: Optional[List[int]],
-        legal_entity_uuid: Optional[str] = None,
+        counterparty_uuid: Optional[str] = None,
         
         page: Optional[int] = None,
         page_size: Optional[int] = None,
@@ -576,8 +593,8 @@ class LegalEntityQueryAndStatementManager:
     ) -> Dict[str, List[Optional[Person]]|Optional[int]]:
         _filters = []
         
-        if legal_entity_uuid:
-            _filters.append(Person.legal_entity_uuid == legal_entity_uuid)
+        if counterparty_uuid:
+            _filters.append(Person.counterparty_uuid == counterparty_uuid)
         
         if person_ids:
             _filters.append(Person.id.in_(person_ids))
@@ -673,7 +690,7 @@ class LegalEntityQueryAndStatementManager:
         email: Optional[str],
         phone: Optional[str],
         contact: Optional[str],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
     ) -> None:
         values_for_update = {
             "surname": surname,
@@ -687,7 +704,7 @@ class LegalEntityQueryAndStatementManager:
             "email": email,
             "phone": phone,
             "contact": contact,
-            "legal_entity_uuid": legal_entity_uuid,
+            "counterparty_uuid": counterparty_uuid,
             
             "updated_at": datetime.datetime.now(tz=datetime.timezone.utc),
         }

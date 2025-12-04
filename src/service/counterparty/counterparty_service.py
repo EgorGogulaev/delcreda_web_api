@@ -1,3 +1,4 @@
+# FIXME
 import datetime
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
@@ -8,22 +9,24 @@ from connection_module import SignalConnector
 from src.service.application.application_service import ApplicationService
 from src.models.application.application_models import Application
 from src.service.application.mt_application_service import MTApplicationService
-from src.schemas.legal_entity.legal_entity_schema import FiltersLegalEntities, FiltersPersons, OrdersLegalEntities, OrdersPersons, CreatePersonsSchema
+from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, FiltersPersons, OrdersCounterparties, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualSchema
 from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
-from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, Person
-from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, Person
+from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
 
-class LegalEntityService:
+class CounterpartyService:
     @classmethod
-    async def create_legal_entity(
+    async def create_counterparty(  # FIXME
         cls,
         session: AsyncSession,
+        
+        counterparty_type: Literal["ЮЛ", "ФЛ"],
         
         requester_user_uuid: str,
         requester_user_privilege: int,
@@ -32,29 +35,24 @@ class LegalEntityService:
         new_directory_uuid: Optional[str],
         
         country: int,
-        registration_identifier_type: str,
-        registration_identifier_value: str,
+        identifier_type: str,
+        identifier_value: str,
         tax_identifier: str,
         
-        # LegalEntityData
-        name_latin: Optional[str],
-        name_national: Optional[str],
-        organizational_and_legal_form_latin: Optional[str],
-        organizational_and_legal_form_national: Optional[str],
-        site: Optional[str],
-        registration_date: datetime.date,
-        legal_address: str,
-        postal_address: Optional[str],
-        additional_address: Optional[str],
-    ) -> Tuple[Tuple[LegalEntity, LegalEntityData], Dict[str, int|str]]:
+        # LegalEntityData|IndividualData
+        counterparty_data: CreateLegalEntityDataSchema|CreateIndividualDataSchema,
+    ) -> Tuple[Tuple[Counterparty, LegalEntityData], Dict[str, int|str]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if requester_user_uuid != owner_user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать ЮЛ для другого Пользователя!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать карточку Контрагента для другого Пользователя!")
         
-        if not name_latin and not name_national:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указано наименование ЮЛ!")
-        if not organizational_and_legal_form_latin and not organizational_and_legal_form_national:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указана организационно-правовая форма ЮЛ!")
+        if counterparty_type == "ЮЛ":
+            if not counterparty_data.name_latin and not counterparty_data.name_national:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указано наименование Контрагента!")
+            if not counterparty_data.organizational_and_legal_form_latin and not counterparty_data.organizational_and_legal_form_national:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указана организационно-правовая форма Контрагента!")
+        else:
+            ...  # TODO тут должна быть предусмотрена логика создания ФЛ
         
         owner_user_id: int = await UserQueryAndStatementManager.get_user_id_by_uuid(
             session=session,
@@ -94,7 +92,7 @@ class LegalEntityService:
             requester_user_privilege=requester_user_privilege,
             owner_s3_login=owner_s3_login,
             owner_user_uuid=owner_user_uuid,
-            directory_type=DIRECTORY_TYPE_MAPPING["Директория ЮЛ"],
+            directory_type=DIRECTORY_TYPE_MAPPING["Директория контрагента"],
             new_directory_uuid=new_directory_uuid,
             parent_directory_uuid=parent_directory_uuid,
         )
@@ -102,63 +100,64 @@ class LegalEntityService:
         new_application_access_list_id: int = await cls.__create_application_access_list(
             session=session,
         )
+        new_counter_party_with_data = None
+        if counterparty_type == "ЮЛ":
+            new_uuid_coro = await SignalConnector.generate_identifiers(target="ЮЛ", count=1)  # FIXME в зависимости от типа, нужно генерировать идентификатор
+            new_uuid = new_uuid_coro[0]
+            
+            new_le_with_data: Tuple[Counterparty, LegalEntityData] = await CounterpartyQueryAndStatementManager.create_counterparty(
+                session=session,
+                
+                counterparty_type=counterparty_type,
+                
+                owner_user_id=owner_user_id,
+                owner_user_uuid=owner_user_uuid,
+                new_legal_entity_uuid=new_uuid,
+                directory_id=new_le_dir_data["id"],
+                directory_uuid=new_le_dir_data["uuid"],
+                application_access_list_id=new_application_access_list_id,
+                
+                country=country,
+                identifier_type=identifier_type,
+                identifier_value=identifier_value,
+                tax_identifier=tax_identifier,
+                
+                # CounterpartyData
+                counterparty_data=counterparty_data,
+            )
+            new_counter_party_with_data = new_le_with_data
+        else:
+            ...  # TODO предусмотреть uuid для ФЛ
         
-        new_le_uuid_coro = await SignalConnector.generate_identifiers(target="ЮЛ", count=1)
-        new_le_uuid = new_le_uuid_coro[0]
         
-        new_le_with_data: Tuple[LegalEntity, LegalEntityData] = await LegalEntityQueryAndStatementManager.create_legal_entity(
-            session=session,
-            
-            owner_user_id=owner_user_id,
-            owner_user_uuid=owner_user_uuid,
-            new_legal_entity_uuid=new_le_uuid,
-            directory_id=new_le_dir_data["id"],
-            directory_uuid=new_le_dir_data["uuid"],
-            application_access_list_id=new_application_access_list_id,
-            
-            country=country,
-            registration_identifier_type=registration_identifier_type,
-            registration_identifier_value=registration_identifier_value,
-            tax_identifier=tax_identifier,
-            
-            # LegalEntityData
-            name_latin=name_latin,
-            name_national=name_national,
-            organizational_and_legal_form_latin=organizational_and_legal_form_latin,
-            organizational_and_legal_form_national=organizational_and_legal_form_national,
-            site=site,
-            registration_date=registration_date,
-            legal_address=legal_address,
-            postal_address=postal_address,
-            additional_address=additional_address,
-        )
         
         new_chat = await ChatService.create_chat(
             session=session,
             
-            chat_subject="ЮЛ",
-            subject_uuid=new_le_uuid,
+            chat_subject="Контрагент",
+            subject_uuid=new_uuid,
         )
         
-        return new_le_with_data, new_chat
+        return new_counter_party_with_data, new_chat
     
     @staticmethod
     async def __create_application_access_list(
         session: AsyncSession,
     ) -> int:
-        new_application_access_list_id: int = await LegalEntityQueryAndStatementManager.create_application_access_list(
+        new_application_access_list_id: int = await CounterpartyQueryAndStatementManager.create_application_access_list(
             session=session
         )
         
         return new_application_access_list_id
     
     @staticmethod
-    async def get_legal_entities(
+    async def get_counterparties(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
+        counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]],
         user_uuid: Optional[str],
         legal_entity_name_ilike: Optional[str] = None,
         
@@ -167,9 +166,9 @@ class LegalEntityService:
         page: Optional[int] = None,
         page_size: Optional[int] = None,
         
-        filter: Optional[FiltersLegalEntities] = None,
-        order: Optional[OrdersLegalEntities] = None,
-    ) -> Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]]:
+        filter: Optional[FiltersCounterparties] = None,
+        order: Optional[OrdersCounterparties] = None,
+    ) -> Dict[str, List[Optional[Counterparty|int|bool]] | List[Optional[Tuple[Counterparty, bool]]]]:
         if page or page_size:
             if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
@@ -178,13 +177,14 @@ class LegalEntityService:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Можно искать по названию компании только при расширенном выводе (extended_output=true)!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if not user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все ЮЛ - всех пользователей!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все карточки Контрагентов - всех пользователей!")
             if user_uuid != requester_user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть ЮЛ других пользователей!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть карточки Контрагентов других пользователей!")
         
-        legal_entities: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
+        counterparties: Dict[str, List[Optional[Counterparty|int|bool]] | List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyQueryAndStatementManager.get_counterparties(
             session=session,
             
+            counterparty_type=counterparty_type,
             user_uuid=user_uuid,
             legal_entity_name_ilike=legal_entity_name_ilike,
             
@@ -197,76 +197,69 @@ class LegalEntityService:
             order=order,
         )
         
-        return  legal_entities
+        return counterparties
     
     @staticmethod
-    async def update_legal_entity(
+    async def update_counterparty(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
         
-        country: Literal[*COUNTRY_MAPPING, "~"] = "~", # type: ignore
-        registration_identifier_type: Optional[str] = "~",
-        registration_identifier_value: str = "~",
-        tax_identifier: str = "~",
-        is_active: bool|str = "~",
+        data_for_update: UpdateCounterpartySchema,
     ) -> None:
-        le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            legal_entity_uuid=legal_entity_uuid,
-            for_update_or_delete_legal_entity=True,
+            counterparty_uuid=counterparty_uuid,
+            for_update_or_delete_counterparty=True,
         )
-        if le_check_access_response_object is None:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять ЮЛ других Пользователей или же доступ редактирования данного ЮЛ ограничен!")
+        if counterparty_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять карточки Контрагентов других Пользователей или же доступ редактирования данной карточки Контрагента ограничен!")
+        
         
         if all(field == "~" for field in [
-                country,
-                registration_identifier_type, registration_identifier_value,
-                tax_identifier,
-                is_active,
+                data_for_update.country,
+                data_for_update.identifier_type, data_for_update.identifier_value,
+                data_for_update.tax_identifier,
+                data_for_update.is_active,
             ]
         ):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных о ЮЛ!")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных в карточке Контрагента!")
         
-        await LegalEntityQueryAndStatementManager.update_legal_entity(
+        await CounterpartyQueryAndStatementManager.update_counterparty(
             session=session,
             
-            legal_entity_id=le_check_access_response_object[0],
+            counterparty_id=counterparty_check_access_response_object[0],
             
-            country=country,
-            registration_identifier_type=registration_identifier_type,
-            registration_identifier_value=registration_identifier_value,
-            tax_identifier=tax_identifier,
-            is_active=is_active,
+            data_for_update=data_for_update,
         )
     
     @staticmethod
-    async def change_legal_entities_edit_status(
+    async def change_counterparties_edit_status(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entity_uuids: List[str],
+        counterparty_uuids: List[str],
         edit_status: bool,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования информации о ЮЛ!")
-        if not legal_entity_uuids:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID, хотя бы одного ЮЛ!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования информации о Контрагенте!")
+        if not counterparty_uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID, хотя бы одного Контрагента!")
         if not isinstance(edit_status, bool):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Статус должен быть булевым значением!")
         
-        await LegalEntityQueryAndStatementManager.change_legal_entities_edit_status(
+        await CounterpartyQueryAndStatementManager.change_counterparties_edit_status(
             session=session,
             
-            legal_entity_uuids=legal_entity_uuids,
+            counterparty_uuids=counterparty_uuids,
             edit_status=edit_status,
         )
     
@@ -276,7 +269,7 @@ class LegalEntityService:
         
         requester_user_privilege: int,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
         
         mt: str|bool,
         # TODO тут будут иные бизнес процессы
@@ -291,68 +284,71 @@ class LegalEntityService:
         if all([application_type_dict[o_t] == "~" for o_t in application_type_dict]):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для изменения списка доступных типов Заявок, нужно указать хотя бы одно значение к изменению!")
         
-        application_access_list_id: Optional[int] = await LegalEntityQueryAndStatementManager.get_application_access_list_id_by_legal_entity_uuid(
+        application_access_list_id: Optional[int] = await CounterpartyQueryAndStatementManager.get_application_access_list_id_by_counterparty_uuid(
             session=session,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
         )
         if application_access_list_id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Список доступных типов Заявок не был найден!")
         
-        await LegalEntityQueryAndStatementManager.update_application_access_list(
+        await CounterpartyQueryAndStatementManager.update_application_access_list(
             session=session,
             application_access_list_id=application_access_list_id,
             application_type_dict=application_type_dict,
         )
     
     @staticmethod
-    async def get_legal_enities_data(
+    async def get_counterparties_data(
         session: AsyncSession,
+        
+        counterparty_type: Literal["ЮЛ", "ФЛ"],
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        les_uuid_list: List[Optional[str]],
+        counterparty_uuid_list: List[Optional[str]],
         user_uuid: Optional[str],
-    ) -> List[Optional[LegalEntityData]]:
+    ) -> List[Optional[LegalEntityData|IndividualData]]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if not user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все данные ЮЛ - всех пользователей!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все данные карточек Контрагентов - всех пользователей!")
             if user_uuid != requester_user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть данные ЮЛ других пользователей!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть данные карточек Контрагента других пользователей!")
         
-        le_data_ids: List[Optional[int]] = []
-        for le_uuid in tuple(set(les_uuid_list)):
-            le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        counterparty_data_ids: List[Optional[int]] = []
+        for counterparty_uuid in tuple(set(counterparty_uuid_list)):
+            counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                 session=session,
                 
                 requester_user_uuid=user_uuid,
                 requester_user_privilege=requester_user_privilege,
-                legal_entity_uuid=le_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
-            if le_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не являетесь владельцем ЮЛ с UUID "{le_uuid}"!')
+            if counterparty_check_access_response_object is None:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Вы не являетесь владельцем карточки Контрагента с UUID "{counterparty_uuid}"!')
             
-            le_data_ids.append(le_check_access_response_object[1])
+            counterparty_data_ids.append(counterparty_check_access_response_object[2])
         
-        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] and not le_data_ids:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] and not counterparty_data_ids:
             return []
         
-        legal_entities_data: List[Optional[LegalEntityData]] = await LegalEntityQueryAndStatementManager.get_legal_entities_data(
+        counterparties_data: List[Optional[LegalEntityData]] = await CounterpartyQueryAndStatementManager.get_counterparties_data(
             session=session,
             
-            legal_entity_data_ids=le_data_ids,
+            counterparty_type=counterparty_type,
+            counterparty_data_ids=counterparty_data_ids,
         )
         
-        return  legal_entities_data
+        return counterparties_data
     
     @staticmethod
-    async def update_legal_entity_data(
+    async def update_counterparty_data(  # FIXME
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
         
         name_latin: Optional[str],
         name_national: Optional[str],
@@ -364,16 +360,16 @@ class LegalEntityService:
         postal_address: Optional[str],
         additional_address: Optional[str],
     ) -> None:
-        le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            legal_entity_uuid=legal_entity_uuid,
-            for_update_or_delete_legal_entity=True,
+            counterparty_uuid=counterparty_uuid,
+            for_update_or_delete_counterparty=True,
         )
-        if le_check_access_response_object is None:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять ЮЛ других Пользователей или же доступ редактирования данного ЮЛ ограничен!")
+        if counterparty_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять карточку Контрагента других Пользователей или же доступ редактирования данного Контрагента ограничен!")
         
         if all(field == "~" for field in [
                 name_latin, name_national,
@@ -383,12 +379,12 @@ class LegalEntityService:
                 legal_address, postal_address, additional_address,
             ]
         ):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных о ЮЛ!")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных Контрагента!")
         
-        await LegalEntityQueryAndStatementManager.update_legal_entity_data(
+        await CounterpartyQueryAndStatementManager.update_counterparty_data(  # FIXME
             session=session,
             
-            legal_entity_data_id=le_check_access_response_object[1],
+            counterparty_data_id=counterparty_check_access_response_object[2],
             
             name_latin=name_latin,
             name_national=name_national,
@@ -401,8 +397,9 @@ class LegalEntityService:
             additional_address=additional_address,
         )
     
+    # FIXME
     @classmethod
-    async def delete_legal_entities(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
+    async def delete_counterparties(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
         cls,
         session: AsyncSession,
         
@@ -410,51 +407,51 @@ class LegalEntityService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entities_uuids: List[str],
+        counterparty_uuids: List[str],
     ) -> None:
-        if not legal_entities_uuids:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления ЮЛ, нужно указать хотя бы 1 UUID!")
+        if not counterparty_uuids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления карточек Контрагента, нужно указать хотя бы 1 UUID!")
         
         # if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять ЮЛ. Недостаточно прав!")
+            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять карточки Контрагента. Недостаточно прав!")
         
-        le_ids_with_le_data_ids_with_dir_uuid: List[Tuple[int, int, str]] = [] # type: ignore
+        counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid: List[Tuple[int, int, int, str]] = [] # type: ignore
         application_uuids: List[str] = []
         applications_access_lists_ids: List[int] = []
-        for le_uuid in legal_entities_uuids:
-            le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        for counterparty_uuid in counterparty_uuids:
+            counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
-                legal_entity_uuid=le_uuid,
-                for_update_or_delete_legal_entity=True,
+                counterparty_uuid=counterparty_uuid,
+                for_update_or_delete_counterparty=True,
             )
-            if le_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию ЮЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!")
+            if counterparty_check_access_response_object is None:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию карточек Контрагента других Пользователей или же доступ к редактирования Контрагента ограничен!")
             
-            le_ids_with_le_data_ids_with_dir_uuid.append(le_check_access_response_object)
+            counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid.append(counterparty_check_access_response_object)
             
-            application_access_list_id: Optional[int] = await LegalEntityQueryAndStatementManager.get_application_access_list_id_by_legal_entity_uuid(
+            application_access_list_id: Optional[int] = await CounterpartyQueryAndStatementManager.get_application_access_list_id_by_counterparty_uuid(
                 session=session,
-                legal_entity_uuid=le_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
             if application_access_list_id is not None:
                 applications_access_lists_ids.append(application_access_list_id)
             
-            le_applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationService.get_applications(
+            counterparty_applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationService.get_applications(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else None,
-                legal_entity_uuid=le_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
-            for application in le_applications["data"]:
+            for application in counterparty_applications["data"]:
                 if application and application.uuid:
                     application_uuids.append(application.uuid)
         
-        for _, _, dir_uuid in le_ids_with_le_data_ids_with_dir_uuid:
+        for _, _, _, dir_uuid in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid:
             try:
                 await FileStoreService.delete_doc_or_dir(
                     session=session,
@@ -483,11 +480,11 @@ class LegalEntityService:
             session=session,
             applications_access_lists_ids=applications_access_lists_ids,
         )
-        await LegalEntityQueryAndStatementManager.delete_legal_entities(
+        await CounterpartyQueryAndStatementManager.delete_counterparties(
             session=session,
             
-            legal_entities_uuids=legal_entities_uuids,
-            le_ids_with_le_data_ids_with_dir_uuid=le_ids_with_le_data_ids_with_dir_uuid,
+            counterparty_uuids=counterparty_uuids,
+            counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid=counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid,
         )
     
     @staticmethod
@@ -496,7 +493,7 @@ class LegalEntityService:
         
         applications_access_lists_ids: List[int],
     ) -> None:
-        await LegalEntityQueryAndStatementManager.delete_applications_access_lists(
+        await CounterpartyQueryAndStatementManager.delete_applications_access_lists(
             session=session,
             applications_access_lists_ids=applications_access_lists_ids,
         )
@@ -511,21 +508,21 @@ class LegalEntityService:
         new_persons: CreatePersonsSchema,
     ) -> List[int]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            le_uuid_tuple = tuple(set([new_person.legal_entity_uuid for new_person in new_persons.new_persons]))
-            if len(le_uuid_tuple) != 1:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете добавлять информацию ФЛ к ЮЛ других Пользователей или к нескольким ЮЛ одновременно!")
+            counterparty_uuid_tuple = tuple(set([new_person.counterparty_uuid for new_person in new_persons.new_persons]))
+            if len(counterparty_uuid_tuple) != 1:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете добавлять информацию ФЛ к карточке Контрагента других Пользователей или к нескольким карточкам Контрагента одновременно!")
             
-            le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
-                legal_entity_uuid=le_uuid_tuple[0],
+                counterparty_uuid=counterparty_uuid_tuple[0],
             )
-            if le_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете добавлять информацию ФЛ к ЮЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!!")
+            if counterparty_check_access_response_object is None:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете добавлять информацию ФЛ к карточкам Контрагента других Пользователей или же доступ к редактирования данного Контрагента ограничен!")
         
-        new_person_ids: List[int] = await LegalEntityQueryAndStatementManager.create_persons(
+        new_person_ids: List[int] = await CounterpartyQueryAndStatementManager.create_persons(
             session=session,
             
             new_persons=new_persons,
@@ -540,7 +537,7 @@ class LegalEntityService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
         person_ids: Optional[List[int]] = None,
         
         page: Optional[int] = None,
@@ -553,23 +550,23 @@ class LegalEntityService:
             if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            if not legal_entity_uuid:
+            if not counterparty_uuid:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть информацию о всех ФЛ!")
             
-            le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
-                legal_entity_uuid=legal_entity_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
-            if le_check_access_response_object is None:
+            if counterparty_check_access_response_object is None:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете посмотреть информацию ФЛ других Пользователей!")
         
-        persons: Dict[str, List[Optional[Person]]|Optional[int]] = await LegalEntityQueryAndStatementManager.get_persons(
+        persons: Dict[str, List[Optional[Person]]|Optional[int]] = await CounterpartyQueryAndStatementManager.get_persons(
             session=session,
             
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             person_ids=person_ids,
             
             page=page,
@@ -601,9 +598,9 @@ class LegalEntityService:
         email: Optional[str],
         phone: Optional[str],
         contact: Optional[str],
-        legal_entity_uuid: Optional[str],
-    ) -> str:  # возвращает UUID-ЮЛ
-        person: List[Optional[Person]] = await LegalEntityQueryAndStatementManager.get_persons(
+        counterparty_uuid: Optional[str],
+    ) -> str:  # возвращает UUID-Контрагента
+        person: List[Optional[Person]] = await CounterpartyQueryAndStatementManager.get_persons(
             session=session,
             
             person_ids=[person_id],
@@ -611,31 +608,31 @@ class LegalEntityService:
         if not person:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ФЛ с указанным ID не был найден!")
         
-        le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            legal_entity_uuid=person["data"][0].legal_entity_uuid,
-            for_update_or_delete_legal_entity=True,
+            counterparty_uuid=person[0].counterparty_uuid,
+            for_update_or_delete_counterparty=True,
         )
-        if le_check_access_response_object is None:
+        if counterparty_check_access_response_object is None:
             if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновить информацию ФЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновить информацию ФЛ других Пользователей или же доступ к редактированию данного Контрагента ограничен!")
             else:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Информация о ЮЛ с UUID "{person[0].legal_entity_uuid}" отсутствует или же доступ к редактирования данного ЮЛ ограничен!')
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Информация о Контрагенте с UUID "{person[0].counterparty_uuid}" отсутствует или же доступ к редактирования данного Контрагента ограничен!')
         
         if all(field == "~" for field in [
                 surname, name, patronymic, gender,
                 job_title,
                 basic_action_signatory, power_of_attorney_number, power_of_attorney_date,
                 email, phone, contact,
-                legal_entity_uuid,
+                counterparty_uuid,
             ]
         ):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных о ФЛ!")
         
-        await LegalEntityQueryAndStatementManager.update_person(
+        await CounterpartyQueryAndStatementManager.update_person(
             session=session,
             
             person_id=person_id,
@@ -651,17 +648,17 @@ class LegalEntityService:
             email=email,
             phone=phone,
             contact=contact,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
         )
         
-        legal_entitie: List[List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityQueryAndStatementManager.get_legal_entities(
+        counterparty: List[List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyQueryAndStatementManager.get_counterparties(  # FIXME (это нужно проверить! и исправить!)
             session=session,
             
             user_uuid=None,
-            le_id_list=[le_check_access_response_object[0]],
+            counterparty_id_list=[counterparty_check_access_response_object[0]],
         )
         
-        return legal_entitie["data"][0][0].uuid
+        return counterparty["data"][0][0].uuid
     
     @staticmethod
     async def delete_persons(
@@ -672,36 +669,36 @@ class LegalEntityService:
         
         person_ids: List[int],
     ) -> Optional[str]:
-        le_uuid_tuple = None
+        counterparty_uuid_tuple = None
         if not person_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать хотя бы один ID ФЛ к удалению!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            persons: Dict[str, List[Optional[Person]]|Optional[int]] = await LegalEntityQueryAndStatementManager.get_persons(
+            persons: Dict[str, List[Optional[Person]]|Optional[int]] = await CounterpartyQueryAndStatementManager.get_persons(
                 session=session,
                 
                 person_ids=person_ids,
             )
             
-            le_uuid_tuple: Tuple[str:] = tuple(set([person.legal_entity_uuid for person in persons["data"]]))
-            if len(le_uuid_tuple) != 1:
+            counterparty_uuid_tuple: Tuple[str:] = tuple(set([person.counterparty_uuid for person in persons["data"]]))
+            if len(counterparty_uuid_tuple) != 1:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию о ФЛ других Пользователей!")
             
-            le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
-                legal_entity_uuid=le_uuid_tuple[0],
-                for_update_or_delete_legal_entity=True,
+                counterparty_uuid=counterparty_uuid_tuple[0],
+                for_update_or_delete_counterparty=True,
             )
-            if le_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию о ФЛ других Пользователей или же доступ к редактирования данного ЮЛ ограничен!")
+            if counterparty_check_access_response_object is None:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять информацию о ФЛ других Пользователей или же доступ к редактированию данного Контрагента ограничен!")
         
-        await LegalEntityQueryAndStatementManager.delete_persons(
+        await CounterpartyQueryAndStatementManager.delete_persons(
             session=session,
             
             person_ids=person_ids,
         )
         
-        return le_uuid_tuple[0] if le_uuid_tuple else None
+        return counterparty_uuid_tuple[0] if counterparty_uuid_tuple else None

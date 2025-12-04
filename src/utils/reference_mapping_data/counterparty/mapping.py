@@ -1,7 +1,12 @@
-from typing import Literal
+from typing import Dict, Literal
 
 
 PersonGender: type = Literal["m", "w"]
+
+COUNTERPARTY_TYPE_MAPPING: Dict[str, int] = {
+    "ЮЛ": 1,
+    "ФЛ": 2,
+}
 
 # ______________________________________________________________________
 # BANK_PAYMENT_DETAILS_TYPE_MAPPING: Dict[str, int] = {
@@ -23,13 +28,13 @@ PersonGender: type = Literal["m", "w"]
 # ______________________________________________________________________
 
 # ______________________________________________________________________
-# LEGAL_ENTITY_PERSON_ROLE_MAPPING: Dict[str, int] = {
+# COUNTERPARTY_PERSON_ROLE_MAPPING: Dict[str, int] = {
 #     "Подписант": 1,
 #     "Администратор контракта": 2,
 #     "Финансовый специалист": 3,
 # }
 
-# LEGAL_ENTITY_PERSON_ROLE_FOR_KEYS: List[int] = list(range(1, 4))
+# COUNTERPARTY_PERSON_ROLE_FOR_KEYS: List[int] = list(range(1, 4))
 # ______________________________________________________________________
 
 # ______________________________________________________________________

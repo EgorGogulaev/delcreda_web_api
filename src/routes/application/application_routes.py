@@ -90,6 +90,8 @@ async def change_applications_status(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/change_applications_edit_status",
@@ -159,6 +161,8 @@ async def change_applications_edit_status(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 
 @router.delete(
@@ -221,4 +225,6 @@ async def delete_applications(  # TODO Нужно предусмотреть п�
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 

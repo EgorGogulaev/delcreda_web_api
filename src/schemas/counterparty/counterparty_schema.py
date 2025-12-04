@@ -1,7 +1,8 @@
+# TODO
 from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
-from src.utils.reference_mapping_data.legal_entity.mapping import PersonGender
+from src.utils.reference_mapping_data.counterparty.mapping import PersonGender
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 
 
@@ -13,29 +14,36 @@ class CreateLegalEntityDataSchema(BaseModel):
     name_national: Optional[str] = Field(None, description="Наименование в национальном написании.")
     organizational_and_legal_form_latin: Optional[str] = Field(None, description="ОПФ латиницей.")
     organizational_and_legal_form_national: Optional[str] = Field(None, description="ОПФ в национальном написании.")
-    site: Optional[str] = Field(None, description="Сайт ЮЛ.")
-    registration_date: str = Field(..., description="Дата регистрации ЮЛ (Формат: 'dd.mm.YYYY').")
+    site: Optional[str] = Field(None, description="Сайт Контрагента.")
+    registration_date: str = Field(..., description="Дата регистрации Контрагента (Формат: 'dd.mm.YYYY').")
     legal_address: str = Field(..., description="Юридический адрес.")
     postal_address: Optional[str] = Field(None, description="Почтовый адрес.")
     additional_address: Optional[str] = Field(None, description="Дополнительный адрес.")
 
-class UpdateLegalEntitySchema(BaseModel):
-    country: Literal[*COUNTRY_MAPPING, "~"] = Field("~", description="Страна регистрации ЮЛ. (значение '~' == оставить без изменений)") # type: ignore
-    registration_identifier_type: str = Field("~", description="Тип регистрационного идентификатора ЮЛ. (значение '~' == оставить без изменений)")
-    registration_identifier_value: str = Field("~", description="Значение регистрационного идентификатора ЮЛ. (значение '~' == оставить без изменений)")
-    tax_identifier: str = Field("~", description="Значение налогового идентификатора ЮЛ. (значение '~' == оставить без изменений)")
-    is_active: bool|str = Field("~", description="Флаг возможности создания Заявки по данному ЮЛ (true-можно/false-нельзя). (значение '~' == оставить без изменений)")
+class CreateIndividualDataSchema(BaseModel):
+    ...  # TODO
+
+class UpdateCounterpartySchema(BaseModel):
+    country: Literal[*COUNTRY_MAPPING, "~"] = Field("~", description="Страна регистрации/гражданства Контрагента. (значение '~' == оставить без изменений)") # type: ignore
+    identifier_type: str = Field("~", description="Тип регистрационного идентификатора Контрагента. (значение '~' == оставить без изменений)")
+    identifier_value: str = Field("~", description="Значение регистрационного идентификатора Контрагента. (значение '~' == оставить без изменений)")
+    tax_identifier: str = Field("~", description="Значение налогового идентификатора Контрагента. (значение '~' == оставить без изменений)")
+    is_active: bool|str = Field("~", description="Флаг возможности создания Заявки по данному Контрагенту (true-можно/false-нельзя). (значение '~' == оставить без изменений)")
+
 
 class UpdateLegalEntityDataSchema(BaseModel):
     name_latin: Optional[str] = Field("~", description="Наименование латиницей. (значение '~' == оставить без изменений)")
     name_national: Optional[str] = Field("~", description="Наименование в национальном написании. (значение '~' == оставить без изменений)")
     organizational_and_legal_form_latin: Optional[str] = Field("~", description="ОПФ латиницей. (значение '~' == оставить без изменений)")
     organizational_and_legal_form_national: Optional[str] = Field("~", description="ОПФ в национальном написании. (значение '~' == оставить без изменений)")
-    site: Optional[str] = Field("~", description="Сайт ЮЛ. (значение '~' == оставить без изменений)")
-    registration_date: Optional[str] = Field("~", description="Дата регистрации ЮЛ (Формат: 'dd.mm.YYYY'). (значение '~' == оставить без изменений)")
+    site: Optional[str] = Field("~", description="Сайт Контрагента. (значение '~' == оставить без изменений)")
+    registration_date: Optional[str] = Field("~", description="Дата регистрации Контрагента (Формат: 'dd.mm.YYYY'). (значение '~' == оставить без изменений)")
     legal_address: Optional[str] = Field("~", description="Юридический адрес. (значение '~' == оставить без изменений)")
     postal_address: Optional[str] = Field("~", description="Почтовый адрес. (значение '~' == оставить без изменений)")
     additional_address: Optional[str] = Field("~", description="Дополнительный адрес. (значение '~' == оставить без изменений)")
+
+class UpdateIndividualDataSchema(BaseModel):
+    ...  # TODO
 
 class UpdateApplicationAccessList(BaseModel):
     mt: str|bool = Field("~", description="Доступ к переводам денежных средств (MT). (значение '~' == оставить без изменений)")
@@ -53,7 +61,7 @@ class CreatePersonSchema(BaseModel):
     email: str = Field(..., description="E-mail")
     phone: str = Field(..., description="Телефон.")
     contact: Optional[str] = Field(None, description="Номер контракта.")
-    legal_entity_uuid: str = Field(..., description="UUID ЮЛ, к которому будет привязано ФЛ.")
+    counterparty_uuid: str = Field(..., description="UUID Контрагента, к которому будет привязано ФЛ.")
 
 class CreatePersonsSchema(BaseModel):
     new_persons: List[CreatePersonSchema] = Field(..., description="Массив информаций ФЛ.")
@@ -70,13 +78,13 @@ class UpdatePerson(BaseModel):
     email: Optional[str] = Field("~", description="E-mail. (значение '~' == оставить без изменений)")
     phone: Optional[str] = Field("~", description="Телефон. (значение '~' == оставить без изменений)")
     contact: Optional[str] = Field("~", description="Номер контракта. (значение '~' == оставить без изменений)")
-    legal_entity_uuid: str = Field("~", description="UUID ЮЛ, к которому будет привязано ФЛ. (значение '~' == оставить без изменений)")
+    counterparty_uuid: str = Field("~", description="UUID Контрагента, к которому будет привязано ФЛ. (значение '~' == оставить без изменений)")
 
 
 # FILTERS
-class FilterLegalEntities(BaseModel):
+class FilterCounterparties(BaseModel):
     field: Literal[
-        "id", "uuid", "country", "registration_identifier_type", "registration_identifier_value", "tax_identifier", "user_id", "user_uuid", "directory_id", "directory_uuid", "is_active", "data_id", "updated_at", "created_at",
+        "id", "uuid", "type", "country", "identifier_type", "identifier_value", "tax_identifier", "user_id", "user_uuid", "directory_id", "directory_uuid", "is_active", "data_id", "updated_at", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
     operator: Literal["eq", "ne", "gt", "lt", "ge", "le", "like", "in"] = Field(
         ...,
@@ -94,12 +102,12 @@ class FilterLegalEntities(BaseModel):
     )
     value: Optional[str|bool|int|float] = Field(..., description="Значения для логических операций фильтра.")
 
-class FiltersLegalEntities(BaseModel):
-    filters: List[FilterLegalEntities] = Field(..., description="Массив фильтров-объектов.")
+class FiltersCounterparties(BaseModel):
+    filters: List[FilterCounterparties] = Field(..., description="Массив фильтров-объектов.")
 
-class OrderLegalEntities(BaseModel):
+class OrderCounterparties(BaseModel):
     field: Literal[
-        "id", "uuid", "country", "registration_identifier_type", "registration_identifier_value", "tax_identifier", "user_id", "user_uuid", "directory_id", "directory_uuid", "is_active", "data_id", "updated_at", "created_at",
+        "id", "uuid", "type", "country", "identifier_type", "identifier_value", "tax_identifier", "user_id", "user_uuid", "directory_id", "directory_uuid", "is_active", "data_id", "updated_at", "created_at",
     ] = Field(
         ...,
         description="Поля по которым можно сортировать записи."
@@ -113,13 +121,13 @@ class OrderLegalEntities(BaseModel):
         """
     )
 
-class OrdersLegalEntities(BaseModel):
-    orders: List[OrderLegalEntities] = Field(..., description="Массив объектов, описывающих сотировку.")
+class OrdersCounterparties(BaseModel):
+    orders: List[OrderCounterparties] = Field(..., description="Массив объектов, описывающих сотировку.")
 
 
 class FilterPersons(BaseModel):
     field: Literal[
-        "id", "surname", "name", "patronymic", "gender", "job_title", "basic_action_signatory", "power_of_attorney_number", "power_of_attorney_date", "email", "phone", "contact", "legal_entity_uuid", "updated_at", "created_at",
+        "id", "surname", "name", "patronymic", "gender", "job_title", "basic_action_signatory", "power_of_attorney_number", "power_of_attorney_date", "email", "phone", "contact", "counterparty_uuid", "updated_at", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
     operator: Literal["eq", "ne", "gt", "lt", "ge", "le", "like", "in"] = Field(
         ...,
@@ -142,7 +150,7 @@ class FiltersPersons(BaseModel):
 
 class OrderPersons(BaseModel):
     field: Literal[
-        "id", "surname", "name", "patronymic", "gender", "job_title", "basic_action_signatory", "power_of_attorney_number", "power_of_attorney_date", "email", "phone", "contact", "legal_entity_uuid", "updated_at", "created_at",
+        "id", "surname", "name", "patronymic", "gender", "job_title", "basic_action_signatory", "power_of_attorney_number", "power_of_attorney_date", "email", "phone", "contact", "counterparty_uuid", "updated_at", "created_at",
     ] = Field(
         ...,
         description="Поля по которым можно сортировать записи."
@@ -165,19 +173,19 @@ class OrdersPersons(BaseModel):
 class BaseLegalEntity(BaseModel):
     uuid: str = Field(..., description="UUID юридического лица.")
     country: str = Field(..., description="Страна юридического лица.")
-    registration_identifier_type: Optional[str] = Field(None, description="Тип регистрационного идентификатора.")
-    registration_identifier_value: str = Field(..., description="Значение регистрационного идентификатора.")
+    identifier_type: Optional[str] = Field(None, description="Тип регистрационного идентификатора.")
+    identifier_value: str = Field(..., description="Значение регистрационного идентификатора.")
     tax_identifier: str = Field(..., description="Налоговый идентификатор.")
     user_id: int = Field(..., description="ID связанного пользователя.")
     user_uuid: str = Field(..., description="UUID связанного пользователя.")
     directory_id: int = Field(..., description="ID директории.")
     directory_uuid: str = Field(..., description="UUID директории.")
-    data_id: Optional[int] = Field(None, description="ID подробных данных о ЮЛ.")
+    data_id: Optional[int] = Field(None, description="ID подробных данных о Контрагенте.")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем? (true - да/false - нет)")
-    mt: bool = Field(..., description="Может ли Пользователь по данному ЮЛ выполнять Заявки по переводу денежных средств? (true - да/false - нет)")
-    application_access_list: int = Field(..., description="ID перечня доступных услуг для данного ЮЛ.")
+    mt: bool = Field(..., description="Может ли Пользователь по данной карточке Контрагента выполнять Заявки по переводу денежных средств? (true - да/false - нет)")
+    application_access_list: int = Field(..., description="ID перечня доступных услуг для данного Контрагента.")
     is_active: bool = Field(..., description="Активно ли юридическое лицо.")
-    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о ЮЛ (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
+    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления основной информации о Контрагенте (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
     created_at: Optional[str] = Field(None, description="Дата-время создания записи (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
 
 class ExtendedLegalEntity(BaseLegalEntity):
@@ -185,10 +193,10 @@ class ExtendedLegalEntity(BaseLegalEntity):
     name_national: Optional[str] = Field(None, description="Название на национальном языке.")
     organizational_and_legal_form_latin: Optional[str] = Field(None, description="Организационно-правовая форма на латинице.")
     organizational_and_legal_form_national: Optional[str] = Field(None, description="Организационно-правовая форма на национальном языке.")
-    data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных ЮЛ (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
+    data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных Контрагента (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
 
 class ResponseGetLegalEntities(BaseModel):
-    data: List[Optional[Union[BaseLegalEntity, ExtendedLegalEntity]]] = Field([], description="Массив ЮЛ.")
+    data: List[Optional[Union[BaseLegalEntity, ExtendedLegalEntity]]] = Field([], description="Массив Контрагентов.")
     count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
     total_records: Optional[int] = Field(None, description="Всего записей (нужно для реализации пагинации в таблице).")
     total_pages: Optional[int] = Field(None, description="Всего страниц, с текущим размером страницы(page_size).")
@@ -207,7 +215,7 @@ class PersonData(BaseModel):
     email: Optional[str] = Field(None, description="Email.")
     phone: Optional[str] = Field(None, description="Телефон.")
     contact: Optional[str] = Field(None, description="Контактная информация.")
-    legal_entity_uuid: str = Field(..., description="UUID связанного юридического лица.")
+    counterparty_uuid: str = Field(..., description="UUID связанного юридического лица.")
     updated_at: Optional[str] = Field(None, description="Дата последнего обновления (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
     created_at: Optional[str] = Field(None, description="Дата создания записи (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
 
@@ -216,3 +224,9 @@ class ResponseGetPersons(BaseModel):
     count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
     total_records: Optional[int] = Field(None, description="Всего записей (нужно для реализации пагинации в таблице).")
     total_pages: Optional[int] = Field(None, description="Всего страниц, с текущим размером страницы(page_size).")
+
+class BaseIndividual(BaseModel):
+    ...  # TODO
+
+class ExtendedIndividual(BaseIndividual):
+    ...  # TODO

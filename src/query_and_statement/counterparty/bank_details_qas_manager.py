@@ -5,8 +5,8 @@ from sqlalchemy import and_, select, update, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.legal_entity.bank_details_models import BankDetails
-from src.schemas.legal_entity.bank_details_schema import CreateBanksDetailsSchema
+from src.models.counterparty.bank_details_models import BankDetails
+from src.schemas.counterparty.bank_details_schema import CreateBanksDetailsSchema
 
 
 class BankDetailsQueryAndStatementManager:
@@ -35,7 +35,7 @@ class BankDetailsQueryAndStatementManager:
         session: AsyncSession,
         
         bank_details_ids: Optional[List[int]] = None,
-        legal_entity_uuid: Optional[str] = None,
+        counterparty_uuid: Optional[str] = None,
         user_uuid: Optional[str] = None,
     ) -> List[Optional[BankDetails]]:
         _filters = []
@@ -43,8 +43,8 @@ class BankDetailsQueryAndStatementManager:
         if bank_details_ids:
             _filters.append(BankDetails.id.in_(bank_details_ids))
         
-        if legal_entity_uuid:
-            _filters.append(BankDetails.legal_entity_uuid == legal_entity_uuid)
+        if counterparty_uuid:
+            _filters.append(BankDetails.counterparty_uuid == counterparty_uuid)
         
         if user_uuid:
             _filters.append(BankDetails.user_uuid == user_uuid)
@@ -69,7 +69,7 @@ class BankDetailsQueryAndStatementManager:
         bank_details_id: int,
         
         user_uuid: Optional[str],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
         name_latin: Optional[str],
         name_national: Optional[str],
         organizational_and_legal_form: Optional[str],
@@ -89,7 +89,7 @@ class BankDetailsQueryAndStatementManager:
     ) -> None:
         values_for_update = {
             "user_uuid": user_uuid,
-            "legal_entity_uuid": legal_entity_uuid,
+            "counterparty_uuid": counterparty_uuid,
             "name_latin": name_latin,
             "name_national": name_national,
             "organizational_and_legal_form": organizational_and_legal_form,

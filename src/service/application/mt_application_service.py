@@ -11,7 +11,7 @@ from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
 from src.models.application.application_models import Application
 from src.models.application.mt_models import MTApplicationData
-from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.query_and_statement.application.mt_application_qas_manager import MTApplicationQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -29,7 +29,7 @@ class MTApplicationService:
         requester_user_privilege: int,
         
         user_uuid: str,
-        legal_entity_uuid: str,
+        counterparty_uuid: str,
         new_directory_uuid: Optional[str],
         
         # ApplicationData
@@ -113,19 +113,19 @@ class MTApplicationService:
             if requester_user_uuid != user_uuid:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Заявку для другого Пользователя!")
         
-        le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+        counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             for_create_application=True,
         )
-        if le_check_access_response_object is None:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует или же ЮЛ не активно!")
+        if counterparty_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о Контрагенте или её не существует или же карточка Контрагента не активна!")
         
-        legal_entity_id = le_check_access_response_object[0]
+        counterparty_id = counterparty_check_access_response_object[0]
         
         # TODO тут можно добавить проверок для отлова отсутствия данных (нужна валидация на frontend)
         
@@ -180,8 +180,8 @@ class MTApplicationService:
             user_id=user_id,
             user_uuid=user_uuid,
             new_application_uuid=new_application_uuid,
-            legal_entity_id=legal_entity_id,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_id=counterparty_id,
+            counterparty_uuid=counterparty_uuid,
             directory_id=new_application_dir_data["id"],
             directory_uuid=new_application_dir_data["uuid"],
             
@@ -276,7 +276,7 @@ class MTApplicationService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         user_uuid: Optional[str],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
         
         extended_output: bool = False,
         
@@ -301,29 +301,29 @@ class MTApplicationService:
                 legal_entity_name,
             ]
         ):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Параметры поиска по логину/наименованию ЮЛ доступны только с extended_output==true!")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Параметры поиска по логину/наименованию Контрагента доступны только с extended_output==true!")
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            if not legal_entity_uuid and not user_uuid:
+            if not counterparty_uuid and not user_uuid:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все Заявки не являясь Адмиинистратором!")
             if user_uuid != requester_user_uuid:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть заказы других пользователей!")
             
-            if legal_entity_uuid:
-                le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            if counterparty_uuid:
+                counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
-                    legal_entity_uuid=legal_entity_uuid,
+                    counterparty_uuid=counterparty_uuid,
                 )
-                if le_check_access_response_object is None:
-                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует!")
+                if counterparty_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о Контрагенте или её не существует!")
         
         applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
             session=session,
             
             user_uuid=user_uuid,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             extended_output=extended_output,
             
@@ -347,31 +347,31 @@ class MTApplicationService:
         requester_user_privilege: int,
         
         application_uuid_list: List[Optional[str]],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
     ) -> List[Optional[MTApplicationData]]:
         if requester_user_privilege == PRIVILEGE_MAPPING["Client"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            if not application_uuid_list and not legal_entity_uuid:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать хотябы один UUID-Заявки или UUID-ЮЛ по которому будут запрошены данные Заявки!")
-            if legal_entity_uuid:
-                le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            if not application_uuid_list and not counterparty_uuid:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать хотябы один UUID-Заявки или UUID-Контрагента по которому будут запрошены данные Заявки!")
+            if counterparty_uuid:
+                counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
-                    legal_entity_uuid=legal_entity_uuid,
+                    counterparty_uuid=counterparty_uuid,
                 )
-                if le_check_access_response_object is None:
-                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о ЮЛ или её не существует!")
+                if counterparty_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь владельцем данной записи о Контрагенте или её не существует!")
             
             if application_uuid_list:
                 applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationQueryAndStatementManager.get_applications(
                     session=session,
                     
                     user_uuid=requester_user_uuid,
-                    legal_entity_uuid=legal_entity_uuid,
+                    counterparty_uuid=counterparty_uuid,
                     application_uuid_list=application_uuid_list,
                 )
                 user_uuid: Tuple[str] = tuple({application.user_uuid for application in applications["data"]})
@@ -382,7 +382,7 @@ class MTApplicationService:
             session=session,
             
             application_uuid_list=application_uuid_list,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
         )
         
         return applications_data
@@ -477,75 +477,76 @@ class MTApplicationService:
         if application_check_access_response_object is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять данные Заявок других Пользователей или же доступ к редактирования данной Заявки ограничен!")
         
-        if all(field == "~" for field in [
-                    order_name,
-                    payment_deadline_not_earlier_than,
-                    payment_deadline_no_later_than,
-                    invoice_date,
-                    invoice_currency,
-                    invoice_amount,
-                    payment_amount,
-                    payment_amount_in_words,
-                    partial_payment_allowed,
-                    invoice_number,
-                    amount_to_withdraw,
-                    amount_to_replenish,
-                    amount_to_principal,
-                    amount_credited,
-                    is_amount_different,
-                    source_bank,
-                    target_bank,
-                    source_currency,
-                    target_currency,
-                    amount,
-                    subagent_bank,
-                    payment_purpose_ru,
-                    payment_purpose_en,
-                    payment_category_golomt,
-                    payment_category_td,
-                    goods_description_en,
-                    contract_date,
-                    contract_name,
-                    contract_number,
-                    vat_exempt,
-                    vat_percentage,
-                    vat_amount,
-                    priority,
-                    end_customer_company_name,
-                    end_customer_company_legal_form,
-                    end_customer_company_registration_country,
-                    company_name_latin,
-                    company_name_national,
-                    company_legal_form,
-                    company_address_latin,
-                    company_registration_number,
-                    company_tax_number,
-                    company_internal_identifier,
-                    recipient_first_name,
-                    recipient_last_name,
-                    recipient_id_number,
-                    recipient_phone,
-                    recipient_website,
-                    transaction_confirmation_type,
-                    recipient_bank_name_latin,
-                    recipient_bank_name_national,
-                    recipient_bank_legal_form,
-                    recipient_bank_registration_number,
-                    recipient_account_or_iban,
-                    recipient_swift,
-                    recipient_bic,
-                    recipient_bank_code,
-                    recipient_bank_branch,
-                    spfs,
-                    cips,
-                    recipient_bank_address,
-                    sender_company_name_latin,
-                    sender_company_name_national,
-                    sender_company_legal_form,
-                    sender_country,
-                    comment,
-                ]
-            ):
+        if all(
+            field == "~" for field in [
+                order_name,
+                payment_deadline_not_earlier_than,
+                payment_deadline_no_later_than,
+                invoice_date,
+                invoice_currency,
+                invoice_amount,
+                payment_amount,
+                payment_amount_in_words,
+                partial_payment_allowed,
+                invoice_number,
+                amount_to_withdraw,
+                amount_to_replenish,
+                amount_to_principal,
+                amount_credited,
+                is_amount_different,
+                source_bank,
+                target_bank,
+                source_currency,
+                target_currency,
+                amount,
+                subagent_bank,
+                payment_purpose_ru,
+                payment_purpose_en,
+                payment_category_golomt,
+                payment_category_td,
+                goods_description_en,
+                contract_date,
+                contract_name,
+                contract_number,
+                vat_exempt,
+                vat_percentage,
+                vat_amount,
+                priority,
+                end_customer_company_name,
+                end_customer_company_legal_form,
+                end_customer_company_registration_country,
+                company_name_latin,
+                company_name_national,
+                company_legal_form,
+                company_address_latin,
+                company_registration_number,
+                company_tax_number,
+                company_internal_identifier,
+                recipient_first_name,
+                recipient_last_name,
+                recipient_id_number,
+                recipient_phone,
+                recipient_website,
+                transaction_confirmation_type,
+                recipient_bank_name_latin,
+                recipient_bank_name_national,
+                recipient_bank_legal_form,
+                recipient_bank_registration_number,
+                recipient_account_or_iban,
+                recipient_swift,
+                recipient_bic,
+                recipient_bank_code,
+                recipient_bank_branch,
+                spfs,
+                cips,
+                recipient_bank_address,
+                sender_company_name_latin,
+                sender_company_name_national,
+                sender_company_legal_form,
+                sender_country,
+                comment,
+            ]
+        ):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных Заявки!")
         
         await MTApplicationQueryAndStatementManager.update_application_data(

@@ -88,11 +88,13 @@ async def check_uuid(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/create_service_note",
     description="""
-    Создание служебной заметки по Заявке/ЮЛ/Документу/Пользователю.
+    Создание служебной заметки по Заявке/Контрагент/Документу/Пользователю.
     """,
     dependencies=[Depends(check_app_auth)],
 )
@@ -101,7 +103,7 @@ async def create_service_note(
     request: Request,
     subject: Literal[
         "Заявка",
-        "ЮЛ",
+        "Контрагент",
         "Документ",
         "Пользователь",
     ] = Query(
@@ -116,7 +118,7 @@ async def create_service_note(
     ),
     title: str = Query(
         ...,
-        description="Уникальный(для отдельной сущности - Заявка, ЮЛ, Документ, Пользователь) заголовок служебной заметки.",
+        description="Уникальный(для отдельной сущности - Заявка, Контрагент, Документ, Пользователь) заголовок служебной заметки.",
         max_length=256,
     ),
     data: Optional[str] = Query(
@@ -175,11 +177,13 @@ async def create_service_note(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_service_notes",
     description="""
-    Получение служебных заметок по Заявке/ЮЛ/Документу/Пользователю.
+    Получение служебных заметок по Заявке/Контрагент/Документу/Пользователю.
     
     filter: FiltersServiceNote
     order: OrdersServiceNote
@@ -197,7 +201,7 @@ async def get_service_notes(
     ),
     subject: Optional[Literal[
         "Заявка",
-        "ЮЛ",
+        "Контрагент",
         "Документ",
         "Пользователь",
     ]] = Query(
@@ -316,6 +320,8 @@ async def get_service_notes(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_service_note",
@@ -333,7 +339,7 @@ async def update_service_note(
     ),
     new_title: str = Query(
         "~",
-        description='Новое уникальное(в рамках сущности - Заявки/ЮЛ/Документ/Пользователь) значение для заголовка служебной заметки ("~" - оставить текущее значение).',
+        description='Новое уникальное(в рамках сущности - Заявки/Контрагент/Документ/Пользователь) значение для заголовка служебной заметки ("~" - оставить текущее значение).',
     ),
     new_data: str = Query(
         "~",
@@ -388,6 +394,8 @@ async def update_service_note(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_service_notes",
@@ -405,7 +413,7 @@ async def delete_service_notes(
     ),
     subject: Optional[Literal[
         "Заявка",
-        "ЮЛ",
+        "Контрагент",
         "Документ",
         "Пользователь",
     ]] = Query(
@@ -467,6 +475,8 @@ async def delete_service_notes(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 
 @router.get("/get_countries", dependencies=[Depends(check_app_auth)],)

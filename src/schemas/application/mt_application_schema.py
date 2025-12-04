@@ -184,13 +184,13 @@ class UpdateMTApplicationDataSchema(BaseModel):
     comment: Optional[str] = "~"                                          # 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 3.1, 3.2           # Особенности проведения заявки V
 
 
-class ExtendedMTApplication(BaseApplication):
+class ExtendedMTApplication(BaseApplication):  # FIXME
     mt_type: Optional[str] = Field(None, description="Тип заявки по MT.")
     priority: Optional[str] = Field(None, description="Приоритет заявки.")
-    user_login: Optional[str] = Field(None, description="Логин Пользователя, который создал ПР.")
-    legal_entity_name_latin: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (латиница).")
-    legal_entity_name_national: Optional[str] = Field(None, description="Наименование ЮЛ от которого создан ПР (национальное написание).")
-    data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных ПР (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
+    user_login: Optional[str] = Field(None, description="Логин Пользователя, который создал Заявку.")
+    legal_entity_name_latin: Optional[str] = Field(None, description="Наименование Контрагента от которого создана Заявка (латиница).")
+    legal_entity_name_national: Optional[str] = Field(None, description="Наименование Контрагента от которого создана Заявка (национальное написание).")
+    data_updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления данных Заявки (Формат: 'dd.mm.YYYY HH:MM:SS TZ').")
     order_name: Optional[str] = Field(None, description="Номер Поручения.")
 
 class ResponseGetMTApplications(BaseModel):

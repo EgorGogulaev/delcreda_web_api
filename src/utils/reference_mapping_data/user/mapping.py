@@ -9,7 +9,7 @@ PRIVILEGE_MAPPING: Dict[str, int] = {
 
 SERVICE_NOTE_SUBJECT_MAPPING: Dict[str, int] = {
     "Заявка": 1,
-    "ЮЛ": 2,
+    "Контрагент": 2,
     "Документ": 3,
     "Пользователь": 4,
 }

@@ -1,6 +1,5 @@
-import datetime
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -9,18 +8,18 @@ from fastapi.responses import JSONResponse
 from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
-from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
-from src.schemas.legal_entity.legal_entity_schema import (
-    BaseLegalEntity, ExtendedLegalEntity, FiltersLegalEntities, OrdersLegalEntities, FiltersPersons, OrdersPersons, PersonData, RegistrationIdentifierType,
-    CreateLegalEntityDataSchema, UpdateLegalEntitySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateLegalEntityDataSchema, UpdateApplicationAccessList, UpdatePerson,
+from src.schemas.counterparty.counterparty_schema import (
+    BaseLegalEntity, CreateIndividualDataSchema, ExtendedLegalEntity, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, PersonData, RegistrationIdentifierType,
+    CreateLegalEntityDataSchema, UpdateCounterpartySchema, CreatePersonsSchema, ResponseGetLegalEntities, ResponseGetPersons, UpdateIndividualDataSchema, UpdateLegalEntityDataSchema, UpdateApplicationAccessList, UpdatePerson,
 )
 from src.schemas.reference_schema import CountryKey
 from src.service.notification_service import NotificationService
-from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData, Person
-from src.service.legal_entity.legal_entity_service import LegalEntityService
+from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, Person
+from src.service.counterparty.counterparty_service import CounterpartyService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -28,55 +27,57 @@ from src.utils.tz_converter import convert_tz
 
 
 router = APIRouter(
-    tags=["Legal entity"],
+    tags=["Counterparty"],
 )
 
 
 @router.post(
-    "/create_legal_entity",
+    "/create_counterparty",
     description="""
-    Создание ЮЛ.
+    Создание карточки Контрагента.
     
-    input: CreateLegalEntityDataSchema
+    input: CreateLegalEntityDataSchema | CreateIndividualDataSchema
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def create_legal_entity(
+async def create_counterparty(
     request: Request,
-    # LegalEntityData
-    legal_entity_data: CreateLegalEntityDataSchema,
+    
+    counterparty_type: Literal["ЮЛ", "ФЛ"],
+    # LegalEntityData|IndividualData
+    counterparty_data: CreateLegalEntityDataSchema|CreateIndividualDataSchema,
     
     country: CountryKey = Query( # type: ignore
         "Russia",
-        description="Страна регистрации ЮЛ.",
+        description="Страна Контрагента.",
         example="Russia"
     ),
-    registration_identifier_type: RegistrationIdentifierType = Query( # type: ignore
+    identifier_type: RegistrationIdentifierType = Query( # type: ignore
         "OGRN",  # Пока учтен только OGRN
-        description="Тип регистрационного идентификатора ЮЛ.",
+        description="Тип регистрационного идентификатора Контрагента.",
         example="OGRN"
     ),
-    registration_identifier_value: str = Query(
+    identifier_value: str = Query(
         ...,
-        description="Значение регистрационного идентификатора ЮЛ.",
+        description="Значение регистрационного идентификатора Контрагента.",
         example="1027700070518"
     ),
     tax_identifier: str = Query(
         ...,
-        description="Значение налогового идентификатора ЮЛ.",
+        description="Значение налогового идентификатора Контрагента.",
         example="7736050003"
     ),
     
     owner_user_uuid: str = Query(
         ...,
-        description="UUID Пользователя от ЮЛ(владельца).",
+        description="UUID Пользователя Контрагента(владельца).",
         min_length=36,
         max_length=36
     ),
     new_directory_uuid: Optional[str] = Query(
         None,
-        description="(Опиционально) Ручное выставление нового UUID для Директории ЮЛ. (нужно для интеграции в другие системы)",
+        description="(Опиционально) Ручное выставление нового UUID для Директории Контрагента. (нужно для интеграции в другие системы)",
         min_length=36,
         max_length=36
     ),
@@ -88,8 +89,10 @@ async def create_legal_entity(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        new_le_with_data: Tuple[Tuple[LegalEntity, LegalEntityData], Dict[str, int|str]] = await LegalEntityService.create_legal_entity(
+        new_counterparty_with_data: Tuple[Tuple[Counterparty, LegalEntityData|IndividualData], Dict[str, int|str]] = await CounterpartyService.create_counterparty(
             session=session,
+            
+            counterparty_type=counterparty_type,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
@@ -98,22 +101,14 @@ async def create_legal_entity(
             new_directory_uuid=new_directory_uuid,
             
             country=COUNTRY_MAPPING[country],
-            registration_identifier_type=registration_identifier_type,
-            registration_identifier_value=registration_identifier_value,
+            identifier_type=identifier_type,
+            identifier_value=identifier_value,
             tax_identifier=tax_identifier,
             
-            # LegalEntityData
-            name_latin=legal_entity_data.name_latin,
-            name_national=legal_entity_data.name_national,
-            organizational_and_legal_form_latin=legal_entity_data.organizational_and_legal_form_latin,
-            organizational_and_legal_form_national=legal_entity_data.organizational_and_legal_form_national,
-            site=legal_entity_data.site,
-            registration_date=datetime.datetime.strptime(legal_entity_data.registration_date, "%d.%m.%Y").date(),
-            legal_address=legal_entity_data.legal_address,
-            postal_address=legal_entity_data.postal_address,
-            additional_address=legal_entity_data.additional_address,
+            # CounterpartyData
+            counterparty_data=counterparty_data,
         )
-        
+        new_counterparty_uuid = new_counterparty_with_data[0][0].uuid
         await NotificationService.notify(
             session=session,
             
@@ -121,30 +116,30 @@ async def create_legal_entity(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="ЮЛ",
-            subject_uuid=new_le_with_data[0][0].uuid,
+            subject="Контрагент",
+            subject_uuid=new_counterparty_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новое ЮЛ "<legal_entity>" ({new_le_with_data[0][0].registration_identifier_value}).' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новое ЮЛ "<legal_entity>" ({new_le_with_data[0][0].registration_identifier_value}).',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую карточку Контрагента "<counterparty>" ({new_counterparty_with_data[0][0].identifier_value}).' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новую карточку Контрагента "<counterparty>" ({new_counterparty_with_data[0][0].identifier_value}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
             request_options={
                 "<user>": {
                     "uuid": user_data["user_uuid"],
                 },
-                "<legal_entity>": {
-                    "uuid": new_le_with_data[0][0].uuid,
+                "<counterparty>": {
+                    "uuid": new_counterparty_uuid,
                 },
             } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<legal_entity>": {
-                    "uuid": new_le_with_data[0][0].uuid,
+                "<counterparty>": {
+                    "uuid": new_counterparty_uuid,
                 },
             },
         )
         
         return JSONResponse(
             content={
-                "msg": "ЮЛ успешно создано.",
+                "msg": "Карточка Контрагента успешно создана.",
                 "data": {
-                    "uuid": new_le_with_data[0][0].uuid,
+                    "uuid": new_counterparty_uuid,
                 }
             }
         )
@@ -163,12 +158,13 @@ async def create_legal_entity(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="create_legal_entity",
+                endpoint="create_counterparty",
                 params={
-                    "legal_entity_data": legal_entity_data.model_dump() if legal_entity_data else legal_entity_data,
+                    "counterparty_type": counterparty_type,
+                    "counterparty_data": counterparty_data.model_dump() if counterparty_data else counterparty_data,
                     "country": country,
-                    "registration_identifier_type": registration_identifier_type,
-                    "registration_identifier_value": registration_identifier_value,
+                    "identifier_type": identifier_type,
+                    "identifier_value": identifier_value,
                     "tax_identifier": tax_identifier,
                     "owner_user_uuid": owner_user_uuid,
                     "new_directory_uuid": new_directory_uuid,
@@ -179,24 +175,31 @@ async def create_legal_entity(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
-    "/get_legal_entities",
+    "/get_counterparties",
     description="""
-    Получение основной информации о ЮЛ.
-    Пользователь может получить только информацию о своих ЮЛ.
-    Админ может получить информацию о всех ЮЛ.
+    Получение основной информации о Контрагенте.
+    Пользователь может получить только информацию о своих карточках Контрагента.
+    Админ может получить информацию о всех карточках Контрагента.
     
-    filter: FiltersLegalEntities
-    order: OrdersLegalEntities
+    filter: FiltersCounterparties
+    order: OrdersCounterparties
     state: ClientState
     output: ResponseGetLegalEntities
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def get_legal_entities(
+async def get_counterparties(
     request: Request,
+    
+    counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]] = Query(
+        "ЮЛ",
+        description="(Опционально) Фильтр по типу Контрагента (ЮЛ/ФЛ) (точное совпадение)."
+    ),
     user_uuid: Optional[str] = Query(
         None,
         description="(Опционально) Фильтр по UUID Пользователя (точное совпадение).",
@@ -225,8 +228,8 @@ async def get_legal_entities(
         example=50
     ),
     
-    filter: Optional[FiltersLegalEntities] = None,
-    order: Optional[OrdersLegalEntities] = None,
+    filter: Optional[FiltersCounterparties] = None,
+    order: Optional[OrdersCounterparties] = None,
     
     token: str = Depends(UserQaSM.get_current_user_data),
     
@@ -245,11 +248,13 @@ async def get_legal_entities(
             )
         client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
         
-        legal_entities: Dict[str, List[Optional[LegalEntity|int|bool]] | List[Optional[Tuple[LegalEntity, bool]]]] = await LegalEntityService.get_legal_entities(
+        counterparties: Dict[str, List[Optional[Counterparty|int|bool]] | List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyService.get_counterparties(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            
+            counterparty_type=counterparty_type,
             user_uuid=user_uuid,
             legal_entity_name_ilike=legal_entity_name_ilike,
             
@@ -269,61 +274,71 @@ async def get_legal_entities(
             total_pages=None,
         )
         
-        for le in legal_entities["data"]:
+        for counterparty in counterparties["data"]:
             if extended_output:
-                response_content.data.append(
-                    ExtendedLegalEntity(
-                        uuid=le["legal_entity"].uuid,
-                        country={v: k for k, v in COUNTRY_MAPPING.items()}[le["legal_entity"].country],
-                        registration_identifier_type=le["legal_entity"].registration_identifier_type,
-                        registration_identifier_value=le["legal_entity"].registration_identifier_value,
-                        tax_identifier=le["legal_entity"].tax_identifier,
-                        
-                        name_latin=le["name_latin"],
-                        name_national=le["name_national"],
-                        organizational_and_legal_form_latin=le["organizational_and_legal_form_latin"],
-                        organizational_and_legal_form_national=le["organizational_and_legal_form_national"],
-                        data_updated_at=convert_tz(le["updated_at"].strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["updated_at"] else None,
-                        
-                        user_id=le["legal_entity"].user_id,
-                        user_uuid=le["legal_entity"].user_uuid,
-                        directory_id=le["legal_entity"].directory_id,
-                        directory_uuid=le["legal_entity"].directory_uuid,
-                        is_active=le["legal_entity"].is_active,
-                        data_id=le["legal_entity"].data_id,  # FIXME это возможно не стоит возвращать
-                        can_be_updated_by_user=le["legal_entity"].can_be_updated_by_user,
-                        mt=le["mt"],
-                        application_access_list=le["legal_entity"].application_access_list,
-                        updated_at=convert_tz(le["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].updated_at else None,
-                        created_at=convert_tz(le["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le["legal_entity"].created_at else None,
+                if counterparty_type == "ЮЛ":
+                    response_content.data.append(
+                        ExtendedLegalEntity(
+                            uuid=counterparty["legal_entity"].uuid,
+                            country={v: k for k, v in COUNTRY_MAPPING.items()}[counterparty["legal_entity"].country],
+                            identifier_type=counterparty["legal_entity"].identifier_type,
+                            identifier_value=counterparty["legal_entity"].identifier_value,
+                            tax_identifier=counterparty["legal_entity"].tax_identifier,
+                            
+                            name_latin=counterparty["name_latin"],
+                            name_national=counterparty["name_national"],
+                            organizational_and_legal_form_latin=counterparty["organizational_and_legal_form_latin"],
+                            organizational_and_legal_form_national=counterparty["organizational_and_legal_form_national"],
+                            data_updated_at=convert_tz(counterparty["updated_at"].strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty["updated_at"] else None,
+                            
+                            user_id=counterparty["legal_entity"].user_id,
+                            user_uuid=counterparty["legal_entity"].user_uuid,
+                            directory_id=counterparty["legal_entity"].directory_id,
+                            directory_uuid=counterparty["legal_entity"].directory_uuid,
+                            is_active=counterparty["legal_entity"].is_active,
+                            data_id=counterparty["legal_entity"].data_id,  # FIXME это возможно не стоит возвращать
+                            can_be_updated_by_user=counterparty["legal_entity"].can_be_updated_by_user,
+                            mt=counterparty["mt"],
+                            application_access_list=counterparty["legal_entity"].application_access_list,
+                            updated_at=convert_tz(counterparty["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty["legal_entity"].updated_at else None,
+                            created_at=convert_tz(counterparty["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty["legal_entity"].created_at else None,
+                        )
                     )
-                )
+                elif counterparty_type == "ФЛ":
+                    ...  # TODO тут логика работы с ФЛ
+                else:
+                    ...  # TODO тут логика работы с комбинированным набором данных
             else:
-                response_content.data.append(
-                    BaseLegalEntity(
-                        uuid=le[0].uuid,
-                        country={v: k for k, v in COUNTRY_MAPPING.items()}[le[0].country],
-                        registration_identifier_type=le[0].registration_identifier_type,
-                        registration_identifier_value=le[0].registration_identifier_value,
-                        tax_identifier=le[0].tax_identifier,
-                        
-                        user_id=le[0].user_id,
-                        user_uuid=le[0].user_uuid,
-                        directory_id=le[0].directory_id,
-                        directory_uuid=le[0].directory_uuid,
-                        is_active=le[0].is_active,
-                        data_id=le[0].data_id,  # FIXME это возможно не стоит возвращать
-                        can_be_updated_by_user=le[0].can_be_updated_by_user,
-                        mt=le[1],
-                        application_access_list=le[0].application_access_list,
-                        updated_at=convert_tz(le[0].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].updated_at else None,
-                        created_at=convert_tz(le[0].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le[0].created_at else None,
+                if counterparty_type == "ЮЛ":
+                    response_content.data.append(
+                        BaseLegalEntity(
+                            uuid=counterparty[0].uuid,
+                            country={v: k for k, v in COUNTRY_MAPPING.items()}[counterparty[0].country],
+                            identifier_type=counterparty[0].identifier_type,
+                            identifier_value=counterparty[0].identifier_value,
+                            tax_identifier=counterparty[0].tax_identifier,
+                            
+                            user_id=counterparty[0].user_id,
+                            user_uuid=counterparty[0].user_uuid,
+                            directory_id=counterparty[0].directory_id,
+                            directory_uuid=counterparty[0].directory_uuid,
+                            is_active=counterparty[0].is_active,
+                            data_id=counterparty[0].data_id,  # FIXME это возможно не стоит возвращать
+                            can_be_updated_by_user=counterparty[0].can_be_updated_by_user,
+                            mt=counterparty[1],
+                            application_access_list=counterparty[0].application_access_list,
+                            updated_at=convert_tz(counterparty[0].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty[0].updated_at else None,
+                            created_at=convert_tz(counterparty[0].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty[0].created_at else None,
+                        )
                     )
-                )
+                elif counterparty_type == "ФЛ":
+                    ...  # TODO тут логика работы с ФЛ
+                else:
+                    ...  # TODO тут логика работы с комбинированным набором данных
             response_content.count += 1
         
-        response_content.total_records = legal_entities["total_records"]
-        response_content.total_pages = legal_entities["total_pages"]
+        response_content.total_records = counterparties["total_records"]
+        response_content.total_pages = counterparties["total_pages"]
         
         return response_content
     except AssertionError as e:
@@ -341,7 +356,7 @@ async def get_legal_entities(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="get_legal_entities",
+                endpoint="get_counterparties",
                 params={
                     "user_uuid": user_uuid,
                     "legal_entity_name_ilike": legal_entity_name_ilike,
@@ -357,26 +372,28 @@ async def get_legal_entities(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
-    "/change_legal_entities_edit_status",
+    "/change_counterparties_edit_status",
     description="""
-    Изменение статуса возможности Пользователем редактировать данные ЮЛ.
+    Изменение статуса возможности Пользователем редактировать данные карточки Контрагента.
     (Может вызвать только Админ)
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def change_legal_entities_edit_status(
+async def change_counterparties_edit_status(
     request: Request,
-    legal_entity_uuids: List[Optional[str]] = Query(
+    counterparty_uuids: List[Optional[str]] = Query(
         [],
-        description="Массив UUID'ов ЮЛ, у которых должен быть изменен статус возможности редактирования Пользователем."
+        description="Массив UUID'ов карточек Контрагента, у которых должен быть изменен статус возможности редактирования Пользователем."
     ),
     
     edit_status: bool = Query(
         ...,
-        description="Статус возможности редактирования ЮЛ Пользователем (true-можно/false-нельзя).",
+        description="Статус возможности редактирования Контрагента Пользователем (true-можно/false-нельзя).",
         example=False
     ),
     
@@ -387,19 +404,19 @@ async def change_legal_entities_edit_status(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await LegalEntityService.change_legal_entities_edit_status(
+        await CounterpartyService.change_counterparties_edit_status(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entity_uuids=legal_entity_uuids,
+            counterparty_uuids=counterparty_uuids,
             edit_status=edit_status,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача)
         
-        return JSONResponse(content={"msg": f"Возможность редактирования ЮЛ изменена на {edit_status}."})
+        return JSONResponse(content={"msg": f"Возможность редактирования Контрагента изменена на {edit_status}."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -415,9 +432,9 @@ async def change_legal_entities_edit_status(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="change_legal_entities_edit_status",
+                endpoint="change_counterparties_edit_status",
                 params={
-                    "legal_entity_uuids": legal_entity_uuids,
+                    "counterparty_uuids": counterparty_uuids,
                     "edit_status": edit_status,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
@@ -426,24 +443,32 @@ async def change_legal_entities_edit_status(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
-    "/update_legal_entity",
+    "/update_counterparty",
     description="""
-    Обновление основной информации о ЮЛ.
+    Обновление основной информации в карточке Контрагента.
     
     input: UpdateLegalEntitySchema
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def update_legal_entity(
+async def update_counterparty(
     request: Request,
-    data_for_update: UpdateLegalEntitySchema,
     
-    legal_entity_uuid: str = Query(
+    data_for_update: UpdateCounterpartySchema,
+    
+    counterparty_type: Literal["ЮЛ", "ФЛ"] = Query(
+        "ЮЛ",
+        description="Тип обновляемой карточки Контрагента(ЮЛ/ФЛ)."
+    ),
+    
+    counterparty_uuid: str = Query(
         ...,
-        description="UUID ЮЛ, в основной информации которого, планируются изменения.",
+        description="UUID Контрагента, в основной информации которого, планируются изменения.",
         min_length=36,
         max_length=36
     ),
@@ -455,26 +480,24 @@ async def update_legal_entity(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await LegalEntityService.update_legal_entity(
+        await CounterpartyService.update_counterparty(
             session=session,
+            
+            counterparty_type=counterparty_type,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
-            country=data_for_update.country,
-            registration_identifier_type=data_for_update.registration_identifier_type,
-            registration_identifier_value=data_for_update.registration_identifier_value,
-            tax_identifier=data_for_update.tax_identifier,
-            is_active=data_for_update.is_active,
+            data_for_update=data_for_update,
         )
         
         if user_data["privilege_id"] == PRIVILEGE_MAPPING["Admin"]:
-            recipient_user_uuid = await LegalEntityQueryAndStatementManager.get_user_uuid_by_legal_entity_uuid(
+            recipient_user_uuid = await CounterpartyQueryAndStatementManager.get_user_uuid_by_counterparty_uuid(
                 session=session,
                 
-                legal_entity_uuid=legal_entity_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
         await NotificationService.notify(
             session=session,
@@ -483,26 +506,26 @@ async def update_legal_entity(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="ЮЛ",
-            subject_uuid=legal_entity_uuid,
+            subject="Контрагент",
+            subject_uuid=counterparty_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о ЮЛ "<legal_entity>" ({legal_entity_uuid}).',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о Контрагенте "<counterparty>" ({counterparty_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
             request_options={
                 "<user>": {
                     "uuid": user_data["user_uuid"],
                 },
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             },
         )
         
-        return JSONResponse(content={"msg": "Основная информация о ЮЛ успешно обновлена."})
+        return JSONResponse(content={"msg": "Основная информация о Контрагенте успешно обновлена."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -518,10 +541,10 @@ async def update_legal_entity(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="update_legal_entity",
+                endpoint="update_counterparty",
                 params={
                     "data_for_update": data_for_update.model_dump() if data_for_update else data_for_update,
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -529,6 +552,8 @@ async def update_legal_entity(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_application_access_list",
@@ -541,9 +566,9 @@ async def update_application_access_list(
     request: Request,
     
     data_for_update: UpdateApplicationAccessList,
-    legal_entity_uuid: str = Query(
+    counterparty_uuid: str = Query(
         ...,
-        description="UUID ЮЛ, в котором планируется изменение списка доступных к созданию типов Заявок.",
+        description="UUID Контрагента, в котором планируется изменение списка доступных к созданию типов Заявок.",
         min_length=36,
         max_length=36
     ),
@@ -556,16 +581,16 @@ async def update_application_access_list(
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
         
-        await LegalEntityService.update_application_access_list(
+        await CounterpartyService.update_application_access_list(
             session=session,
             
             requester_user_privilege=user_data["privilege_id"],
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             mt=data_for_update.mt,
             # TODO тут будут другие бизнес процессы
         )
-        response_content = {"msg": f'Список доступов к типам Заявок для ЮЛ с UUID - "{legal_entity_uuid}" успешно изменен.'}
+        response_content = {"msg": f'Список доступов к типам Заявок для Контрагента с UUID - "{counterparty_uuid}" успешно изменен.'}
         return JSONResponse(content=response_content)
     except AssertionError as e:
         error_message = str(e)
@@ -585,7 +610,7 @@ async def update_application_access_list(
                 endpoint="update_application_access_list",
                 params={
                     "data_for_update": data_for_update.model_dump() if data_for_update else data_for_update,
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -593,26 +618,33 @@ async def update_application_access_list(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
-@router.post(
-    "/get_legal_entities_data",
+@router.post(  # FIXME
+    "/get_counterparties_data",
     description="""
-    Получении подробных данных о ЮЛ.
+    Получении подробных данных о Контрагенте.
     
     state: ClientState
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def get_legal_entities_data(
+async def get_counterparties_data(
     request: Request,
-    legal_entities_uuid_list: List[Optional[str]] = Query(
+    
+    counterparty_type: Literal["ЮЛ", "ФЛ"] = Query(
+        "ЮЛ",
+        description="Тип карточки Контрагента(ЮЛ/ФЛ) по которому будут запрошены подробные данные."
+    ),
+    counterparty_uuid_list: List[Optional[str]] = Query(
         [],
-        description="(Опционально) Массив UUID'ов ЮЛ, подробные данные которых нужно получить."
+        description="(Опционально) Массив UUID'ов Контрагентов, подробные данные которых нужно получить."
     ),
     user_uuid: Optional[str] = Query(
         None,
-        description="(Опционально) UUID Пользователя владельца ЮЛ."
+        description="(Опционально) UUID Пользователя владельца карточки Контрагента."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -632,32 +664,37 @@ async def get_legal_entities_data(
             )
         client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
         
-        les_data: List[Optional[LegalEntityData]] = await LegalEntityService.get_legal_enities_data(
+        counterparties_data: List[Optional[LegalEntityData|IndividualData]] = await CounterpartyService.get_counterparties_data(
             session=session,
+            
+            counterparty_type=counterparty_type,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            les_uuid_list=legal_entities_uuid_list,
+            counterparty_uuid_list=counterparty_uuid_list,
             user_uuid=user_uuid,
         )
         
         response_content = {"data": {}, "count": 0}
         
-        for le_data in les_data:
+        for counterparty_data in counterparties_data:  # FIXME
             response_content["count"] += 1
-            response_content["data"][le_data.id] = {
-                "name_latin": le_data.name_latin,
-                "name_national": le_data.name_national,
-                "organizational_and_legal_form_latin": le_data.organizational_and_legal_form_latin,
-                "organizational_and_legal_form_national": le_data.organizational_and_legal_form_national,
-                "site": le_data.site,
-                "registration_date": le_data.registration_date.strftime("%d.%m.%Y") if le_data.registration_date else None,
-                "legal_address": le_data.legal_address,
-                "postal_address": le_data.postal_address,
-                "additional_address": le_data.additional_address,
-                "updated_at": convert_tz(le_data.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if le_data.updated_at else None,
-            }
+            if counterparty_type == "ЮЛ":
+                response_content["data"][counterparty_data.id] = {
+                    "name_latin": counterparty_data.name_latin,
+                    "name_national": counterparty_data.name_national,
+                    "organizational_and_legal_form_latin": counterparty_data.organizational_and_legal_form_latin,
+                    "organizational_and_legal_form_national": counterparty_data.organizational_and_legal_form_national,
+                    "site": counterparty_data.site,
+                    "registration_date": counterparty_data.registration_date.strftime("%d.%m.%Y") if counterparty_data.registration_date else None,
+                    "legal_address": counterparty_data.legal_address,
+                    "postal_address": counterparty_data.postal_address,
+                    "additional_address": counterparty_data.additional_address,
+                    "updated_at": convert_tz(counterparty_data.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty_data.updated_at else None,
+                }
+            else:
+                ...  # TODO тут логика работы с ФЛ
         
         return JSONResponse(content=response_content)
     except AssertionError as e:
@@ -675,9 +712,9 @@ async def get_legal_entities_data(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="get_legal_entities_data",
+                endpoint="get_counterparties_data",
                 params={
-                    "legal_entities_uuid_list": legal_entities_uuid_list,
+                    "counterparty_uuid_list": counterparty_uuid_list,
                     "user_uuid": user_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
@@ -686,24 +723,26 @@ async def get_legal_entities_data(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
-@router.put(
-    "/update_legal_entity_data",
+@router.put(  # FIXME
+    "/update_counterparty_data",
     description="""
-    Обновление подробных данных о ЮЛ.
+    Обновление подробных данных о Контрагенте.
     
-    input: UpdateLegalEntityDataSchema
+    input: UpdateLegalEntityDataSchema | UpdateIndividualDataSchema
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def update_legal_entity_data(
+async def update_counterparty_data(
     request: Request,
-    data_for_update: UpdateLegalEntityDataSchema,
+    data_for_update: UpdateLegalEntityDataSchema | UpdateIndividualDataSchema,
     
-    legal_entity_uuid: str = Query(
+    counterparty_uuid: str = Query(
         ...,
-        description="UUID ЮЛ, в подробных данных которого предполагаются изменения.",
+        description="UUID Контрагента, в подробных данных которого предполагаются изменения.",
         min_length=36,
         max_length=36
     ),
@@ -715,13 +754,13 @@ async def update_legal_entity_data(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await LegalEntityService.update_legal_entity_data(
+        await CounterpartyService.update_counterparty_data(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             name_latin=data_for_update.name_latin,
             name_national=data_for_update.name_national,
@@ -735,10 +774,10 @@ async def update_legal_entity_data(
         )
         
         if user_data["privilege_id"] == PRIVILEGE_MAPPING["Admin"]:
-            recipient_user_uuid = await LegalEntityQueryAndStatementManager.get_user_uuid_by_legal_entity_uuid(
+            recipient_user_uuid = await CounterpartyQueryAndStatementManager.get_user_uuid_by_counterparty_uuid(
                 session=session,
                 
-                legal_entity_uuid=legal_entity_uuid,
+                counterparty_uuid=counterparty_uuid,
             )
         await NotificationService.notify(
             session=session,
@@ -747,26 +786,26 @@ async def update_legal_entity_data(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="ЮЛ",
-            subject_uuid=legal_entity_uuid,
+            subject="Контрагент",
+            subject_uuid=counterparty_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в данные о ЮЛ "<legal_entity>" ({legal_entity_uuid}).',
+            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в данные о Контрагенте "<counterparty>" ({counterparty_uuid}).',
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
             request_options={
                 "<user>": {
                     "uuid": user_data["user_uuid"],
                 },
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<legal_entity>": {
-                    "uuid": legal_entity_uuid,
+                "<counterparty>": {
+                    "uuid": counterparty_uuid,
                 },
             },
         )
         
-        return JSONResponse(content={"msg": "Данные ЮЛ успешно обновлены."})
+        return JSONResponse(content={"msg": "Данные Контрагента успешно обновлены."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -782,10 +821,10 @@ async def update_legal_entity_data(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="update_legal_entity_data",
+                endpoint="update_counterparty_data",
                 params={
                     "data_for_update": data_for_update.model_dump() if data_for_update else data_for_update,
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -793,20 +832,22 @@ async def update_legal_entity_data(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
-    "/delete_legal_entities",
+    "/delete_counterparties",
     description="""
-    Удаление ЮЛ.
+    Удаление карточек Контрагентов.
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
 async def delete_legal_entities(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов (ЮЛ и ПР)
     request: Request,
-    legal_entities_uuids: List[str] = Query(
+    counterparty_uuids: List[str] = Query(
         [],
-        description="Массив UUID ЮЛ к удалению."
+        description="Массив UUID карточек Контрагента к удалению."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -816,19 +857,19 @@ async def delete_legal_entities(  # TODO Нужно предусмотреть �
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await LegalEntityService.delete_legal_entities(
+        await CounterpartyService.delete_counterparties(
             session=session,
             
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entities_uuids=legal_entities_uuids,
+            counterparty_uuids=counterparty_uuids,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача)
         
-        return JSONResponse({"msg": "ЮЛ успешно удалено/ы."})
+        return JSONResponse({"msg": "Контрагент/ы успешно удалено/ы."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -844,9 +885,9 @@ async def delete_legal_entities(  # TODO Нужно предусмотреть �
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="delete_legal_entities",
+                endpoint="delete_counterparties",
                 params={
-                    "legal_entities_uuids": legal_entities_uuids,
+                    "counterparty_uuids": counterparty_uuids,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -854,11 +895,13 @@ async def delete_legal_entities(  # TODO Нужно предусмотреть �
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/create_persons",
     description="""
-    Создание записи о ФЛ(которое относится всегда к ЮЛ).
+    Создание записи о ФЛ(которое относится всегда к Контрагенту типа ЮЛ).
     
     input: CreatePersonsSchema
     """,
@@ -876,7 +919,7 @@ async def create_persons(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        new_person_ids: List[int] = await LegalEntityService.create_persons(
+        new_person_ids: List[int] = await CounterpartyService.create_persons(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -885,7 +928,7 @@ async def create_persons(
             new_persons=new_persons,
         )
         
-        le_uuid = new_persons.new_persons[0].legal_entity_uuid
+        counterparty_uuid = new_persons.new_persons[0].counterparty_uuid
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача) заменить блок снизу
         
@@ -897,22 +940,22 @@ async def create_persons(
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
                 
-                subject="ЮЛ",
-                subject_uuid=le_uuid,
+                subject="Контрагент",
+                subject_uuid=counterparty_uuid,
                 for_admin=True,
-                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую/ые запись/и о ФЛ с ID: "{", ".join([str(new_person_id) for new_person_id in new_person_ids])}" в ЮЛ "<legal_entity>" ({le_uuid}).',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую/ые запись/и о ФЛ с ID: "{", ".join([str(new_person_id) for new_person_id in new_person_ids])}" в карточке Контрагента(ЮЛ) "<counterparty>" ({counterparty_uuid}).',
                 recipient_user_uuid=None,
                 request_options={
                     "<user>": {
                         "uuid": user_data["user_uuid"],
                     },
-                    "<legal_entity>": {
-                        "uuid": le_uuid,
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
                     }
                 },
             )
         
-        return JSONResponse(content={"msg": "ФЛ для ЮЛ создано/ы."})
+        return JSONResponse(content={"msg": "ФЛ для Контрагента(ЮЛ) создано/ы."})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -938,6 +981,8 @@ async def create_persons(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_persons",
@@ -954,9 +999,9 @@ async def create_persons(
 @limiter.limit("30/second")
 async def get_persons(
     request: Request,
-    legal_entity_uuid: Optional[str] = Query(
+    counterparty_uuid: Optional[str] = Query(
         None,
-        description="(Опционально) Фильтр по UUID ЮЛ."
+        description="(Опционально) Фильтр по UUID Контрагента."
     ),
     
     page: Optional[int] = Query(
@@ -997,13 +1042,13 @@ async def get_persons(
             total_pages=None
         )
         
-        persons: Dict[str, List[Optional[Person]]|Optional[int]] = await LegalEntityService.get_persons(
+        persons: Dict[str, List[Optional[Person]]|Optional[int]] = await CounterpartyService.get_persons(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             
             page=page,
             page_size=page_size,
@@ -1027,7 +1072,7 @@ async def get_persons(
                     email=person.email,
                     phone=person.phone,
                     contact=person.contact,
-                    legal_entity_uuid=person.legal_entity_uuid,
+                    counterparty_uuid=person.counterparty_uuid,
                     updated_at=convert_tz(person.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if person.updated_at else None,
                     created_at=convert_tz(person.created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if person.created_at else None,
                 )
@@ -1055,7 +1100,7 @@ async def get_persons(
             log_id = await ReferenceService.create_errlog(
                 endpoint="get_persons",
                 params={
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                     "page": page,
                     "page_size": page_size,
                     "filter": filter.model_dump() if filter else filter,
@@ -1067,6 +1112,8 @@ async def get_persons(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_person",
@@ -1090,7 +1137,7 @@ async def update_person(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        le_uuid: str = await LegalEntityService.update_person(
+        counterparty_uuid: str = await CounterpartyService.update_person(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -1108,7 +1155,7 @@ async def update_person(
             email=data_for_update.email,
             phone=data_for_update.phone,
             contact=data_for_update.contact,
-            legal_entity_uuid=data_for_update.legal_entity_uuid,
+            counterparty_uuid=data_for_update.counterparty_uuid,
         )
         
         # TODO тут нужно уведомление для 1 и множества лиц (нужна фоновая задача) заменить блок снизу
@@ -1121,17 +1168,17 @@ async def update_person(
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
                 
-                subject="ЮЛ",
-                subject_uuid=le_uuid,
+                subject="Контрагент",
+                subject_uuid=counterparty_uuid,
                 for_admin=True,
-                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) внес изменения в информацию о ФЛ с ID "{person_id}"; "<legal_entity>" ({le_uuid}).',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) внес изменения в информацию о ФЛ с ID "{person_id}"; Контрагент - "<counterparty>" ({counterparty_uuid}).',
                 recipient_user_uuid=None,
                 request_options={
                     "<user>": {
                         "uuid": user_data["user_uuid"],
                     },
-                    "<legal_entity>": {
-                        "uuid": le_uuid,
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
                     }
                 },
             )
@@ -1163,6 +1210,8 @@ async def update_person(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_persons",
@@ -1186,7 +1235,7 @@ async def delete_persons(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        le_uuid: Optional[str] = await LegalEntityService.delete_persons(
+        counterparty_uuid: Optional[str] = await CounterpartyService.delete_persons(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -1205,17 +1254,17 @@ async def delete_persons(
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
                 
-                subject="ЮЛ",
-                subject_uuid=le_uuid,
+                subject="Контрагент",
+                subject_uuid=counterparty_uuid,
                 for_admin=True,
-                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) удалил информацию о ФЛ с ID "{", ".join([str(person_id) for person_id in person_ids])}".',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) удалил информацию о ФЛ с ID "{", ".join([str(person_id) for person_id in person_ids])}"; Контрагент - "<counterparty>" ({counterparty_uuid}).',
                 recipient_user_uuid=None,
                 request_options={
                     "<user>": {
                         "uuid": user_data["user_uuid"],
                     },
-                    "<legal_entity>": {
-                        "uuid": le_uuid,
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
                     }
                 },
             )
@@ -1246,3 +1295,5 @@ async def delete_persons(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

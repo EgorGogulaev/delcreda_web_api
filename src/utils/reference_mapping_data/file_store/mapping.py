@@ -27,7 +27,7 @@ DOCUMENT_TYPE_FOR_KEYS: List[int] = list(range(1, 16))
 # ______________________________________________________________________
 DIRECTORY_TYPE_MAPPING: Dict[str, int] = {
     "Пользовательская директория": 1,
-    "Директория ЮЛ": 2,
+    "Директория контрагента": 2,  # FIXME надо поменять в БД
     "Директория заявки": 3,
 }
 
@@ -36,5 +36,5 @@ DIRECTORY_TYPE_FOR_KEYS:  List[int] = list(range(1, 4))
 
 FILE_STORE_SUBJECT_MAPPING: Dict[str, int] = {
     "Заявка": 1,
-    "ЮЛ": 2,
+    "Контрагент": 2,  # FIXME надо поменять в БД
 }

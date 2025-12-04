@@ -43,9 +43,9 @@ async def notify(
         ...,
         description="Кому предназначается Уведомление? (true-Админу/false-Пользователю)",
     ),
-    subject: Literal["Application", "Legal_entity", "Preliminary_calculation", "Other",] = Query(
+    subject: Literal["Application", "Counterparty", "Preliminary_calculation", "Other",] = Query(
         ...,
-        description="На какую тему Уведомление? (ЮЛ/Заявка/Прочее/Предварительный расчет)",
+        description="На какую тему Уведомление? (Контрагент/Заявка/Прочее/Предварительный расчет)",
     ),
     
     subject_uuid: Optional[str] = Query(
@@ -87,8 +87,8 @@ async def notify(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="Заявка" if subject == "Application" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее",
-            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Legal_entity" else None,
+            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее",
+            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Counterparty" else None,
             for_admin=for_admin,
             data=data.model_dump()["data"],
             recipient_user_uuid=recipient_user_uuid,
@@ -129,6 +129,8 @@ async def notify(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_notifications",
@@ -149,13 +151,13 @@ async def get_notifications(
         True,
         description="Фильтр по назначению Уведомлений. (true-для Админа/false-для Пользователя)"
     ),
-    subject: Literal["Application", "Legal_entity", "Preliminary_calculation", "Other", "All"] = Query(
+    subject: Literal["Application", "Counterparty", "Preliminary_calculation", "Other", "All"] = Query(
         "All",
-        description="Фильтр по теме Уведомлений (ЮЛ/Заявка/Предварительный расчет/Прочее/Все) (Для ЮЛ дополнительно отдает уведомления по его Заявкам)."
+        description="Фильтр по теме Уведомлений (Контрагент/Заявка/Предварительный расчет/Прочее/Все) (Для Контрагента дополнительно отдает уведомления по его Заявкам)."
     ),
     subject_uuid: Optional[str] = Query(
         None,
-        description="(None, если subject='All') Фильтр по UUID сущности по которой отправлены Уведомления (Для ЮЛ дополнительно отдает уведомления по его Заявкам).",
+        description="(None, если subject='All') Фильтр по UUID сущности по которой отправлены Уведомления (Для Контрагента дополнительно отдает уведомления по его Заявкам).",
         min_length=36,
         max_length=36
     ),
@@ -212,8 +214,8 @@ async def get_notifications(
             requester_user_privilege=user_data["privilege_id"],
             
             for_admin=for_admin,
-            subject="Заявка" if subject == "Application" else "ЮЛ" if subject == "Legal_entity" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
-            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Legal_entity" else None,
+            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
+            subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Counterparty" else None,
             initiator_user_uuid=initiator_user_uuid,
             recipient_user_uuid=recipient_user_uuid,
             
@@ -288,6 +290,8 @@ async def get_notifications(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.get(
     "/get_count_notifications",
@@ -303,9 +307,9 @@ async def get_count_notifications(
         "Yes",
         description="Только непрочитанные? ('Yes'/'No')"
     ),
-    notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"] = Query(
+    notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"] = Query(
         "All",
-        description="Категория по которой получаем количество Уведомлений. (ЮЛ/Заявки/Прочие/Все)"
+        description="Категория по которой получаем количество Уведомлений. (Контрагент/Заявки/Прочие/Все)"
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -353,6 +357,8 @@ async def get_count_notifications(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/read_notifications",
@@ -411,6 +417,8 @@ async def read_notifications(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_notifications",
@@ -470,3 +478,5 @@ async def delete_notifications(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

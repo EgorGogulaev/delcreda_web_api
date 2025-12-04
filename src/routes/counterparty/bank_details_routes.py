@@ -12,10 +12,10 @@ from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
 from src.service.notification_service import NotificationService
-from src.models.legal_entity.bank_details_models import BankDetails
-from src.service.legal_entity.bank_details_service import BankDetailsService
+from src.models.counterparty.bank_details_models import BankDetails
+from src.service.counterparty.bank_details_service import BankDetailsService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
-from src.schemas.legal_entity.bank_details_schema import CreateBanksDetailsSchema, UpdateBankDetailsSchema
+from src.schemas.counterparty.bank_details_schema import CreateBanksDetailsSchema, UpdateBankDetailsSchema
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.tz_converter import convert_tz
 
@@ -53,7 +53,7 @@ async def create_banks_details(
             new_banks_details=new_banks_details,
         )
         
-        le_uuid: str = new_banks_details.new_banks_details[0].legal_entity_uuid
+        counterparty_uuid: str = new_banks_details.new_banks_details[0].counterparty_uuid
         
         if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"]:
             await NotificationService.notify(
@@ -63,17 +63,17 @@ async def create_banks_details(
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
                 
-                subject="ЮЛ",
-                subject_uuid=new_banks_details.new_banks_details[0].legal_entity_uuid,
+                subject="Контрагент",
+                subject_uuid=new_banks_details.new_banks_details[0].counterparty_uuid,
                 for_admin=True,
-                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) добавил банковские реквизиты в ЮЛ "<legal_entity>" ({le_uuid}).',
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]}) добавил банковские реквизиты в карточку Контрагента "<counterparty>" ({counterparty_uuid}).',
                 recipient_user_uuid=None,
                 request_options={
                     "<user>": {
                         "uuid": user_data["user_uuid"],
                     },
-                    "<legal_entity>": {
-                        "uuid": le_uuid,
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
                     },
                 }
             )
@@ -104,6 +104,8 @@ async def create_banks_details(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.get(
     "/get_banks_details",
@@ -117,9 +119,9 @@ async def create_banks_details(
 @limiter.limit("30/second")
 async def get_banks_details(
     request: Request,
-    legal_entity_uuid: Optional[str] = Query(
+    counterparty_uuid: Optional[str] = Query(
         None,
-        description="(Опционально) Фильтр по UUID ЮЛ к которому прикреплены реквизиты (точное совпадение)."
+        description="(Опционально) Фильтр по UUID Контрагента к которому прикреплены реквизиты (точное совпадение)."
     ),
     user_uuid: Optional[str] = Query(
         None,
@@ -149,7 +151,7 @@ async def get_banks_details(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_uuid=counterparty_uuid,
             user_uuid=user_uuid,
         )
         
@@ -164,7 +166,7 @@ async def get_banks_details(
                 {
                     "id": bank_details.id,
                     "user_uuid": bank_details.user_uuid,
-                    "legal_entity_uuid": bank_details.legal_entity_uuid,
+                    "counterparty_uuid": bank_details.counterparty_uuid,
                     "name_latin": bank_details.name_latin,
                     "name_national": bank_details.name_national,
                     "organizational_and_legal_form": bank_details.organizational_and_legal_form,
@@ -203,7 +205,7 @@ async def get_banks_details(
             log_id = await ReferenceService.create_errlog(
                 endpoint="get_banks_details",
                 params={
-                    "legal_entity_uuid": legal_entity_uuid,
+                    "counterparty_uuid": counterparty_uuid,
                     "user_uuid": user_uuid,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
@@ -212,6 +214,8 @@ async def get_banks_details(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/update_bank_details",
@@ -247,7 +251,7 @@ async def update_bank_details(
             
             bank_details_id=bank_details_id,
             user_uuid=data_for_update.user_uuid,
-            legal_entity_uuid=data_for_update.legal_entity_uuid,
+            counterparty_uuid=data_for_update.counterparty_uuid,
             name_latin=data_for_update.name_latin,
             name_national=data_for_update.name_national,
             organizational_and_legal_form=data_for_update.organizational_and_legal_form,
@@ -293,6 +297,8 @@ async def update_bank_details(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_banks_details",
@@ -351,3 +357,5 @@ async def delete_bank_details(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

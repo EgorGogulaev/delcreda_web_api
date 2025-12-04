@@ -6,7 +6,7 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user_models import UserAccount
-from src.models.legal_entity.legal_entity_models import LegalEntity, LegalEntityData
+from src.models.counterparty.counterparty_models import Counterparty, LegalEntityData
 from src.schemas.application.application_schema import FiltersApplications, OrdersApplications
 from src.models.application.application_models import Application
 from src.models.application.mt_models import MTApplicationData
@@ -24,8 +24,8 @@ class MTApplicationQueryAndStatementManager:
         user_uuid: str,
         name: Optional[str],
         new_application_uuid: str,
-        legal_entity_id: int,
-        legal_entity_uuid: str,
+        counterparty_id: int,
+        counterparty_uuid: str,
         directory_id: int,
         directory_uuid: str,
         
@@ -177,11 +177,11 @@ class MTApplicationQueryAndStatementManager:
         # Application
         new_application = Application(
             uuid=new_application_uuid,
-            name=name if name else f"{datetime.datetime.now().year}-{legal_entity_id}-{new_mt_application_data.id}",
+            name=name if name else f"{datetime.datetime.now().year}-{counterparty_id}-{new_mt_application_data.id}",
             user_id=user_id,
             user_uuid=user_uuid,
-            legal_entity_id=legal_entity_id,
-            legal_entity_uuid=legal_entity_uuid,
+            counterparty_id=counterparty_id,
+            counterparty_uuid=counterparty_uuid,
             directory_id=directory_id,
             directory_uuid=directory_uuid,
             type=APPLICATION_TYPE_MAPPING["MT"],
@@ -202,7 +202,7 @@ class MTApplicationQueryAndStatementManager:
         session: AsyncSession,
         
         user_uuid: Optional[str],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
         application_uuid_list: List[Optional[str]] = [],
         
         extended_output: bool = False,
@@ -221,8 +221,8 @@ class MTApplicationQueryAndStatementManager:
         if user_uuid:
             _filters.append(Application.user_uuid == user_uuid)
         
-        if legal_entity_uuid:
-            _filters.append(Application.legal_entity_uuid == legal_entity_uuid)
+        if counterparty_uuid:
+            _filters.append(Application.counterparty_uuid == counterparty_uuid)
         
         if application_uuid_list:
             _filters.append(Application.uuid.in_(application_uuid_list))
@@ -273,7 +273,7 @@ class MTApplicationQueryAndStatementManager:
             _order_clauses.append(Application.id.asc())
         # ===== КОНЕЦ блока сортировки =====
         
-        if extended_output:
+        if extended_output:  # FIXME
             query = (
                 select(
                     Application,
@@ -291,14 +291,14 @@ class MTApplicationQueryAndStatementManager:
                 )
                 .outerjoin(MTApplicationData, Application.data_id == MTApplicationData.id)
                 .outerjoin(UserAccount, Application.user_id == UserAccount.id)
-                .outerjoin(LegalEntity, Application.legal_entity_id == LegalEntity.id)
-                .outerjoin(LegalEntityData, LegalEntity.data_id == LegalEntityData.id)
+                .outerjoin(Counterparty, Application.counterparty_id == Counterparty.id)
+                .outerjoin(LegalEntityData, Counterparty.data_id == LegalEntityData.id)
                 .filter(and_(*_filters))
                 .order_by(*_order_clauses)
             )
             if user_login_ilike is not None:
                 query = query.filter(UserAccount.login.ilike(f"%{user_login_ilike}%"))
-            if legal_entity_name is not None:
+            if legal_entity_name is not None:  # FIXME
                 query = query.filter(
                     or_(
                         LegalEntityData.name_latin.ilike(f"%{legal_entity_name}%"),
@@ -357,15 +357,15 @@ class MTApplicationQueryAndStatementManager:
         session: AsyncSession,
         
         application_uuid_list: List[Optional[int]],
-        legal_entity_uuid: Optional[str],
+        counterparty_uuid: Optional[str],
     ) -> List[Optional[MTApplicationData]]:
         _filters = []
         
         if application_uuid_list:
             _filters.append(Application.uuid.in_(application_uuid_list))
         
-        if legal_entity_uuid:
-            _filters.append(Application.legal_entity_uuid == legal_entity_uuid)
+        if counterparty_uuid:
+            _filters.append(Application.counterparty_uuid == counterparty_uuid)
         
         query = (
             select(MTApplicationData)

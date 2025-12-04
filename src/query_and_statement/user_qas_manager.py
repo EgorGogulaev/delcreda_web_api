@@ -10,7 +10,7 @@ from connection_module import async_session_maker, RedisConnector
 
 from src.models.notification_models import Notification
 from src.models.chat_models import Message
-from src.models.legal_entity.bank_details_models import BankDetails
+from src.models.counterparty.bank_details_models import BankDetails
 from src.models.file_store_models import Directory, Document
 from src.models.user_models import Token, UserAccount, UserContact, UserPrivilege
 from src.schemas.user_schema import ClientState, UpdateUserContactData, UserSchema, FiltersUsersInfo, OrdersUsersInfo

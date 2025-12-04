@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class CreateBankDetailsSchema(BaseModel):
     user_uuid: str = Field(..., description="UUID пользователя, к которому относятся банковские реквизиты.")
-    legal_entity_uuid: Optional[str] = Field(None, description="UUID ЮЛ к которому будут прикреплены данные банковские реквизиты.")
+    counterparty_uuid: Optional[str] = Field(None, description="UUID Контрагента к которому будут прикреплены данные банковских реквизитов.")
     name_latin: Optional[str] = Field(None, description="Наименование банка латиницей.")
     name_national: Optional[str] = Field(None, description="Наименование банка в национальном написании.")
     organizational_and_legal_form: Optional[str] = Field(None, description="ОПФ.")
@@ -27,7 +27,7 @@ class CreateBanksDetailsSchema(BaseModel):
 
 class UpdateBankDetailsSchema(BaseModel):
     user_uuid: Optional[str] = Field("~", description="UUID пользователя, к которому относятся банковские реквизиты. (значение '~' == оставить без изменений)")
-    legal_entity_uuid: Optional[str] = Field("~", description="UUID ЮЛ к которому будут прикреплены данные банковские реквизиты. (значение '~' == оставить без изменений)")
+    counterparty_uuid: Optional[str] = Field("~", description="UUID Контрагента к которому будут прикреплены данные банковских реквизитов. (значение '~' == оставить без изменений)")
     name_latin: Optional[str] = Field("~", description="Наименование банка латиницей. (значение '~' == оставить без изменений)")
     name_national: Optional[str] = Field("~", description="Наименование банка в национальном написании. (значение '~' == оставить без изменений)")
     organizational_and_legal_form: Optional[str] = Field("~", description="ОПФ. (значение '~' == оставить без изменений)")

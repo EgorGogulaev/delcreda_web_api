@@ -84,7 +84,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Literal["Заявка", "ЮЛ", "Документ", "Пользователь",],
+        subject: Literal["Заявка", "Контрагент", "Документ", "Пользователь",],
         subject_uuid: str,
         title: str,
         data: Optional[str]=None,
@@ -102,7 +102,7 @@ class ReferenceService:
                 uuid=subject_uuid,
                 object="Application",
             )
-        elif subject == "ЮЛ":
+        elif subject == "Контрагент":
             is_exist: bool = cls.check_uuid(
                 session=session,
                 
@@ -156,7 +156,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Optional[Literal["Заявка", "ЮЛ", "Документ", "Пользователь"]],
+        subject: Optional[Literal["Заявка", "Контрагент", "Документ", "Пользователь"]],
         subject_uuid: Optional[str],
         
         page: Optional[int] = None,

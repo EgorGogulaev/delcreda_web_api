@@ -87,6 +87,8 @@ async def download_file(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/upload",
@@ -197,8 +199,8 @@ async def upload_file(
         }
         if subject == "Поручение":
             request_options.update({"<application>": {"uuid": subject_uuid}})
-        elif subject == "ЮЛ":
-            request_options.update({"<legal_entity>": {"uuid": subject_uuid}})
+        elif subject == "Контрагент":
+            request_options.update({"<counterparty>": {"uuid": subject_uuid}})
         await NotificationService.notify(
             session=session,
             
@@ -209,7 +211,7 @@ async def upload_file(
             subject=subject,
             subject_uuid=subject_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в ЮЛ "<legal_entity>" ({subject_uuid}).'),
+            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).'),
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
             
             is_important=True,
@@ -245,6 +247,8 @@ async def upload_file(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_user_files_info",
@@ -409,6 +413,8 @@ async def get_user_files_info(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.post(
     "/get_user_dirs_info",
@@ -565,6 +571,8 @@ async def get_user_dirs_info(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.put(
     "/change_visibility",
@@ -637,6 +645,8 @@ async def change_visibility(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_doc_or_dir",
@@ -707,3 +717,5 @@ async def delete_doc_or_dir(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

@@ -1,5 +1,9 @@
-# from typing import List, Tuple
+from typing import List, Tuple
 
+COUNTERPARTY_TYPE: List[Tuple] = [
+    (1, "ЮЛ"),
+    (2, "ФЛ"),
+]
 
 # BANK_PAYMENT_DETAILS_TYPE: list[Tuple] = [
 #     (1, "Получатель",),
@@ -12,7 +16,7 @@
 #     (3, "CIPS",),
 # ]
 
-# LEGAL_ENTITY_PERSON_ROLE: List[Tuple] = [
+# COUNTERPARTY_PERSON_ROLE: List[Tuple] = [
 #     (1, "Подписант",),
 #     (2, "Администратор контракта",),
 #     (3, "Финансовый специалист",),

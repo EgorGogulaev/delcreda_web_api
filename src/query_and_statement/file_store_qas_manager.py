@@ -7,7 +7,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.legal_entity.legal_entity_models import LegalEntity
+from src.models.counterparty.counterparty_models import Counterparty
 from src.models.application.application_models import Application
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Document, Directory
@@ -27,15 +27,15 @@ class FileStoreQueryAndStatementManager:
         if not directory_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для получения информации о субъекте по директории - должен быть указан uuid директории!")
         
-        query_legal_entity = (
-            select(LegalEntity.uuid)
-            .filter(LegalEntity.directory_uuid == directory_uuid)
+        query_counterparty = (
+            select(Counterparty.uuid)
+            .filter(Counterparty.directory_uuid == directory_uuid)
         )
-        response_legal_entity = await session.execute(query_legal_entity)
-        subject_uuid = response_legal_entity.scalar_one_or_none()
+        response_counterparty = await session.execute(query_counterparty)
+        subject_uuid = response_counterparty.scalar_one_or_none()
         
         if subject_uuid:
-            return FILE_STORE_SUBJECT_MAPPING["ЮЛ"], subject_uuid
+            return FILE_STORE_SUBJECT_MAPPING["Контрагент"], subject_uuid
         
         query_application = (
             select(Application.uuid)

@@ -9,7 +9,7 @@ from connection_module import SignalConnector
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.user_models import UserContact
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
-from src.query_and_statement.legal_entity.legal_entity_qas_manager import LegalEntityQueryAndStatementManager
+from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.models.notification_models import Notification
 from src.query_and_statement.notification_qas_manager import NotificationQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
@@ -24,7 +24,7 @@ class NotificationService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        subject: Literal["Заявка", "ЮЛ", "Прочее", "Предварительный расчет"],
+        subject: Literal["Заявка", "Контрагент", "Прочее", "Предварительный расчет"],
         subject_uuid: Optional[str],
         for_admin: bool,
         data: str,
@@ -55,16 +55,16 @@ class NotificationService:
                 if application_check_access_response_object is None:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Заявки!")
             
-            elif subject == "ЮЛ":
-                le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+            elif subject == "Контрагент":
+                counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
                     requester_user_privilege=requester_user_privilege,
-                    legal_entity_uuid=subject_uuid,
+                    counterparty_uuid=subject_uuid,
                 )
-                if le_check_access_response_object is None:
-                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-ЮЛ!")
+                if counterparty_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Контрагента!")
         
         recipient_user_id = None
         if recipient_user_uuid:
@@ -149,7 +149,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         for_admin: bool,
-        subject: Literal["Заявка", "ЮЛ", "Прочее", "Предварительный расчет", "Все"],
+        subject: Literal["Заявка", "Контрагент", "Прочее", "Предварительный расчет", "Все"],
         subject_uuid: Optional[str],
         initiator_user_uuid: Optional[str],
         recipient_user_uuid: Optional[str],
@@ -203,16 +203,16 @@ class NotificationService:
                     if application_check_access_response_object is None:
                         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления по данной Заявке!")
                 
-                elif subject == "ЮЛ":
-                    le_check_access_response_object: Optional[Tuple[int, int, str]] = await LegalEntityQueryAndStatementManager.check_access(
+                elif subject == "Контрагент":
+                    counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
                         session=session,
                         
                         requester_user_uuid=requester_user_uuid,
                         requester_user_privilege=requester_user_privilege,
-                        legal_entity_uuid=subject_uuid,
+                        counterparty_uuid=subject_uuid,
                     )
-                    if le_check_access_response_object is None:
-                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления по данному ЮЛ!")
+                    if counterparty_check_access_response_object is None:
+                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления по данному Контрагенту!")
         
         notifications: Dict[str, List[Optional[Notification]]|Optional[int]] = await NotificationQueryAndStatementManager.get_notifications(
             session=session,
@@ -241,7 +241,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"],
     ) -> int:
         count_unread_notifications = await NotificationQueryAndStatementManager.get_count_notifications(
             session=session,

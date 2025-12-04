@@ -31,7 +31,7 @@ router = APIRouter(
 @router.websocket("/ws/{chat_subject}/{subject_uuid}")
 async def websocket_chat(
     websocket: WebSocket,
-    chat_subject: Literal["Application", "Legal_entity"],
+    chat_subject: Literal["Application", "Counterparty"],
     subject_uuid: str,
     token: str = Query(...),
     manager: WSConnectionManager = Depends(lambda: ws_connection_manager),
@@ -45,7 +45,7 @@ async def websocket_chat(
     
     user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
     
-    chat_subject = "Заявка" if chat_subject == "Application" else "ЮЛ"
+    chat_subject = "Заявка" if chat_subject == "Application" else "Контрагент"
     
     chat_id: Optional[int] = await ChatQueryAndStatementManager.check_access(
         session=None,
@@ -137,11 +137,11 @@ async def send_message(
     request: Request,
     chat_subject: Literal["Application", "Legal entity"] = Query(
         ...,
-        description="В какой Чат отправляем сообщение? (В Чат для Заявки или для ЮЛ)"
+        description="В какой Чат отправляем сообщение? (В Чат для Заявки или для Контрагента)"
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/Заявки в Чат которого будет отправлено сообщение.",
+        description="UUID Контрагент/Заявки в Чат которого будет отправлено сообщение.",
         min_length=36,
         max_length=36
     ),
@@ -164,7 +164,7 @@ async def send_message(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Заявка" if chat_subject == "Application" else "ЮЛ",
+            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент",
             subject_uuid=subject_uuid,
             message=message.get("msg"),
         )
@@ -197,6 +197,8 @@ async def send_message(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.get(
     "/get_messages",
@@ -211,13 +213,13 @@ async def send_message(
 @limiter.limit("30/second")
 async def get_messages(
     request: Request,
-    chat_subject: Literal["Application", "Legal_entity"] = Query(
+    chat_subject: Literal["Application", "Counterparty"] = Query(
         ...,
-        description="Из какого Чата достаем сообщения? (Из Чата для Заявки или для ЮЛ)"
+        description="Из какого Чата достаем сообщения? (Из Чата для Заявки или для Контрагента)"
     ),
     subject_uuid: str = Query(
         ...,
-        description="UUID ЮЛ/Заявки из Чата которой/го будут взяты сообщение.",
+        description="UUID Контрагента/Заявки из Чата которго/ой будут взяты сообщение.",
         min_length=36,
         max_length=36
     ),
@@ -255,7 +257,7 @@ async def get_messages(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Заявка" if chat_subject == "Application" else "ЮЛ",
+            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент",
             subject_uuid=subject_uuid,
             
             page=page,
@@ -313,6 +315,8 @@ async def get_messages(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
 
 @router.delete(
     "/delete_messages",
@@ -371,3 +375,5 @@ async def delete_messages(
             
             response_content = {"msg": f"ОШИБКА! #{log_id}"}
             return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()

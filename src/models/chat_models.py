@@ -14,11 +14,11 @@ class Chat(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
     chat_subject_id = Column(SmallInteger, ForeignKey("chat_subject.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
-    subject_uuid = Column(String(length=36), unique=True, nullable=False)  # uuid сущности по которой он заведен (ЮЛ, Заявки)
+    subject_uuid = Column(String(length=36), unique=True, nullable=False)  # uuid сущности по которой он заведен (Контрагент, Заявки)
     
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)
 
-class ChatSubject(Base):  # ЮЛ, Заявка 
+class ChatSubject(Base):  # Контрагент, Заявка 
     __tablename__ = "chat_subject"
     
     id = Column(SmallInteger, primary_key=True, autoincrement=True)

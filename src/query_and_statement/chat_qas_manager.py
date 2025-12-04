@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from connection_module import async_session_maker
 from src.models.chat_models import Chat, Message
-from src.models.legal_entity.legal_entity_models import LegalEntity
+from src.models.counterparty.counterparty_models import Counterparty
 from src.models.application.application_models import Application
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 
@@ -35,11 +35,11 @@ class ChatQueryAndStatementManager:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "ЮЛ"],
+        chat_subject: Literal["Заявка", "Контрагент"],
         subject_uuid: str,
     ) -> Optional[int]:
         async def __do(session: AsyncSession):
-            subject_table = LegalEntity if chat_subject == "ЮЛ" else Application
+            subject_table = Counterparty if chat_subject == "Контрагент" else Application
             
             _filters = [subject_table.uuid == subject_uuid]
             

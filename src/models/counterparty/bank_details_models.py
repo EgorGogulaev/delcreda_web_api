@@ -14,7 +14,7 @@ class BankDetails(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
     user_uuid = Column(String(length=36), nullable=False)
-    legal_entity_uuid = Column(String(length=36), nullable=False)
+    counterparty_uuid = Column(String(length=36), nullable=False)
     
     name_latin = Column(String)
     name_national = Column(String)

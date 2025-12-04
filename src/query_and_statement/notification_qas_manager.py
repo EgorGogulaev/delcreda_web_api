@@ -1,17 +1,19 @@
 import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from src.models.counterparty.counterparty_models import Counterparty
 from src.models.user_models import UserAccount, UserContact
 from src.models.application.application_models import Application
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
 from src.models.notification_models import Notification
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.notification.mapping import NOTIFICATION_SUBJECT_MAPPING
+from src.utils.reference_mapping_data.counterparty.mapping import COUNTERPARTY_TYPE_MAPPING
 
 
 class NotificationQueryAndStatementManager:
@@ -34,17 +36,28 @@ class NotificationQueryAndStatementManager:
                 params["user_uuid"] = request_options["<user>"]["uuid"]
                 fields.append("<user>")
             
-            if "<legal_entity>" in request_options:
-                selects.append(
-                    """(
-                        SELECT name_national
-                        FROM legal_entity_data
-                        JOIN legal_entity ON legal_entity.data_id = legal_entity_data.id
-                        WHERE legal_entity.uuid = :le_uuid
-                    ) AS legal_entity_name"""
+            # FIXME тут нужно разделить на два - ФЛ и ЮЛ
+            if "<counterparty>" in request_options:
+                query_counterparty_type = (
+                    select(Counterparty.type)
+                    .filter(Counterparty.uuid == request_options["<counterparty>"]["uuid"])
                 )
-                params["le_uuid"] = request_options["<legal_entity>"]["uuid"]
-                fields.append("<legal_entity>")
+                response_query_counterparty_type = await session.execute(query_counterparty_type)
+                result_query_counterparty_type = response_query_counterparty_type.scalar_one_or_none()
+                if result_query_counterparty_type == COUNTERPARTY_TYPE_MAPPING["ЮЛ"]:
+                    selects.append(
+                        """(
+                            SELECT name_national
+                            FROM legal_entity_data
+                            JOIN legal_entity ON legal_entity.data_id = legal_entity_data.id
+                            WHERE legal_entity.uuid = :le_uuid
+                        ) AS legal_entity_name"""
+                    )
+                    params["counterparty_uuid"] = request_options["<counterparty>"]["uuid"]
+                    fields.append("<counterparty>")
+                elif result_query_counterparty_type == COUNTERPARTY_TYPE_MAPPING["ФЛ"]:
+                    ...  # TODO тут нужно сделать логику для ФЛ
+                    fields.append("<counterparty>")
             
             if "<application>" in request_options:
                 selects.append('(SELECT name FROM "order" WHERE uuid = :order_uuid) AS order_name')
@@ -158,8 +171,8 @@ class NotificationQueryAndStatementManager:
             _filters.append(Notification.uuid.in_(notification_list_uuid))
         
         if subject_id:
-            if subject_id == NOTIFICATION_SUBJECT_MAPPING["ЮЛ"] and subject_uuid:  # Если мы фильтруем по ЮЛ и указано конкретное ЮЛ, то...
-                query = (  # выводим уведомления о Заявках, которые связаны с данным ЮЛ
+            if subject_id == NOTIFICATION_SUBJECT_MAPPING["Контрагент"] and subject_uuid:  # Если мы фильтруем по Контрагентам и указан конкретный Контрагент, то...
+                query = (  # выводим уведомления о Заявках, которые связаны с данным Контрагентом
                     query
                     .select_from(Notification)
                     .outerjoin(Application, Notification.subject_uuid == Application.uuid,)
@@ -168,16 +181,16 @@ class NotificationQueryAndStatementManager:
                     or_(
                         and_(
                             Notification.subject_uuid != None,  # noqa: E711
-                            Application.legal_entity_uuid == subject_uuid,
+                            Application.counterparty_uuid == subject_uuid,
                             Notification.subject_id.in_(
                                 [
                                     NOTIFICATION_SUBJECT_MAPPING["Заявка"],
-                                    NOTIFICATION_SUBJECT_MAPPING["ЮЛ"],
+                                    NOTIFICATION_SUBJECT_MAPPING["Контрагент"],
                                 ]
                             )
                         ),
                         and_(
-                            Notification.subject_id == NOTIFICATION_SUBJECT_MAPPING["ЮЛ"],
+                            Notification.subject_id == NOTIFICATION_SUBJECT_MAPPING["Контрагент"],
                             Notification.subject_uuid == subject_uuid,
                         )
                     )
@@ -186,7 +199,7 @@ class NotificationQueryAndStatementManager:
             else:
                 _filters.append(Notification.subject_id == subject_id)
         
-        if subject_id != NOTIFICATION_SUBJECT_MAPPING["ЮЛ"] and subject_uuid:  # Если мы фильтруем не по ЮЛ и есть фильтр по subject_uuid, то...
+        if subject_id != NOTIFICATION_SUBJECT_MAPPING["Контрагент"] and subject_uuid:  # Если мы фильтруем не по Контрагентам и есть фильтр по subject_uuid, то...
             _filters.append(Notification.subject_uuid == subject_uuid)  # добавляем фильтр
         
         if initiator_user_uuid:
@@ -257,7 +270,7 @@ class NotificationQueryAndStatementManager:
             page_size = 50
         
         query = query.limit(page_size).offset((page - 1) * page_size)
-        if subject_id == NOTIFICATION_SUBJECT_MAPPING["ЮЛ"] and subject_uuid:
+        if subject_id == NOTIFICATION_SUBJECT_MAPPING["Контрагент"] and subject_uuid:
             count_query = (
                 select(func.count())
                 .select_from(Notification)
@@ -291,7 +304,7 @@ class NotificationQueryAndStatementManager:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Application", "Legal_entity", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"],
     ) -> int:
         _filters = []
         
@@ -303,7 +316,7 @@ class NotificationQueryAndStatementManager:
         
         if notification_subject == "Application":
             _filters.append(Notification.subject_id == 1)
-        elif notification_subject == "Legal_entity":
+        elif notification_subject == "Counterparty":
             _filters.append(Notification.subject_id == 2)
         elif notification_subject == "Preliminary_calculation":
             _filters.append(Notification.subject_id == 3)

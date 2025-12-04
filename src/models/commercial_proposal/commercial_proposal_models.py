@@ -20,8 +20,8 @@ class CommercialProposal(Base):
     user_id = Column(Integer, ForeignKey("user_account.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     user_uuid = Column(String(length=36), nullable=False)
     
-    legal_entity_id = Column(Integer, ForeignKey("legal_entity.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=True)
-    legal_entity_uuid = Column(String(length=36), nullable=True)
+    counterparty_id = Column(Integer, ForeignKey("counterparty.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=True)
+    counterparty_uuid = Column(String(length=36), nullable=True)
     
     directory_id = Column(BigInteger, ForeignKey("directory.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     directory_uuid = Column(String(length=36), nullable=False)
