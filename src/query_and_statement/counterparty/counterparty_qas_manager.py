@@ -422,7 +422,7 @@ class CounterpartyQueryAndStatementManager:
                 "organizational_and_legal_form_latin": data_for_update.organizational_and_legal_form_latin,
                 "organizational_and_legal_form_national": data_for_update.organizational_and_legal_form_national,
                 "site": data_for_update.site,
-                "registration_date": data_for_update.registration_date,
+                "registration_date": datetime.datetime.strptime(data_for_update.registration_date, "%d.%m.%Y").date() if data_for_update.registration_date and data_for_update.registration_date != "~" else None,
                 "legal_address": data_for_update.legal_address,
                 "postal_address": data_for_update.postal_address,
                 "additional_address": data_for_update.additional_address,

@@ -381,15 +381,6 @@ class CounterpartyService:
             counterparty_data_id=counterparty_check_access_response_object[2],
             
             data_for_update=data_for_update,
-            # name_latin=name_latin,
-            # name_national=name_national,
-            # organizational_and_legal_form_latin=organizational_and_legal_form_latin,
-            # organizational_and_legal_form_national=organizational_and_legal_form_national,
-            # site=site,
-            # registration_date=datetime.datetime.strptime(registration_date, "%d.%m.%Y").date() if registration_date and registration_date != "~" else None,
-            # legal_address=legal_address,
-            # postal_address=postal_address,
-            # additional_address=additional_address,
         )
     
     @classmethod
