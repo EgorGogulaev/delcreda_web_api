@@ -726,7 +726,7 @@ async def get_counterparties_data(
     finally:
         await session.rollback()
 
-@router.put(  # FIXME
+@router.put(
     "/update_counterparty_data",
     description="""
     Обновление подробных данных о Контрагенте.
@@ -762,15 +762,7 @@ async def update_counterparty_data(
             
             counterparty_uuid=counterparty_uuid,
             
-            name_latin=data_for_update.name_latin,
-            name_national=data_for_update.name_national,
-            organizational_and_legal_form_latin=data_for_update.organizational_and_legal_form_latin,
-            organizational_and_legal_form_national=data_for_update.organizational_and_legal_form_national,
-            site=data_for_update.site,
-            registration_date=data_for_update.registration_date,
-            legal_address=data_for_update.legal_address,
-            postal_address=data_for_update.postal_address,
-            additional_address=data_for_update.additional_address,
+            data_for_update=data_for_update,
         )
         
         if user_data["privilege_id"] == PRIVILEGE_MAPPING["Admin"]:

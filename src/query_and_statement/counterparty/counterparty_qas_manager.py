@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from src.models.application.mt_models import MTApplicationData
 from src.models.application.application_models import Application
-from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualSchema
+from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualDataSchema, UpdateLegalEntityDataSchema
 from src.models.counterparty.bank_details_models import BankDetails
 from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, ApplicationAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -413,42 +413,40 @@ class CounterpartyQueryAndStatementManager:
         
         counterparty_data_id: int,
         
-        name_latin: Optional[str],
-        name_national: Optional[str],
-        organizational_and_legal_form_latin: Optional[str],
-        organizational_and_legal_form_national: Optional[str],
-        site: Optional[str],
-        registration_date: Optional[datetime.date],
-        legal_address: Optional[str],
-        postal_address: Optional[str],
-        additional_address: Optional[str],
+        data_for_update: UpdateLegalEntityDataSchema | UpdateIndividualDataSchema,
     ) -> None:
-        values_for_update = {
-            "name_latin": name_latin,
-            "name_national": name_national,
-            "organizational_and_legal_form_latin": organizational_and_legal_form_latin,
-            "organizational_and_legal_form_national": organizational_and_legal_form_national,
-            "site": site,
-            "registration_date": registration_date,
-            "legal_address": legal_address,
-            "postal_address": postal_address,
-            "additional_address": additional_address,
-            
-            "updated_at": datetime.datetime.now(tz=datetime.timezone.utc),
-        }
-        new_values = {k: v for k, v in values_for_update.items() if v != "~"}
+        if isinstance(data_for_update, UpdateLegalEntityDataSchema):
+            values_for_update = {
+                "name_latin": data_for_update.name_latin,
+                "name_national": data_for_update.name_national,
+                "organizational_and_legal_form_latin": data_for_update.organizational_and_legal_form_latin,
+                "organizational_and_legal_form_national": data_for_update.organizational_and_legal_form_national,
+                "site": data_for_update.site,
+                "registration_date": data_for_update.registration_date,
+                "legal_address": data_for_update.legal_address,
+                "postal_address": data_for_update.postal_address,
+                "additional_address": data_for_update.additional_address,
+                
+                "updated_at": datetime.datetime.now(tz=datetime.timezone.utc),
+            }
+        else:
+            ...  # TODO тут будет логика для ФЛ
         
-        stmt = (
-            update(LegalEntityData)
-            .filter(LegalEntityData.id == counterparty_data_id)
-            .values(**new_values)
-        )
+        new_values = {k: v for k, v in values_for_update.items() if v != "~"}
+        if isinstance(data_for_update, UpdateLegalEntityDataSchema):
+            stmt = (
+                update(LegalEntityData)
+                .filter(LegalEntityData.id == counterparty_data_id)
+                .values(**new_values)
+            )
+        else:
+            ...  # TODO тут будет логика для ФЛ
         
         await session.execute(stmt)
         await session.commit()
     
     @staticmethod
-    async def delete_counterparties(  # FIXME ПРОВЕРЬ ВЕЗДЕ !!!
+    async def delete_counterparties(
         session: AsyncSession,
         
         counterparty_uuids: List[str],

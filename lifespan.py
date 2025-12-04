@@ -5,6 +5,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from connection_module import Base, sync_engine_without_bouncer, RedisConnector
+from src.models.counterparty.counterparty_models import CounterpartyType
 from src.models.application.mt_models import MTApplicationType
 from src.models.application.application_models import ApplicationStatus, ApplicationType
 from src.models.chat_models import ChatSubject
@@ -20,6 +21,7 @@ from src.utils.reference_mapping_data.chat.reference import CHAT_SUBJECT
 from src.utils.reference_mapping_data.notification.reference import NOTIFICATION_SUBJECT
 from src.utils.reference_mapping_data.application.reference import APPLICATION_STATUS, APPLICATION_TYPE
 from src.utils.reference_mapping_data.application.application.mt_reference import MT_APPLICATION_TYPE
+from src.utils.reference_mapping_data.counterparty.reference import COUNTERPARTY_TYPE
 
 
 limiter = Limiter(
@@ -44,6 +46,8 @@ async def lifespan(app: FastAPI):
                 ChatSubject,
                 NotificationSubject,
                 
+                CounterpartyType,
+                
                 ApplicationType, ApplicationStatus,
                 MTApplicationType,
                 # TODO тут будут другие бизнес-направления
@@ -58,6 +62,8 @@ async def lifespan(app: FastAPI):
                 COUNTRY, CURRENCY,
                 CHAT_SUBJECT,
                 NOTIFICATION_SUBJECT,
+                
+                COUNTERPARTY_TYPE,
                 
                 APPLICATION_TYPE, APPLICATION_STATUS,
                 MT_APPLICATION_TYPE,

@@ -1,4 +1,3 @@
-# FIXME
 import datetime
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
@@ -9,7 +8,7 @@ from connection_module import SignalConnector
 from src.service.application.application_service import ApplicationService
 from src.models.application.application_models import Application
 from src.service.application.mt_application_service import MTApplicationService
-from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, FiltersPersons, OrdersCounterparties, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualSchema
+from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, FiltersPersons, OrdersCounterparties, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualDataSchema, UpdateLegalEntityDataSchema
 from src.service.chat_service import ChatService
 from src.service.file_store_service import FileStoreService
 from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, Person
@@ -22,7 +21,7 @@ from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPIN
 
 class CounterpartyService:
     @classmethod
-    async def create_counterparty(  # FIXME
+    async def create_counterparty(
         cls,
         session: AsyncSession,
         
@@ -102,7 +101,7 @@ class CounterpartyService:
         )
         new_counter_party_with_data = None
         if counterparty_type == "ЮЛ":
-            new_uuid_coro = await SignalConnector.generate_identifiers(target="ЮЛ", count=1)  # FIXME в зависимости от типа, нужно генерировать идентификатор
+            new_uuid_coro = await SignalConnector.generate_identifiers(target="ЮЛ", count=1)
             new_uuid = new_uuid_coro[0]
             
             new_le_with_data: Tuple[Counterparty, LegalEntityData] = await CounterpartyQueryAndStatementManager.create_counterparty(
@@ -342,7 +341,7 @@ class CounterpartyService:
         return counterparties_data
     
     @staticmethod
-    async def update_counterparty_data(  # FIXME
+    async def update_counterparty_data(
         session: AsyncSession,
         
         requester_user_uuid: str,
@@ -350,15 +349,7 @@ class CounterpartyService:
         
         counterparty_uuid: str,
         
-        name_latin: Optional[str],
-        name_national: Optional[str],
-        organizational_and_legal_form_latin: Optional[str],
-        organizational_and_legal_form_national: Optional[str],
-        site: Optional[str],
-        registration_date: Optional[str],
-        legal_address: Optional[str],
-        postal_address: Optional[str],
-        additional_address: Optional[str],
+        data_for_update: UpdateLegalEntityDataSchema | UpdateIndividualDataSchema,
     ) -> None:
         counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
@@ -371,33 +362,36 @@ class CounterpartyService:
         if counterparty_check_access_response_object is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете обновлять карточку Контрагента других Пользователей или же доступ редактирования данного Контрагента ограничен!")
         
-        if all(field == "~" for field in [
-                name_latin, name_national,
-                organizational_and_legal_form_latin, organizational_and_legal_form_national,
-                site,
-                registration_date,
-                legal_address, postal_address, additional_address,
-            ]
-        ):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных Контрагента!")
+        if isinstance(data_for_update, UpdateLegalEntityDataSchema):
+            if all(field == "~" for field in [
+                    data_for_update.name_latin, data_for_update.name_national,
+                    data_for_update.organizational_and_legal_form_latin, data_for_update.organizational_and_legal_form_national,
+                    data_for_update.site,
+                    data_for_update.registration_date,
+                    data_for_update.legal_address, data_for_update.postal_address, data_for_update.additional_address,
+                ]
+            ):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Хотя бы одно поле должно быть изменено для обновления данных Контрагента!")
+        else:
+            ...  # TODO тут будет логика для ФЛ
         
-        await CounterpartyQueryAndStatementManager.update_counterparty_data(  # FIXME
+        await CounterpartyQueryAndStatementManager.update_counterparty_data(
             session=session,
             
             counterparty_data_id=counterparty_check_access_response_object[2],
             
-            name_latin=name_latin,
-            name_national=name_national,
-            organizational_and_legal_form_latin=organizational_and_legal_form_latin,
-            organizational_and_legal_form_national=organizational_and_legal_form_national,
-            site=site,
-            registration_date=datetime.datetime.strptime(registration_date, "%d.%m.%Y").date() if registration_date and registration_date != "~" else None,
-            legal_address=legal_address,
-            postal_address=postal_address,
-            additional_address=additional_address,
+            data_for_update=data_for_update,
+            # name_latin=name_latin,
+            # name_national=name_national,
+            # organizational_and_legal_form_latin=organizational_and_legal_form_latin,
+            # organizational_and_legal_form_national=organizational_and_legal_form_national,
+            # site=site,
+            # registration_date=datetime.datetime.strptime(registration_date, "%d.%m.%Y").date() if registration_date and registration_date != "~" else None,
+            # legal_address=legal_address,
+            # postal_address=postal_address,
+            # additional_address=additional_address,
         )
     
-    # FIXME
     @classmethod
     async def delete_counterparties(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
         cls,
