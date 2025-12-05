@@ -196,7 +196,7 @@ async def create_counterparty(
 async def get_counterparties(
     request: Request,
     
-    counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]] = Query(
+    counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]] = Query(  # TODO при добавлении нового типа Контрагента - ЮЛ -> унифицировать выдачу
         "ЮЛ",
         description="(Опционально) Фильтр по типу Контрагента (ЮЛ/ФЛ) (точное совпадение)."
     ),
@@ -273,7 +273,7 @@ async def get_counterparties(
             total_records=None,
             total_pages=None,
         )
-        
+        print(f'{counterparties["data"]=}')
         for counterparty in counterparties["data"]:
             if extended_output:
                 if counterparty_type == "ЮЛ":
@@ -461,11 +461,6 @@ async def update_counterparty(
     
     data_for_update: UpdateCounterpartySchema,
     
-    counterparty_type: Literal["ЮЛ", "ФЛ"] = Query(
-        "ЮЛ",
-        description="Тип обновляемой карточки Контрагента(ЮЛ/ФЛ)."
-    ),
-    
     counterparty_uuid: str = Query(
         ...,
         description="UUID Контрагента, в основной информации которого, планируются изменения.",
@@ -482,8 +477,6 @@ async def update_counterparty(
         
         await CounterpartyService.update_counterparty(
             session=session,
-            
-            counterparty_type=counterparty_type,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
@@ -835,7 +828,7 @@ async def update_counterparty_data(
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def delete_legal_entities(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов (ЮЛ и ПР)
+async def delete_counterparties(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов (ЮЛ и ПР)
     request: Request,
     counterparty_uuids: List[str] = Query(
         [],

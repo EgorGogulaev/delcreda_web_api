@@ -111,7 +111,7 @@ class CounterpartyService:
                 
                 owner_user_id=owner_user_id,
                 owner_user_uuid=owner_user_uuid,
-                new_legal_entity_uuid=new_uuid,
+                new_counterparty_uuid=new_uuid,
                 directory_id=new_le_dir_data["id"],
                 directory_uuid=new_le_dir_data["uuid"],
                 application_access_list_id=new_application_access_list_id,
@@ -461,7 +461,7 @@ class CounterpartyService:
                 applications_uuids=application_uuids,
             )
         except: ...  # noqa: E722
-        cls.__delete_applications_access_lists(
+        await cls.__delete_applications_access_lists(
             session=session,
             applications_access_lists_ids=applications_access_lists_ids,
         )
@@ -598,7 +598,7 @@ class CounterpartyService:
             
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
-            counterparty_uuid=person[0].counterparty_uuid,
+            counterparty_uuid=person["data"][0].counterparty_uuid,
             for_update_or_delete_counterparty=True,
         )
         if counterparty_check_access_response_object is None:
@@ -629,15 +629,17 @@ class CounterpartyService:
             job_title=job_title,
             basic_action_signatory=basic_action_signatory,
             power_of_attorney_number=power_of_attorney_number,
-            power_of_attorney_date=datetime.datetime.strptime(power_of_attorney_date, "%d.%m.%Y").date() if power_of_attorney_date and power_of_attorney_date != "~" else None,
+            power_of_attorney_date=datetime.datetime.strptime(power_of_attorney_date, "%d.%m.%Y").date() if power_of_attorney_date and power_of_attorney_date != "~" else "~" if power_of_attorney_date == "~" else None,
             email=email,
             phone=phone,
             contact=contact,
             counterparty_uuid=counterparty_uuid,
         )
         
-        counterparty: List[List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyQueryAndStatementManager.get_counterparties(  # FIXME (это нужно проверить! и исправить!)
+        counterparty: List[List[Optional[Tuple[Counterparty, bool]]]] = await CounterpartyQueryAndStatementManager.get_counterparties(  
             session=session,
+            
+            counterparty_type="ЮЛ", # TODO (это нужно исправить (унифицировать)!)
             
             user_uuid=None,
             counterparty_id_list=[counterparty_check_access_response_object[0]],

@@ -46,7 +46,7 @@ class CounterpartyQueryAndStatementManager:
                 organizational_and_legal_form_latin=counterparty_data.organizational_and_legal_form_latin,
                 organizational_and_legal_form_national=counterparty_data.organizational_and_legal_form_national,
                 site=counterparty_data.site,
-                registration_date=counterparty_data.registration_date,
+                registration_date=datetime.datetime.strptime(counterparty_data.registration_date, "%d.%m.%Y").date(),
                 legal_address=counterparty_data.legal_address,
                 postal_address=counterparty_data.postal_address,
                 additional_address=counterparty_data.additional_address,
@@ -54,12 +54,12 @@ class CounterpartyQueryAndStatementManager:
         else:
             ...  # TODO тут должна быть логика для ФЛ
         session.add(new_counterparty_data)
-        await session.flush()  # Генерируем ID для new_le_data
+        await session.flush()  # Генерируем ID для new_counterparty_data
         
         # Counterparty
         new_counterparty = Counterparty(
             uuid=new_counterparty_uuid,
-            type=counterparty_type,
+            type=COUNTERPARTY_TYPE_MAPPING[counterparty_type],
             
             country=country,
             identifier_type=identifier_type,
@@ -215,7 +215,8 @@ class CounterpartyQueryAndStatementManager:
                 ...  # TODO тут логика для комбинированного набора данных
         else:
             query = (
-                select(Counterparty)
+                select(Counterparty, ApplicationAccessList.mt)
+                .outerjoin(ApplicationAccessList, Counterparty.application_access_list == ApplicationAccessList.id)
                 .filter(and_(*_filters))
                 .order_by(*_order_clauses)
             )
@@ -422,7 +423,7 @@ class CounterpartyQueryAndStatementManager:
                 "organizational_and_legal_form_latin": data_for_update.organizational_and_legal_form_latin,
                 "organizational_and_legal_form_national": data_for_update.organizational_and_legal_form_national,
                 "site": data_for_update.site,
-                "registration_date": datetime.datetime.strptime(data_for_update.registration_date, "%d.%m.%Y").date() if data_for_update.registration_date and data_for_update.registration_date != "~" else None,
+                "registration_date": datetime.datetime.strptime(data_for_update.registration_date, "%d.%m.%Y").date() if data_for_update.registration_date and data_for_update.registration_date != "~" else "~" if data_for_update.registration_date == "~" else None,
                 "legal_address": data_for_update.legal_address,
                 "postal_address": data_for_update.postal_address,
                 "additional_address": data_for_update.additional_address,
@@ -457,7 +458,9 @@ class CounterpartyQueryAndStatementManager:
         counterparty_ids_with_type_ids = [(counterparty_id, counterparty_type_id) for counterparty_id, counterparty_type_id, _, _ in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid]
         counterparty_le_ids = [le_id for le_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ЮЛ"]]
         counterparty_individual_ids = [individual_id for individual_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ФЛ"]]
-        
+        print(f"{counterparty_ids_with_type_ids=}")
+        print(f"{counterparty_le_ids=}")
+        print(f"{counterparty_individual_ids=}")
         application_ids = []
         
         # MT

@@ -49,8 +49,8 @@ class NotificationQueryAndStatementManager:
                         """(
                             SELECT name_national
                             FROM legal_entity_data
-                            JOIN legal_entity ON legal_entity.data_id = legal_entity_data.id
-                            WHERE legal_entity.uuid = :le_uuid
+                            JOIN counterparty ON counterparty.data_id = legal_entity_data.id
+                            WHERE counterparty.uuid = :counterparty_uuid
                         ) AS legal_entity_name"""
                     )
                     params["counterparty_uuid"] = request_options["<counterparty>"]["uuid"]

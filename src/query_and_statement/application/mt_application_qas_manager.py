@@ -459,7 +459,7 @@ class MTApplicationQueryAndStatementManager:
             "order_name": order_name,
             "payment_deadline_not_earlier_than": datetime.datetime.strptime(payment_deadline_not_earlier_than, "%d.%m.%Y").date() if payment_deadline_not_earlier_than and payment_deadline_not_earlier_than != "~" else "~" if payment_deadline_not_earlier_than == "~" else None,
             "payment_deadline_no_later_than": datetime.datetime.strptime(payment_deadline_no_later_than, "%d.%m.%Y").date() if payment_deadline_no_later_than and payment_deadline_no_later_than != "~" else "~" if payment_deadline_no_later_than == "~" else None,
-            "invoice_date": datetime.datetime.strptime(invoice_date, "%d.%m.%Y").date() if invoice_date and invoice_date != "~" else "~",
+            "invoice_date": datetime.datetime.strptime(invoice_date, "%d.%m.%Y").date() if invoice_date and invoice_date != "~" else "~" if invoice_date == "~" else None,
             "invoice_currency": CURRENCY_MAPPING[invoice_currency] if invoice_currency and invoice_currency != "~" else "~",
             "invoice_amount": Decimal(invoice_amount).quantize(Decimal("0.00")) if invoice_amount.isdigit() else "~",
             "payment_amount": Decimal(payment_amount).quantize(Decimal("0.00")) if payment_amount.isdigit() else "~",
