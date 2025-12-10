@@ -31,7 +31,7 @@ router = APIRouter(
 @router.websocket("/ws/{chat_subject}/{subject_uuid}")
 async def websocket_chat(
     websocket: WebSocket,
-    chat_subject: Literal["Application", "Counterparty"],
+    chat_subject: Literal["Application", "Counterparty", "CommercialProposal"],
     subject_uuid: str,
     token: str = Query(...),
     manager: WSConnectionManager = Depends(lambda: ws_connection_manager),
@@ -45,7 +45,7 @@ async def websocket_chat(
     
     user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
     
-    chat_subject = "Заявка" if chat_subject == "Application" else "Контрагент"
+    chat_subject = "Заявка" if chat_subject == "Application" else "Контрагент" if chat_subject == "Counterparty" else "КП"
     
     chat_id: Optional[int] = await ChatQueryAndStatementManager.check_access(
         session=None,

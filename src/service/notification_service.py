@@ -6,6 +6,7 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.user_models import UserContact
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications
@@ -24,7 +25,7 @@ class NotificationService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        subject: Literal["Заявка", "Контрагент", "Прочее", "Предварительный расчет"],
+        subject: Literal["Заявка", "Контрагент", "Заявка по КП", "Прочее",],
         subject_uuid: Optional[str],
         for_admin: bool,
         data: str,
@@ -65,6 +66,17 @@ class NotificationService:
                 )
                 if counterparty_check_access_response_object is None:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Контрагента!")
+            
+            elif subject == "Заявка по КП":
+                commercial_proposal_check_access_response_object: Optional[Tuple[int, str]] = await CommercialProposalQueryAndStatementManager.check_access(
+                    session=session,
+                    
+                    requester_user_uuid=requester_user_uuid,
+                    requester_user_privilege=requester_user_privilege,
+                    commercial_proposal_uuid=subject_uuid,
+                )
+                if commercial_proposal_check_access_response_object is None:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Заявки по КП!")
         
         recipient_user_id = None
         if recipient_user_uuid:

@@ -90,6 +90,7 @@ async def download_file(
     finally:
         await session.rollback()
 
+# TODO НУЖНО РЕАЛИЗОВАТЬ ЛОГИКУ СМЕНЫ ЦЕЛЕВОГО ДОКУМЕНТА ДЛЯ КП(!!!) СМ. ПАРАМЕТР commercial_proposal_uuid
 @router.put(
     "/upload",
     description="""
@@ -107,23 +108,7 @@ async def upload_file(
         max_length=36
     ),
     # TODO Это нужно отредактировать
-    file_type: Optional[Literal[
-        "Agency Agreement",                                                      # "Агентский договор",
-        "Appendix",                                                              # "Приложение",
-        "Signatory Power of Attorney",                                           # "Доверенность подписанта",
-        "Principal's Instruction",                                               # "Поручение Принципала",
-        "Payment Order for Bank",                                                # "Платежное поручение для банка",
-        "Beneficiary's Invoice (editable)",                                      # "Счет на оплату получателя (редактируемый)",
-        "Beneficiary's Invoice (non-editable)",                                  # "Счет на оплату получателя (нередактируемый)",
-        "Additional Document on the Basis of the Payment Order (editable)",      # "Дополнительный документ об основании платежного поручения (редактируемый)",
-        "Additional Document on the Basis of the Payment Order (non-editable)",  # "Дополнительный документ об основании платежного поручения (нередактируемый)",
-        "Bank Confirmation",                                                     # "Подтверждение банка",
-        "International Interbank System Confirmation",                           # "Подтверждение международной межбанковской системы",
-        "Confirmation of Receipt of Items",                                      # "Подтверждение получения вещей",
-        "Bank Confirmation of Currency Conversion",                              # "Подтверждение банка о конвертации валют",
-        "Confirmation of Transfer of Funds between Subagent Accounts",           # "Подтверждение перемещения средств между счетами субагента",
-        "Other Instruction Document",                                            # "Иной документ поручения",
-    ]] = Query(
+    file_type: Optional[str] = Query(
         None,
         description="Тип Документа."
     ),
@@ -148,25 +133,6 @@ async def upload_file(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        # TODO Это нужно отредактировать
-        file_type_local = {
-            "Agency Agreement": "Агентский договор",
-            "Appendix": "Приложение",
-            "Signatory Power of Attorney": "Доверенность подписанта",
-            "Principal's Instruction": "Поручение Принципала",
-            "Payment Order for Bank": "Платежное поручение для банка",
-            "Beneficiary's Invoice (editable)": "Счет на оплату получателя (редактируемый)",
-            "Beneficiary's Invoice (non-editable)": "Счет на оплату получателя (нередактируемый)",
-            "Additional Document on the Basis of the Payment Order (editable)": "Дополнительный документ об основании платежного поручения (редактируемый)",
-            "Additional Document on the Basis of the Payment Order (non-editable)": "Дополнительный документ об основании платежного поручения (нередактируемый)",
-            "Bank Confirmation": "Подтверждение банка",
-            "International Interbank System Confirmation": "Подтверждение международной межбанковской системы",
-            "Confirmation of Receipt of Items": "Подтверждение получения вещей",
-            "Bank Confirmation of Currency Conversion": "Подтверждение банка о конвертации валют",
-            "Confirmation of Transfer of Funds between Subagent Accounts": "Подтверждение перемещения средств между счетами субагента",
-            "Other Instruction Document": "Иной документ поручения",
-        }
-        
         new_file_uuid: str = await FileStoreService.upload(
             session=session,
             
@@ -176,7 +142,7 @@ async def upload_file(
             requester_user_privilege=user_data["privilege_id"],
             owner_user_uuid=owner_user_uuid,
             new_file_uuid=new_file_uuid,
-            file_type=DOCUMENT_TYPE_MAPPING[file_type_local[file_type]] if file_type else None,
+            file_type=file_type if file_type else None,
         )
         
         subject_id, subject_uuid = await FileStoreQueryAndStatementManager.get_subject_info_by_directory_uuid(
@@ -201,6 +167,9 @@ async def upload_file(
             request_options.update({"<application>": {"uuid": subject_uuid}})
         elif subject == "Контрагент":
             request_options.update({"<counterparty>": {"uuid": subject_uuid}})
+        elif subject == "Заявка по КП":
+            request_options.update({"commercial_proposal": {"uuid": subject_uuid}})
+        
         await NotificationService.notify(
             session=session,
             
@@ -211,7 +180,7 @@ async def upload_file(
             subject=subject,
             subject_uuid=subject_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).'),
+            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).' if subject == "Контрагент" else f' в заявку по КП "commercial_proposal" ({subject_uuid}).'),
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
             
             is_important=True,

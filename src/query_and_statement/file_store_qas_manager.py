@@ -7,6 +7,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.commercial_proposal_models import CommercialProposal
 from src.models.counterparty.counterparty_models import Counterparty
 from src.models.application.application_models import Application
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
@@ -36,6 +37,16 @@ class FileStoreQueryAndStatementManager:
         
         if subject_uuid:
             return FILE_STORE_SUBJECT_MAPPING["Контрагент"], subject_uuid
+        
+        query_commercial_proposal = (
+            select(CommercialProposal.uuid)
+            .filter(CommercialProposal.directory_uuid == directory_uuid)
+        )
+        response_commercial_proposal = await session.execute(query_application)
+        subject_uuid = response_commercial_proposal.scalar_one_or_none()
+        
+        if subject_uuid:
+            return FILE_STORE_SUBJECT_MAPPING["Заявка по КП"], subject_uuid
         
         query_application = (
             select(Application.uuid)

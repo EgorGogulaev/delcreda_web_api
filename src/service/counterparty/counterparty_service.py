@@ -84,7 +84,7 @@ class CounterpartyService:
         if not parent_directory_uuid:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="У Пользователя нет пользовательской Директории!") 
         
-        new_le_dir_data: Dict[str, Any] = await FileStoreService.create_directory(
+        new_counterparty_dir_data: Dict[str, Any] = await FileStoreService.create_directory(
             session=session,
             
             requester_user_uuid=requester_user_uuid,
@@ -112,8 +112,8 @@ class CounterpartyService:
                 owner_user_id=owner_user_id,
                 owner_user_uuid=owner_user_uuid,
                 new_counterparty_uuid=new_uuid,
-                directory_id=new_le_dir_data["id"],
-                directory_uuid=new_le_dir_data["uuid"],
+                directory_id=new_counterparty_dir_data["id"],
+                directory_uuid=new_counterparty_dir_data["uuid"],
                 application_access_list_id=new_application_access_list_id,
                 
                 country=country,

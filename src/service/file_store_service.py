@@ -149,7 +149,7 @@ class FileStoreService:
                 if visible is False:
                     raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Вы не можете просмотреть информацию о скрытых Файлах!")
             if directory_uuid:
-                if await FileStoreQueryAndStatementManager.check_access(
+                if await FileStoreQueryAndStatementManager.check_access(  # FIXME
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,

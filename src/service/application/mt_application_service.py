@@ -164,7 +164,7 @@ class MTApplicationService:
             requester_user_uuid=requester_user_uuid,
             requester_user_privilege=requester_user_privilege,
             owner_s3_login=user_s3_login,
-            owner_user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else user_uuid,
+            owner_user_uuid=user_uuid,
             directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки"],
             new_directory_uuid=new_directory_uuid,
             parent_directory_uuid=parent_directory_uuid,

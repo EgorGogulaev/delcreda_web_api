@@ -5,6 +5,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from connection_module import Base, sync_engine_without_bouncer, RedisConnector
+from src.models.commercial_proposal_models import CommercialProposalStatus, CommercialProposalType
 from src.models.counterparty.counterparty_models import CounterpartyType
 from src.models.application.mt_models import MTApplicationType
 from src.models.application.application_models import ApplicationStatus, ApplicationType
@@ -22,6 +23,7 @@ from src.utils.reference_mapping_data.notification.reference import NOTIFICATION
 from src.utils.reference_mapping_data.application.reference import APPLICATION_STATUS, APPLICATION_TYPE
 from src.utils.reference_mapping_data.application.application.mt_reference import MT_APPLICATION_TYPE
 from src.utils.reference_mapping_data.counterparty.reference import COUNTERPARTY_TYPE
+from src.utils.reference_mapping_data.commercial_proposal.reference import COMMERCIAL_PROPOSAL_STATUS, COMMERCIAL_PROPOSAL_TYPE
 
 
 limiter = Limiter(
@@ -51,6 +53,8 @@ async def lifespan(app: FastAPI):
                 ApplicationType, ApplicationStatus,
                 MTApplicationType,
                 # TODO тут будут другие бизнес-направления
+                CommercialProposalType,
+                CommercialProposalStatus,
                 
                 ServiceNoteSubject,
             ],
@@ -68,6 +72,8 @@ async def lifespan(app: FastAPI):
                 APPLICATION_TYPE, APPLICATION_STATUS,
                 MT_APPLICATION_TYPE,
                 # TODO тут будут другие бизнес-направления
+                COMMERCIAL_PROPOSAL_TYPE,
+                COMMERCIAL_PROPOSAL_STATUS,
                 
                 SERVICE_NOTE_SUBJECT,
             ],

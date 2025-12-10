@@ -69,6 +69,11 @@ class NotificationQueryAndStatementManager:
                 params["doc_uuid"] = request_options["<file>"]["uuid"]
                 fields.append("<file>")
             
+            if "<commercial_proposal>" in request_options:
+                selects.append("(SELECT name FROM commercial_proposal WHERE uuid = :cp_uuid) AS cp_uuid")
+                params["cp_uuid"] = request_options["commercial_proposal"]["uuid"]
+                fields.append("<commercial_proposal>")
+            
             if not selects:
                 pass
             else:
