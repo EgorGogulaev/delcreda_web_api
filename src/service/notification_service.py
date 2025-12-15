@@ -6,7 +6,7 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
+from src.query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.models.user_models import UserContact
 from src.schemas.notification_schema import FiltersNotifications, OrdersNotifications

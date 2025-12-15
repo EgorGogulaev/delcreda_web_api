@@ -312,7 +312,6 @@ class SignalConnector:
         )
     
     
-    # FIXME ПРОТЕСТИРОВАТЬ РАБОТУ С S3-ХРАНИЛИЩЕМ
     @classmethod
     async def upload_s3(
         cls,

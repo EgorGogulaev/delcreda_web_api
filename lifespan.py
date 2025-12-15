@@ -17,7 +17,7 @@ from src.models.user_models import Token, UserAccount, UserPrivilege
 from src.utils.preparer_reference_information import prepare_reference
 from src.utils.reference_mapping_data.app.app_reference_data import COUNTRY, CURRENCY
 from src.utils.reference_mapping_data.user.reference import ADMIN, ADMIN_DIRECTORY, ADMIN_TOKEN, PRIVILEGE, SERVICE_NOTE_SUBJECT
-from src.utils.reference_mapping_data.file_store.reference import DIRECTORY_TYPE, DOCUMENT_TYPE
+from src.utils.reference_mapping_data.file_store.reference import DIRECTORY_TYPE
 from src.utils.reference_mapping_data.chat.reference import CHAT_SUBJECT
 from src.utils.reference_mapping_data.notification.reference import NOTIFICATION_SUBJECT
 from src.utils.reference_mapping_data.application.reference import APPLICATION_STATUS, APPLICATION_TYPE
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
         zip(
             [
                 UserPrivilege, Token, UserAccount,
-                DirectoryType, DocumentType,
+                DirectoryType,
                 Directory,
                 
                 Country, Currency,
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
             ],
             [
                 PRIVILEGE, ADMIN_TOKEN, ADMIN,
-                DIRECTORY_TYPE, DOCUMENT_TYPE,
+                DIRECTORY_TYPE,
                 ADMIN_DIRECTORY,
                 
                 COUNTRY, CURRENCY,

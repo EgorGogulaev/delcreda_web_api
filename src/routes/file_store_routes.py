@@ -124,6 +124,10 @@ async def upload_file(
         min_length=36,
         max_length=36
     ),
+    commercial_proposal_uuid: Optional[str] = Query(  # TODO реализовать запись в БД - прикрепление документа (при указании этого параметра, только Администратор может указать КП к которому будет прикреплен документ)
+        None,
+        description="Испрользуется для прикрепления документа к КП",
+    ),
     
     file: UploadFile = File(..., description="Документ."),
     token: str = Depends(UserQaSM.get_current_user_data),

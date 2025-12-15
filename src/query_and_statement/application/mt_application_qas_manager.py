@@ -13,6 +13,7 @@ from src.models.application.mt_models import MTApplicationData
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
 from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING, APPLICATION_TYPE_MAPPING
 from src.utils.bool_converter import bool_converter
+from src.utils.is_number import is_number
 
 
 class MTApplicationQueryAndStatementManager:
@@ -461,21 +462,21 @@ class MTApplicationQueryAndStatementManager:
             "payment_deadline_no_later_than": datetime.datetime.strptime(payment_deadline_no_later_than, "%d.%m.%Y").date() if payment_deadline_no_later_than and payment_deadline_no_later_than != "~" else "~" if payment_deadline_no_later_than == "~" else None,
             "invoice_date": datetime.datetime.strptime(invoice_date, "%d.%m.%Y").date() if invoice_date and invoice_date != "~" else "~" if invoice_date == "~" else None,
             "invoice_currency": CURRENCY_MAPPING[invoice_currency] if invoice_currency and invoice_currency != "~" else "~",
-            "invoice_amount": Decimal(invoice_amount).quantize(Decimal("0.00")) if invoice_amount.isdigit() else "~",
-            "payment_amount": Decimal(payment_amount).quantize(Decimal("0.00")) if payment_amount.isdigit() else "~",
+            "invoice_amount": Decimal(invoice_amount).quantize(Decimal("0.00")) if is_number(invoice_amount) else "~",
+            "payment_amount": Decimal(payment_amount).quantize(Decimal("0.00")) if is_number(payment_amount) else "~",
             "payment_amount_in_words": payment_amount_in_words,
             "partial_payment_allowed": bool_converter(partial_payment_allowed),
             "invoice_number": invoice_number,
-            "amount_to_withdraw": Decimal(amount_to_withdraw).quantize(Decimal("0.00")) if amount_to_withdraw.isdigit() else "~",
-            "amount_to_replenish": Decimal(amount_to_replenish).quantize(Decimal("0.00")) if amount_to_replenish.isdigit() else "~",
-            "amount_to_principal": Decimal(amount_to_principal).quantize(Decimal("0.00")) if amount_to_principal.isdigit() else "~",
-            "amount_credited": Decimal(amount_credited).quantize(Decimal("0.00")) if amount_credited.isdigit() else "~",
+            "amount_to_withdraw": Decimal(amount_to_withdraw).quantize(Decimal("0.00")) if is_number(amount_to_withdraw) else "~",
+            "amount_to_replenish": Decimal(amount_to_replenish).quantize(Decimal("0.00")) if is_number(amount_to_replenish) else "~",
+            "amount_to_principal": Decimal(amount_to_principal).quantize(Decimal("0.00")) if is_number(amount_to_principal) else "~",
+            "amount_credited": Decimal(amount_credited).quantize(Decimal("0.00")) if is_number(amount_credited) else "~",
             "is_amount_different": bool_converter(is_amount_different),
             "source_bank": source_bank,
             "target_bank": target_bank,
             "source_currency": CURRENCY_MAPPING[source_currency] if source_currency and source_currency != "~" else "~",
             "target_currency": CURRENCY_MAPPING[target_currency] if target_currency and target_currency != "~" else "~",
-            "amount": Decimal(amount).quantize(Decimal("0.00")) if amount.isdigit() else "~",
+            "amount": Decimal(amount).quantize(Decimal("0.00")) if is_number(amount) else "~",
             "subagent_bank": subagent_bank,
             "payment_purpose_ru": payment_purpose_ru,
             "payment_purpose_en": payment_purpose_en,
@@ -486,8 +487,8 @@ class MTApplicationQueryAndStatementManager:
             "contract_name": contract_name,
             "contract_number": contract_number,
             "vat_exempt": bool_converter(vat_exempt),
-            "vat_percentage": Decimal(vat_percentage).quantize(Decimal("0.00")) if vat_percentage.isdigit() else "~",
-            "vat_amount": Decimal(vat_amount).quantize(Decimal("0.00")) if vat_amount.isdigit() else "~",
+            "vat_percentage": Decimal(vat_percentage).quantize(Decimal("0.00")) if is_number(vat_percentage) else "~",
+            "vat_amount": Decimal(vat_amount).quantize(Decimal("0.00")) if is_number(vat_amount) else "~",
             "priority": priority,
             "end_customer_company_name": end_customer_company_name,
             "end_customer_company_legal_form": end_customer_company_legal_form,

@@ -227,4 +227,3 @@ async def delete_applications(  # TODO Нужно предусмотреть п�
             return JSONResponse(content=response_content)
     finally:
         await session.rollback()
-
