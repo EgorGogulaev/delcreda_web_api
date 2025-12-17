@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, List, Literal, Optional, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy import and_, func, insert, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -224,7 +225,13 @@ class CommercialProposalQueryAndStatementManager:
         
         commercial_proposal_uuids: Optional[List[str]],
         commercial_proposal_ids: Optional[List[int]],
+        
+        counterparty_uuid: Optional[str] = None,
+        application_uuid: Optional[str] = None,
     ) -> None:
+        if not commercial_proposal_uuids and not commercial_proposal_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления должны быть указаны либо массив UUID, либо массив ID заявок на КП!")
+        
         if not commercial_proposal_uuids:
             query_cp = (select(CommercialProposal.uuid)
                 .filter(CommercialProposal.id.in_(commercial_proposal_ids))
@@ -259,9 +266,24 @@ class CommercialProposalQueryAndStatementManager:
             delete(Chat)
             .filter(Chat.id.in_(chat_ids))
         )
+        _filters = []
+        
+        if commercial_proposal_uuids:
+            _filters.append(CommercialProposal.uuid.in_(commercial_proposal_uuids))
+        
+        if counterparty_uuid:
+            _filters.append(CommercialProposal.counterparty_uuid == counterparty_uuid)
+        
+        if application_uuid:
+            _filters.append(CommercialProposal.application_uuid == application_uuid)
+        
         stmt_del_cps = (
             delete(CommercialProposal)
-            .filter(CommercialProposal.uuid.in_(commercial_proposal_uuids))
+            .filter(
+                and_(
+                    *_filters
+                )
+            )
         )
         
         await session.execute(stmt_del_msgs)

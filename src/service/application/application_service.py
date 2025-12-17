@@ -3,6 +3,7 @@ from typing import List, Literal, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.service.commercial_proposal_service import CommercialProposalService
 from src.service.file_store_service import FileStoreService
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
@@ -120,6 +121,15 @@ class ApplicationService:
                 is_document=False,
                 for_user=True,
             )
+        
+        await CommercialProposalService.delete_commercial_proposals(
+            session=session,
+            
+            requester_user_id=requester_user_privilege,
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            commercial_proposal_uuids=commercial_proposal_uuids,
+        )
         
         await ApplicationQueryAndStatementManager.delete_applications(
             session=session,
