@@ -39,7 +39,7 @@ class CommercialProposal(Base):
     
     status = Column(SmallInteger, ForeignKey("application_status.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     
-    can_be_updated_by_user = Column(Boolean, server_default="true")  # Аналогичное поле как у Заявки/карточки-Контрагента
+    can_be_updated_by_user = Column(Boolean, server_default="true", nullable=False)  # Аналогичное поле как у Заявки/карточки-Контрагента
     
     updated_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)

@@ -87,7 +87,7 @@ async def notify(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Заявка по КП" if subject == "CommercialProposal" else "Прочее",
+            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Заявка на КП" if subject == "CommercialProposal" else "Прочее",
             subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Counterparty" else None,
             for_admin=for_admin,
             data=data.model_dump()["data"],

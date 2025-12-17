@@ -126,7 +126,7 @@ async def upload_file(
     ),
     commercial_proposal_uuid: Optional[str] = Query(  # TODO реализовать запись в БД - прикрепление документа (при указании этого параметра, только Администратор может указать КП к которому будет прикреплен документ)
         None,
-        description="Испрользуется для прикрепления документа к КП",
+        description="UUID заявки по КП к которому прикрепиться документ.",
     ),
     
     file: UploadFile = File(..., description="Документ."),
@@ -171,7 +171,7 @@ async def upload_file(
             request_options.update({"<application>": {"uuid": subject_uuid}})
         elif subject == "Контрагент":
             request_options.update({"<counterparty>": {"uuid": subject_uuid}})
-        elif subject == "Заявка по КП":
+        elif subject == "Заявка на КП":
             request_options.update({"commercial_proposal": {"uuid": subject_uuid}})
         
         await NotificationService.notify(

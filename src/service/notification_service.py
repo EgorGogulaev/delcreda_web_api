@@ -25,7 +25,7 @@ class NotificationService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        subject: Literal["Заявка", "Контрагент", "Заявка по КП", "Прочее",],
+        subject: Literal["Заявка", "Контрагент", "Заявка на КП", "Прочее",],
         subject_uuid: Optional[str],
         for_admin: bool,
         data: str,
@@ -67,7 +67,7 @@ class NotificationService:
                 if counterparty_check_access_response_object is None:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Контрагента!")
             
-            elif subject == "Заявка по КП":
+            elif subject == "Заявка на КП":
                 commercial_proposal_check_access_response_object: Optional[Tuple[int, str]] = await CommercialProposalQueryAndStatementManager.check_access(
                     session=session,
                     

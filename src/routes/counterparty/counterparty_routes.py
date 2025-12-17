@@ -209,7 +209,7 @@ async def get_counterparties(
     
     legal_entity_name_ilike: Optional[str] = Query(
         None,
-        description="(Опционально) Фильтр по названию компании (латиница/национальное написание) (частичное совпадение).",
+        description='(Опционально) Фильтр по названию компании (латиница/национальное написание) (частичное совпадение) (если counterparty_type === "ЮЛ").',
     ),
     
     extended_output: bool = Query(
@@ -273,7 +273,7 @@ async def get_counterparties(
             total_records=None,
             total_pages=None,
         )
-        print(f'{counterparties["data"]=}')
+        
         for counterparty in counterparties["data"]:
             if extended_output:
                 if counterparty_type == "ЮЛ":

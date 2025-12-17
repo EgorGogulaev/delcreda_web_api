@@ -36,7 +36,7 @@ class ChatQueryAndStatementManager:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "Контрагент", "КП"],
+        chat_subject: Literal["Заявка", "Контрагент", "Заявка на КП"],
         subject_uuid: str,
     ) -> Optional[int]:
         async def __do(session: AsyncSession):
@@ -57,7 +57,6 @@ class ChatQueryAndStatementManager:
                     and_(
                         *_filters
                     )
-                    
                 )
             )
             response = await session.execute(query)

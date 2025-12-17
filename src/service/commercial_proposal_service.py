@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from src.schemas.commercial_proposal_schema import CommercialProposal, FiltersCommercialProposals, OrdersCommercialProposals
 from src.service.chat_service import ChatService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.service.file_store_service import FileStoreService
@@ -123,7 +124,7 @@ class CommercialProposalService:
         await ChatService.create_chat(
             session=session,
             
-            chat_subject="Заявка по КП",
+            chat_subject="Заявка на КП",
             subject_uuid=new_commercial_proposal_uuid,
         )
         return new_commercial_proposal_uuid
@@ -132,8 +133,37 @@ class CommercialProposalService:
     async def get_commercial_proposals(
         session: AsyncSession,
         
-    ):
-        ...  # TODO
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        
+        user_uuid: Optional[str],
+        
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        
+        filter: Optional[FiltersCommercialProposals] = None,
+        order: Optional[OrdersCommercialProposals] = None,
+    ) -> Dict[str, List[Optional[CommercialProposal]]]:
+        if page or page_size:
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
+        
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            if not user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все заявки на КП - всех пользователей!")
+            if user_uuid != requester_user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть заявки на КП других пользователей!")
+        
+        commercial_proposals: Dict[str, List[Optional[CommercialProposal]]] = await CommercialProposalQueryAndStatementManager.get_commercial_proposals(
+            session=session,
+            user_uuid=user_uuid,
+            page=page,
+            page_size=page_size,
+            filter=filter,
+            order=order,
+        )
+        
+        return commercial_proposals
     
     @staticmethod
     async def update_commercial_proposals_status(
@@ -160,6 +190,44 @@ class CommercialProposalService:
         )
     
     @staticmethod
+    async def change_commercial_proposal_document_uuid(
+        session: AsyncSession,
+        
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        
+        commercial_proposal_uuid: str,
+        document_uuid: str,
+    ) -> Tuple[str, str, str]:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения документа КП (в заявке на КП)!")
+        if not commercial_proposal_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID заявки на КП!")
+        if not document_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID документа для прикрепление к заявке на КП!")
+        
+        commercial_proposal: Dict[str, List[Optional[CommercialProposal]]] = await CommercialProposalQueryAndStatementManager.get_commercial_proposals(
+            session=session,
+            
+            commercial_proposal_uuid_list=[commercial_proposal_uuid],
+        )
+        commercial_proposal_data = commercial_proposal["data"]
+        if not commercial_proposal_data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="По указанному UUID заявки на КП запись не найден!")
+        
+        user_uuid: str = commercial_proposal_data[0].user_uuid
+        counterparty_uuid: str = commercial_proposal_data[0].counterparty_uuid
+        application_uuid: str = commercial_proposal_data[0].application_uuid
+        
+        await CommercialProposalQueryAndStatementManager.change_commercial_proposal_document_uuid(
+            session=session,
+            commercial_proposal_uuid=commercial_proposal_uuid,
+            document_uuid=document_uuid,
+        )
+        
+        return user_uuid, counterparty_uuid, application_uuid
+    
+    @staticmethod
     async def change_commercial_proposals_edit_status(
         session: AsyncSession,
         
@@ -170,7 +238,7 @@ class CommercialProposalService:
         edit_status: bool,
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования заявки по КП!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования заявки на КП!")
         if not commercial_proposal_uuids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID, хотя бы одной заявки на КП!")
         if not isinstance(edit_status, bool):

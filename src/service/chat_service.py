@@ -15,7 +15,7 @@ class ChatService:
     async def create_chat(
         session: AsyncSession,
         
-        chat_subject: Literal["Заявка", "Контрагент", "Заявка по КП"],
+        chat_subject: Literal["Заявка", "Контрагент", "Заявка на КП"],
         subject_uuid: str,
     ) -> Dict[str, str|int]:
         

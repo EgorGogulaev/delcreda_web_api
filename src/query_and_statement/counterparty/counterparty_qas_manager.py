@@ -5,6 +5,7 @@ from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
+from src.models.chat_models import Chat, Message
 from src.models.application.mt_models import MTApplicationData
 from src.models.application.application_models import Application
 from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualDataSchema, UpdateLegalEntityDataSchema
@@ -14,6 +15,7 @@ from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.application.mapping import APPLICATION_TYPE_MAPPING
 from src.utils.reference_mapping_data.counterparty.mapping import COUNTERPARTY_TYPE_MAPPING
+from src.utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 class CounterpartyQueryAndStatementManager:
@@ -458,10 +460,36 @@ class CounterpartyQueryAndStatementManager:
         counterparty_ids_with_type_ids = [(counterparty_id, counterparty_type_id) for counterparty_id, counterparty_type_id, _, _ in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid]
         counterparty_le_ids = [le_id for le_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ЮЛ"]]
         counterparty_individual_ids = [individual_id for individual_id, counterparty_type_id in counterparty_ids_with_type_ids if counterparty_type_id == COUNTERPARTY_TYPE_MAPPING["ФЛ"]]
-        print(f"{counterparty_ids_with_type_ids=}")
-        print(f"{counterparty_le_ids=}")
-        print(f"{counterparty_individual_ids=}")
+        
         application_ids = []
+        
+        query_chat = (
+            select(Chat.id)
+            .filter(
+                and_(
+                    Chat.chat_subject_id == CHAT_SUBJECT_MAPPING["Контрагент"],
+                    Chat.subject_uuid.in_(counterparty_uuids),
+                )
+            )
+        )
+        response_chat = await session.execute(query_chat)
+        chat_ids = [item[0] for item in response_chat.all()]
+        
+        query_msg = (
+            select(Message.id)
+            .filter(Message.chat_id.in_(chat_ids))
+        )
+        response_msg = await session.execute(query_msg)
+        msg_ids = [item[0] for item in response_msg.all()]
+        
+        stmt_del_msgs = (
+            delete(Message)
+            .filter(Message.id.in_(msg_ids))
+        )
+        stmt_del_chats = (
+            delete(Chat)
+            .filter(Chat.id.in_(chat_ids))
+        )
         
         # MT
         query_application_and_application_data_ids_from_MT = (
@@ -526,6 +554,8 @@ class CounterpartyQueryAndStatementManager:
             .where(Counterparty.id.in_(counterparty_ids))
         )
         
+        await session.execute(stmt_del_msgs)
+        await session.execute(stmt_del_chats)
         await session.execute(stmt_delete_counterparty_bank_details)
         await session.execute(stmt_delete_counterparty_persons)
         await session.execute(stmt_delete_applications)

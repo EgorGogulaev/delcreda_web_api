@@ -46,7 +46,7 @@ class FileStoreQueryAndStatementManager:
         subject_uuid = response_commercial_proposal.scalar_one_or_none()
         
         if subject_uuid:
-            return FILE_STORE_SUBJECT_MAPPING["Заявка по КП"], subject_uuid
+            return FILE_STORE_SUBJECT_MAPPING["Заявка на КП"], subject_uuid
         
         query_application = (
             select(Application.uuid)

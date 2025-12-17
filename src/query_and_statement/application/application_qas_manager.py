@@ -3,9 +3,11 @@ from typing import List, Optional, Tuple
 from sqlalchemy import and_, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.chat_models import Chat, Message
 from src.models.application.application_models import Application
 from src.models.application.mt_models import MTApplicationData
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
+from src.utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 
@@ -102,6 +104,42 @@ class ApplicationQueryAndStatementManager:
         application_ids = [application_id for application_id, _, _ in application_ids_with_application_data_ids_with_dir_uuid]
         application_data_ids = [application_data_id for _, application_data_id, _ in application_ids_with_application_data_ids_with_dir_uuid]
         
+        query_application = (
+            select(Application.uuid)
+            .filter(Application.id.in_(application_ids))
+        )
+        response_application = await session.execute(query_application)
+        application_uuids = [item[0] for item in response_application.all()]
+        
+        query_chat = (
+            select(Chat.id)
+            .filter(
+                and_(
+                    Chat.chat_subject_id == CHAT_SUBJECT_MAPPING["Заявка"],
+                    Chat.subject_uuid.in_(application_uuids)
+                )
+            )
+        )
+        response_chat = await session.execute(query_chat)
+        chat_ids = [item[0] for item in response_chat.all()]
+        
+        query_msg = (
+            select(Message.id)
+            .filter(Message.chat_id.in_(chat_ids))
+        )
+        response_msg = await session.execute(query_msg)
+        msg_ids = [item[0] for item in response_msg.all()]
+        
+        stmt_del_msgs = (
+            delete(Message)
+            .filter(Message.id.in_(msg_ids))
+        )
+        
+        stmt_del_chats = (
+            delete(Chat)
+            .filter(Chat.id.in_(chat_ids))
+        )
+        
         # FIXME - тут нужно предусмотреть удаление из всех бизнес-направлений
         stmt_delete_application_data = (
             delete(MTApplicationData)
@@ -113,6 +151,8 @@ class ApplicationQueryAndStatementManager:
             .where(Application.id.in_(application_ids))
         )
         
+        await session.execute(stmt_del_msgs)
+        await session.execute(stmt_del_chats)
         await session.execute(stmt_delete_application)
         await session.execute(stmt_delete_application_data)
         

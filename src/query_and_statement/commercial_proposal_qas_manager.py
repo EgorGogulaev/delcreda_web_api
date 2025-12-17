@@ -1,16 +1,18 @@
 import datetime
-from typing import List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
-from sqlalchemy import and_, insert, select, delete, update
+from sqlalchemy import and_, func, insert, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.chat_models import Chat, Message
+from src.schemas.commercial_proposal_schema import FiltersCommercialProposals, OrdersCommercialProposals
 from src.models.commercial_proposal_models import CommercialProposal
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.commercial_proposal.mapping import COMMERCIAL_PROPOSAL_STATUS_MAPPING
+from src.utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 class CommercialProposalQueryAndStatementManager:
-    ...  # TODO
     @staticmethod
     async def create_commercial_proposal(
         session: AsyncSession,
@@ -59,7 +61,109 @@ class CommercialProposalQueryAndStatementManager:
         await session.execute(stmt)
         await session.commit()
     
-    # TODO
+    
+    @staticmethod
+    async def get_commercial_proposals(
+        session: AsyncSession,
+        
+        user_uuid: Optional[str],
+        commercial_proposal_id_list: Optional[List[int]] = None,
+        commercial_proposal_uuid_list: Optional[List[str]] = None,
+        
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        
+        filter: Optional[FiltersCommercialProposals] = None,
+        order: Optional[OrdersCommercialProposals] = None,
+    ) -> Dict[str, List[Optional[CommercialProposal]]]:
+        _filters = []
+        
+        if user_uuid:
+            _filters.append(CommercialProposal.user_uuid == user_uuid)
+        
+        if commercial_proposal_id_list:
+            _filters.append(CommercialProposal.id.in_(commercial_proposal_id_list))
+        
+        if commercial_proposal_uuid_list:
+            _filters.append(CommercialProposal.uuid.in_(commercial_proposal_uuid_list))
+        
+        if filter is not None and filter.filters:
+            for filter_item in filter.filters:
+                column = getattr(CommercialProposal, filter_item.field)
+                if filter_item.operator == "eq":
+                    cond = column == filter_item.value
+                elif filter_item.operator == "ne":
+                    cond = column != filter_item.value
+                elif filter_item.operator == "gt":
+                    cond = column > filter_item.value
+                elif filter_item.operator == "lt":
+                    cond = column < filter_item.value
+                elif filter_item.operator == "ge":
+                    cond = column >= filter_item.value
+                elif filter_item.operator == "le":
+                    cond = column <= filter_item.value
+                elif filter_item.operator == "like":
+                    value = f"%{filter_item.value}%"
+                    cond = column.ilike(value)
+                elif filter_item.operator == "in":
+                    if isinstance(filter_item.value, str):
+                        values = [v.strip() for v in filter_item.value.split(",")]
+                    else:
+                        values = filter_item.value
+                    cond = column.in_(values)
+                else:
+                    continue
+                
+                _filters.append(cond)
+        
+        # ===== сортировка =====
+        _order_clauses = []
+        if order is not None and order.orders:
+            for order_item in order.orders:
+                # Получаем атрибут модели для сортировки
+                column = getattr(CommercialProposal, order_item.field)
+                
+                # Добавляем условие сортировки в зависимости от направления
+                if order_item.direction == "asc":
+                    _order_clauses.append(column.asc().nulls_last())
+                else:
+                    _order_clauses.append(column.desc().nulls_last())
+        
+        if not _order_clauses:
+            _order_clauses.append(CommercialProposal.id.asc())
+        # ===== КОНЕЦ блока сортировки =====
+        
+        query = (
+            select(CommercialProposal)
+            .filter(and_(*_filters))
+            .order_by(*_order_clauses)
+        )
+        
+        total_records = None
+        total_pages = None
+        
+        if page is None or (page is not None and page < 1):
+            page = 1
+        if page_size is None or (page is not None and page_size < 1):
+            page_size = 50
+        
+        query = query.limit(page_size).offset((page - 1) * page_size)
+        count_query = select(func.count()).select_from(CommercialProposal).filter(and_(*_filters))
+        
+        total_records = (await session.execute(count_query)).scalar()
+        total_pages = (total_records + page_size - 1) // page_size if total_records else 0
+        
+        response = await session.execute(query)
+        
+        data = [item[0] for item in response.fetchall()]
+        
+        return {
+            "data": data,
+            "total_records": total_records,
+            "total_pages": total_pages,
+        }
+    
+    
     @staticmethod
     async def update_commercial_proposals_status(
         session: AsyncSession,
@@ -72,6 +176,24 @@ class CommercialProposalQueryAndStatementManager:
             .where(CommercialProposal.uuid.in_(commercial_proposal_uuids))
             .values(
                 status=COMMERCIAL_PROPOSAL_STATUS_MAPPING[new_status],
+            )
+        )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def change_commercial_proposal_document_uuid(
+        session: AsyncSession,
+        
+        commercial_proposal_uuid: str,
+        document_uuid: str,
+    ) -> None:
+        stmt = (
+            update(CommercialProposal)
+            .filter(CommercialProposal.uuid == commercial_proposal_uuid)
+            .values(
+                document_uuid=document_uuid,
             )
         )
         
@@ -103,24 +225,49 @@ class CommercialProposalQueryAndStatementManager:
         commercial_proposal_uuids: Optional[List[str]],
         commercial_proposal_ids: Optional[List[int]],
     ) -> None:
-        _filters = []
+        if not commercial_proposal_uuids:
+            query_cp = (select(CommercialProposal.uuid)
+                .filter(CommercialProposal.id.in_(commercial_proposal_ids))
+            )
+            response_cp = await session.execute(query_cp)
+            commercial_proposal_uuids = [item[0] for item in response_cp.all()]
         
-        if commercial_proposal_uuids:
-            _filters.append(CommercialProposal.uuid.in_(commercial_proposal_uuids))
-        
-        if commercial_proposal_ids:
-            _filters.append(CommercialProposal.id.in_(commercial_proposal_ids))
-        
-        stmt = (
-            delete(CommercialProposal)
+        query_chat = (
+            select(Chat.id)
             .filter(
                 and_(
-                    *_filters
+                    Chat.chat_subject_id == CHAT_SUBJECT_MAPPING["Заявка на КП"],
+                    Chat.subject_uuid.in_(commercial_proposal_uuids)
                 )
             )
         )
+        response_chat = await session.execute(query_chat)
+        chat_ids = [item[0] for item in response_chat.all()]
         
-        await session.execute(stmt)
+        query_msg = (
+            select(Message.id)
+            .filter(Message.chat_id.in_(chat_ids))
+        )
+        response_msg = await session.execute(query_msg)
+        msg_ids = [item[0] for item in response_msg.all()]
+        
+        stmt_del_msgs = (
+            delete(Message)
+            .filter(Message.id.in_(msg_ids))
+        )
+        stmt_del_chats = (
+            delete(Chat)
+            .filter(Chat.id.in_(chat_ids))
+        )
+        stmt_del_cps = (
+            delete(CommercialProposal)
+            .filter(CommercialProposal.uuid.in_(commercial_proposal_uuids))
+        )
+        
+        await session.execute(stmt_del_msgs)
+        await session.execute(stmt_del_chats)
+        await session.execute(stmt_del_cps)
+        
         await session.commit()
     
     @staticmethod
