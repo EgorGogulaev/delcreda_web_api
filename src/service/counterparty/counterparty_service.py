@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from src.query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.service.application.application_service import ApplicationService
 from src.models.application.application_models import Application
 from src.service.application.mt_application_service import MTApplicationService
@@ -465,6 +466,13 @@ class CounterpartyService:
             session=session,
             applications_access_lists_ids=applications_access_lists_ids,
         )
+        
+        await CommercialProposalQueryAndStatementManager.delete_commercial_proposals(
+            session=session,
+            
+            counterparty_uuid=counterparty_uuid,
+        )
+        
         await CounterpartyQueryAndStatementManager.delete_counterparties(
             session=session,
             

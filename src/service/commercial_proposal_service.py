@@ -259,9 +259,6 @@ class CommercialProposalService:
         requester_user_privilege: int,
         
         commercial_proposal_uuids: Optional[List[str]] = None,
-        
-        counterparty_uuid: Optional[str] = None,
-        application_uuid: Optional[str] = None,
     ) -> None:
         if not commercial_proposal_uuids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления заявок на КП, нужно указать хотя бы 1 UUID!")
@@ -300,7 +297,4 @@ class CommercialProposalService:
             
             commercial_proposal_ids=None,
             commercial_proposal_uuids=commercial_proposal_uuids,
-            
-            counterparty_uuid=counterparty_uuid,
-            application_uuid=application_uuid,
         )

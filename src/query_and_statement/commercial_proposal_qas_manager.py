@@ -223,8 +223,8 @@ class CommercialProposalQueryAndStatementManager:
     async def delete_commercial_proposals(
         session: AsyncSession,
         
-        commercial_proposal_uuids: Optional[List[str]],
-        commercial_proposal_ids: Optional[List[int]],
+        commercial_proposal_uuids: Optional[List[str]] = None,
+        commercial_proposal_ids: Optional[List[int]] = None,
         
         counterparty_uuid: Optional[str] = None,
         application_uuid: Optional[str] = None,
