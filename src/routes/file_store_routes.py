@@ -158,19 +158,20 @@ async def upload_file(
         )
         subject = {v:k for k, v in FILE_STORE_SUBJECT_MAPPING.items()}[subject_id]
         
+        request_options = {
+            "<user>": {
+                "uuid": user_data["user_uuid"],
+            },
+            "<file>": {
+                "uuid": new_file_uuid,
+            },
+        } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+            "<file>": {
+                "uuid": new_file_uuid,
+            },
+        }
+        
         if not commercial_proposal_uuid:
-            request_options = {
-                "<user>": {
-                    "uuid": user_data["user_uuid"],
-                },
-                "<file>": {
-                    "uuid": new_file_uuid,
-                },
-            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<file>": {
-                    "uuid": new_file_uuid,
-                },
-            }
             if subject == "Поручение":
                 request_options.update({"<application>": {"uuid": subject_uuid}})
             elif subject == "Контрагент":
@@ -193,11 +194,7 @@ async def upload_file(
                 is_important=True,
             )
         else:
-            request_options = {
-                "<commercial_proposal>": {
-                    "uuid": subject_uuid
-                },
-            }
+            request_options.update({"<commercial_proposal>": {"uuid": subject_uuid}})
             
             await NotificationService.notify(
                 session=session,
@@ -209,7 +206,7 @@ async def upload_file(
                 subject=subject,
                 subject_uuid=subject_uuid,
                 for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-                data=f'Администратор прикрепил документ КП, к заявке на КП "<commercial_proposal>".',
+                data=f'Администратор прикрепил документ КП - "<file>", к заявке на КП "<commercial_proposal>".',
                 recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
                 
                 is_important=True,
