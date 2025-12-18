@@ -57,7 +57,7 @@ async def create_commercial_proposal(
     ),
     counterparty_uuid: str = Query(
         ...,
-        description="UUID карточки Контрагента к котомору будет прикреплена заявка на КП.",
+        description="UUID карточки Контрагента к которому будет прикреплена заявка на КП.",
         min_length=36,
         max_length=36,
     ),
