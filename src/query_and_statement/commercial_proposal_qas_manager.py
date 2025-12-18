@@ -69,7 +69,7 @@ class CommercialProposalQueryAndStatementManager:
     async def get_commercial_proposals(
         session: AsyncSession,
         
-        user_uuid: Optional[str],
+        user_uuid: Optional[str] = None,
         commercial_proposal_id_list: Optional[List[int]] = None,
         commercial_proposal_uuid_list: Optional[List[str]] = None,
         
