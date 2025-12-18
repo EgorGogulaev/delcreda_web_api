@@ -147,6 +147,8 @@ async def upload_file(
             owner_user_uuid=owner_user_uuid,
             new_file_uuid=new_file_uuid,
             file_type=file_type if file_type else None,
+            
+            commercial_proposal_uuid=commercial_proposal_uuid,
         )
         
         subject_id, subject_uuid = await FileStoreQueryAndStatementManager.get_subject_info_by_directory_uuid(
@@ -155,40 +157,63 @@ async def upload_file(
             directory_uuid=directory_uuid,
         )
         subject = {v:k for k, v in FILE_STORE_SUBJECT_MAPPING.items()}[subject_id]
-        request_options = {
-            "<user>": {
-                "uuid": user_data["user_uuid"],
-            },
-            "<file>": {
-                "uuid": new_file_uuid,
-            },
-        } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-            "<file>": {
-                "uuid": new_file_uuid,
-            },
-        }
-        if subject == "Поручение":
-            request_options.update({"<application>": {"uuid": subject_uuid}})
-        elif subject == "Контрагент":
-            request_options.update({"<counterparty>": {"uuid": subject_uuid}})
-        elif subject == "Заявка на КП":
-            request_options.update({"commercial_proposal": {"uuid": subject_uuid}})
         
-        await NotificationService.notify(
-            session=session,
+        if not commercial_proposal_uuid:
+            request_options = {
+                "<user>": {
+                    "uuid": user_data["user_uuid"],
+                },
+                "<file>": {
+                    "uuid": new_file_uuid,
+                },
+            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                "<file>": {
+                    "uuid": new_file_uuid,
+                },
+            }
+            if subject == "Поручение":
+                request_options.update({"<application>": {"uuid": subject_uuid}})
+            elif subject == "Контрагент":
+                request_options.update({"<counterparty>": {"uuid": subject_uuid}})
+            elif subject == "Заявка на КП":
+                request_options.update({"<commercial_proposal>": {"uuid": subject_uuid}})
+            await NotificationService.notify(
+                session=session,
+                
+                requester_user_id=user_data["user_id"],
+                requester_user_uuid=user_data["user_uuid"],
+                requester_user_privilege=user_data["privilege_id"],
+                
+                subject=subject,
+                subject_uuid=subject_uuid,
+                for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
+                data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).' if subject == "Контрагент" else f' в заявку по КП "commercial_proposal" ({subject_uuid}).'),
+                recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
+                
+                is_important=True,
+            )
+        else:
+            request_options = {
+                "<commercial_proposal>": {
+                    "uuid": subject_uuid
+                },
+            }
             
-            requester_user_id=user_data["user_id"],
-            requester_user_uuid=user_data["user_uuid"],
-            requester_user_privilege=user_data["privilege_id"],
-            
-            subject=subject,
-            subject_uuid=subject_uuid,
-            for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).' if subject == "Контрагент" else f' в заявку по КП "commercial_proposal" ({subject_uuid}).'),
-            recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
-            
-            is_important=True,
-        )
+            await NotificationService.notify(
+                session=session,
+                
+                requester_user_id=user_data["user_id"],
+                requester_user_uuid=user_data["user_uuid"],
+                requester_user_privilege=user_data["privilege_id"],
+                
+                subject=subject,
+                subject_uuid=subject_uuid,
+                for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
+                data=f'Администратор прикрепил документ КП, к заявке на КП "<commercial_proposal>".',
+                recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
+                
+                is_important=True,
+            )
         
         return JSONResponse(content={"msg": "Файл успешно загружен."})
     except AssertionError as e:

@@ -42,7 +42,7 @@ class FileStoreQueryAndStatementManager:
             select(CommercialProposal.uuid)
             .filter(CommercialProposal.directory_uuid == directory_uuid)
         )
-        response_commercial_proposal = await session.execute(query_application)
+        response_commercial_proposal = await session.execute(query_commercial_proposal)
         subject_uuid = response_commercial_proposal.scalar_one_or_none()
         
         if subject_uuid:

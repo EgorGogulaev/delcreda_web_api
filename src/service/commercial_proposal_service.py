@@ -173,14 +173,17 @@ class CommercialProposalService:
         requester_user_privilege: int,
         
         commercial_proposal_uuids: List[str],
-        new_status: bool,
+        new_status: Literal[
+            "На рассмотрении сторон",
+            "Согласовано",
+            "Отклонено",
+            "Закрыто администратором",
+        ],
     ) -> None:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса возможности редактирования заявки по КП!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения статуса заявки на КП!")
         if not commercial_proposal_uuids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID, хотя бы одной заявки на КП!")
-        if not isinstance(new_status, bool):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Статус должен быть булевым значением!")
         
         await CommercialProposalQueryAndStatementManager.update_commercial_proposals_status(
             session=session,

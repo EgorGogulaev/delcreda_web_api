@@ -170,7 +170,12 @@ class CommercialProposalQueryAndStatementManager:
         session: AsyncSession,
         
         commercial_proposal_uuids: List[str],
-        new_status: bool,
+        new_status: Literal[
+            "На рассмотрении сторон",
+            "Согласовано",
+            "Отклонено",
+            "Закрыто администратором",
+        ],
     ) -> None:
         stmt = (
             update(CommercialProposal)

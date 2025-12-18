@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 
 from connection_module import SignalConnector
+from src.query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Directory, Document
 from src.query_and_statement.file_store_qas_manager import FileStoreQueryAndStatementManager
@@ -149,7 +150,7 @@ class FileStoreService:
                 if visible is False:
                     raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Вы не можете просмотреть информацию о скрытых Файлах!")
             if directory_uuid:
-                if await FileStoreQueryAndStatementManager.check_access(  # FIXME
+                if await FileStoreQueryAndStatementManager.check_access(
                     session=session,
                     
                     requester_user_uuid=requester_user_uuid,
@@ -285,6 +286,8 @@ class FileStoreService:
         owner_user_uuid: Optional[str]=None,
         new_file_uuid: Optional[str]=None,
         file_type: Optional[str]=None,
+        
+        commercial_proposal_uuid: Optional[str] = None,
     ) -> str:
         if not directory_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать uuid директории для загрузки!")
@@ -296,6 +299,8 @@ class FileStoreService:
             if owner_user_uuid:
                 if owner_user_uuid != requester_user_uuid:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл для другого Пользователя!")
+            if commercial_proposal_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл КП!")
         
         dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
             session=session,
@@ -351,6 +356,13 @@ class FileStoreService:
                 filenames=[correct_name_with_extansion],
                 files=[file_object],
             )
+            
+            if commercial_proposal_uuid:
+                await CommercialProposalQueryAndStatementManager.change_commercial_proposal_document_uuid(
+                    session=session,
+                    commercial_proposal_uuid=commercial_proposal_uuid,
+                    document_uuid=new_file_uuid,
+                )
             
             await FileStoreQueryAndStatementManager.create_doc_info(
                 session=session,
