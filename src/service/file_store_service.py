@@ -1,7 +1,7 @@
 import os
 import posixpath
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import urllib.parse
 
 from fastapi import status
@@ -301,6 +301,18 @@ class FileStoreService:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл для другого Пользователя!")
             if commercial_proposal_uuid:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл КП!")
+        
+        if commercial_proposal_uuid:
+            commercial_proposal_check_access_response_object: Optional[Tuple[int, str]] = await CommercialProposalQueryAndStatementManager.check_access(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                commercial_proposal_uuid=commercial_proposal_uuid,
+                for_update_or_delete_commercial_proposal=True,
+            )
+            if commercial_proposal_check_access_response_object is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись о заявке на КП по указанному UUID не найдена!")
         
         dir_data: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
             session=session,
