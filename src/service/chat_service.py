@@ -42,7 +42,7 @@ class ChatService:
         
         requester_user_id: int, requester_user_uuid: str, requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "Контрагент"],
+        chat_subject: Literal["Заявка", "Контрагент", "Заявка на КП"],
         subject_uuid: str,
         message: str,
     ) -> None:

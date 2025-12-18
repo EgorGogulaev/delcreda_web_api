@@ -9,7 +9,7 @@ from src.models.chat_models import Chat, Message
 from src.schemas.commercial_proposal_schema import FiltersCommercialProposals, OrdersCommercialProposals
 from src.models.commercial_proposal_models import CommercialProposal
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
-from src.utils.reference_mapping_data.commercial_proposal.mapping import COMMERCIAL_PROPOSAL_STATUS_MAPPING
+from src.utils.reference_mapping_data.commercial_proposal.mapping import COMMERCIAL_PROPOSAL_STATUS_MAPPING, COMMERCIAL_PROPOSAL_TYPE_MAPPING
 from src.utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
@@ -45,7 +45,7 @@ class CommercialProposalQueryAndStatementManager:
                 uuid=new_commercial_proposal_uuid,
                 appliaction_name=commercial_proposal_name if commercial_proposal_name else f"{counterparty_id}-{directory_id}-{datetime.datetime.now().year}",
                 commercial_proposal_name=commercial_proposal_name,
-                type=type,
+                type=COMMERCIAL_PROPOSAL_TYPE_MAPPING[type],
                 user_id=user_id,
                 user_uuid=target_user_uuid,
                 counterparty_id=counterparty_id,

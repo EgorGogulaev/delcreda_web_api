@@ -45,7 +45,7 @@ async def websocket_chat(
     
     user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
     
-    chat_subject = "Заявка" if chat_subject == "Application" else "Контрагент" if chat_subject == "Counterparty" else "КП"
+    chat_subject = "Заявка" if chat_subject == "Application" else "Контрагент" if chat_subject == "Counterparty" else "Заявка на КП"
     
     chat_id: Optional[int] = await ChatQueryAndStatementManager.check_access(
         session=None,

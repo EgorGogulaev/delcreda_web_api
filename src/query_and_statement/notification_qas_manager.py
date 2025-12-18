@@ -70,8 +70,8 @@ class NotificationQueryAndStatementManager:
                 fields.append("<file>")
             
             if "<commercial_proposal>" in request_options:
-                selects.append("(SELECT name FROM commercial_proposal WHERE uuid = :cp_uuid) AS cp_uuid")
-                params["cp_uuid"] = request_options["commercial_proposal"]["uuid"]
+                selects.append("(SELECT appliaction_name FROM commercial_proposal WHERE uuid = :cp_uuid) AS cp_uuid")
+                params["cp_uuid"] = request_options["<commercial_proposal>"]["uuid"]
                 fields.append("<commercial_proposal>")
             
             if not selects:

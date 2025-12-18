@@ -45,7 +45,7 @@ async def create_commercial_proposal(
     type: Literal[
         "MT",
     ] = Query(
-        ...,
+        "MT ",
         description="Тип заявки на КП.",
     ),
     

@@ -75,7 +75,7 @@ class ApplicationService:
         )
     
     @staticmethod
-    async def delete_applications(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
+    async def delete_applications(
         session: AsyncSession,
         
         requester_user_id: int,

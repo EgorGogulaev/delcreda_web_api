@@ -385,7 +385,7 @@ class CounterpartyService:
         )
     
     @classmethod
-    async def delete_counterparties(  # TODO нужно предусмотреть удаление ЧАТОВ и СМС!!!
+    async def delete_counterparties(
         cls,
         session: AsyncSession,
         
