@@ -438,35 +438,32 @@ class CounterpartyService:
                     application_uuids.append(application.uuid)
         
         for _, _, _, dir_uuid in counterparty_ids_with_counterparty_type_ids_with_counterparty_data_ids_with_dir_uuid:
-            try:
-                await FileStoreService.delete_doc_or_dir(
-                    session=session,
-                    
-                    requester_user_id=requester_user_id,
-                    requester_user_uuid=requester_user_uuid,
-                    requester_user_privilege=requester_user_privilege,
-                    
-                    uuid=dir_uuid,
-                    is_document=False,
-                    for_user=True,
-                )
-            except: ...  # noqa: E722
-        try:
-            await ApplicationService.delete_applications(
+            await FileStoreService.delete_doc_or_dir(
                 session=session,
                 
                 requester_user_id=requester_user_id,
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 
-                applications_uuids=application_uuids,
+                uuid=dir_uuid,
+                is_document=False,
+                for_user=True,
             )
-        except: ...  # noqa: E722
+        
+        await ApplicationService.delete_applications(
+            session=session,
+            
+            requester_user_id=requester_user_id,
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            
+            applications_uuids=application_uuids,
+        )
+        
         await cls.__delete_applications_access_lists(
             session=session,
             applications_access_lists_ids=applications_access_lists_ids,
         )
-        
         await CommercialProposalQueryAndStatementManager.delete_commercial_proposals(
             session=session,
             
