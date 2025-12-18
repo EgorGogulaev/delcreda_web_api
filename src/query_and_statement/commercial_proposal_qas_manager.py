@@ -1,10 +1,12 @@
 import datetime
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, insert, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.file_store_models import Document
 from src.models.chat_models import Chat, Message
 from src.schemas.commercial_proposal_schema import FiltersCommercialProposals, OrdersCommercialProposals
 from src.models.commercial_proposal_models import CommercialProposal
@@ -195,11 +197,23 @@ class CommercialProposalQueryAndStatementManager:
         commercial_proposal_uuid: str,
         document_uuid: str,
     ) -> None:
+        query = (
+            select(Document.name)
+            .filter(Document.uuid == document_uuid)
+        )
+        response = await session.execute(query)
+        file_name = response.scalar()
+        
+        if file_name is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ с указанным UUID не был найден!")
+        
+        
         stmt = (
             update(CommercialProposal)
             .filter(CommercialProposal.uuid == commercial_proposal_uuid)
             .values(
                 document_uuid=document_uuid,
+                commercial_proposal_name=Path(file_name).stem,
             )
         )
         

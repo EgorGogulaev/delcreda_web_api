@@ -283,9 +283,9 @@ class FileStoreService:
         directory_uuid: str,
         requester_user_uuid: str, requester_user_privilege: int,
         
-        owner_user_uuid: Optional[str]=None,
-        new_file_uuid: Optional[str]=None,
-        file_type: Optional[str]=None,
+        owner_user_uuid: Optional[str] = None,
+        new_file_uuid: Optional[str] = None,
+        file_type: Optional[str] = None,
         
         commercial_proposal_uuid: Optional[str] = None,
     ) -> str:

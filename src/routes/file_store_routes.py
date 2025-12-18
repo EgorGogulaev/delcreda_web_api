@@ -124,7 +124,7 @@ async def upload_file(
         min_length=36,
         max_length=36
     ),
-    commercial_proposal_uuid: Optional[str] = Query(  # TODO реализовать запись в БД - прикрепление документа (при указании этого параметра, только Администратор может указать КП к которому будет прикреплен документ)
+    commercial_proposal_uuid: Optional[str] = Query(
         None,
         description="UUID заявки по КП к которому прикрепиться документ.",
     ),
@@ -205,9 +205,9 @@ async def upload_file(
                 
                 subject=subject,
                 subject_uuid=subject_uuid,
-                for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
+                for_admin=False,
                 data=f'Администратор прикрепил документ КП - "<file>", к заявке на КП "<commercial_proposal>".',
-                recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
+                recipient_user_uuid=owner_user_uuid,
                 
                 is_important=True,
             )
