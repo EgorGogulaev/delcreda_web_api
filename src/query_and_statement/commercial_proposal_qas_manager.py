@@ -207,7 +207,6 @@ class CommercialProposalQueryAndStatementManager:
         if file_name is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ с указанным UUID не был найден!")
         
-        
         stmt = (
             update(CommercialProposal)
             .filter(CommercialProposal.uuid == commercial_proposal_uuid)

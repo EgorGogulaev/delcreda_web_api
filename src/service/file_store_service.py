@@ -357,13 +357,6 @@ class FileStoreService:
                 files=[file_object],
             )
             
-            if commercial_proposal_uuid:
-                await CommercialProposalQueryAndStatementManager.change_commercial_proposal_document_uuid(
-                    session=session,
-                    commercial_proposal_uuid=commercial_proposal_uuid,
-                    document_uuid=new_file_uuid,
-                )
-            
             await FileStoreQueryAndStatementManager.create_doc_info(
                 session=session,
                 
@@ -379,6 +372,14 @@ class FileStoreService:
                     "uploader_user_uuid": requester_user_uuid,
                 }
             )
+            
+            if commercial_proposal_uuid:
+                await CommercialProposalQueryAndStatementManager.change_commercial_proposal_document_uuid(
+                    session=session,
+                    commercial_proposal_uuid=commercial_proposal_uuid,
+                    document_uuid=new_file_uuid,
+                )
+            
         else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
             if dir_data["count"] == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Директория "{directory_uuid}" либо отсутствует, либо у Вас недостаточно прав!')
