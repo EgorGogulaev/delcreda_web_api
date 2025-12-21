@@ -161,7 +161,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         for_admin: bool,
-        subject: Literal["Заявка", "Контрагент", "Прочее", "Предварительный расчет", "Все"],
+        subject: Literal["Заявка", "Контрагент", "Прочее", "Заявка на КП", "Все"],
         subject_uuid: Optional[str],
         initiator_user_uuid: Optional[str],
         recipient_user_uuid: Optional[str],
@@ -202,7 +202,7 @@ class NotificationService:
         if for_admin and requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Уведомления для Администраторов!")
         
-        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # TODO тут надо предусмотреть предварительные расчеты (только Админы) (!)
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if subject_uuid:
                 if subject == "Заявка":
                     application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
@@ -253,7 +253,7 @@ class NotificationService:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Counterparty", "Other", "CommercialProposal", "All"],
     ) -> int:
         count_unread_notifications = await NotificationQueryAndStatementManager.get_count_notifications(
             session=session,

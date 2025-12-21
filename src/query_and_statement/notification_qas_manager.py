@@ -309,7 +309,7 @@ class NotificationQueryAndStatementManager:
         requester_user_privilege: int,
         
         unread_only: Literal["Yes", "No"],
-        notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"],
+        notification_subject: Literal["Application", "Counterparty", "Other", "CommercialProposal", "All"],
     ) -> int:
         _filters = []
         
@@ -323,7 +323,7 @@ class NotificationQueryAndStatementManager:
             _filters.append(Notification.subject_id == 1)
         elif notification_subject == "Counterparty":
             _filters.append(Notification.subject_id == 2)
-        elif notification_subject == "Preliminary_calculation":
+        elif notification_subject == "CommercialProposal":
             _filters.append(Notification.subject_id == 3)
         elif notification_subject == "Other":
             _filters.append(Notification.subject_id == 4)  # noqa: E711

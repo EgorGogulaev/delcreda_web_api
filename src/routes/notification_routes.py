@@ -45,7 +45,7 @@ async def notify(
     ),
     subject: Literal["Application", "Counterparty", "CommercialProposal", "Other",] = Query(
         ...,
-        description="На какую тему Уведомление? (Контрагент/Заявка/КП/Прочее/)",
+        description="На какую тему Уведомление? (Контрагент/Заявка/Заявка на КП/Прочее)",
     ),
     
     subject_uuid: Optional[str] = Query(
@@ -151,9 +151,9 @@ async def get_notifications(
         True,
         description="Фильтр по назначению Уведомлений. (true-для Админа/false-для Пользователя)"
     ),
-    subject: Literal["Application", "Counterparty", "Preliminary_calculation", "Other", "All"] = Query(
+    subject: Literal["Application", "Counterparty", "CommercialProposal", "Other", "All"] = Query(
         "All",
-        description="Фильтр по теме Уведомлений (Контрагент/Заявка/Предварительный расчет/Прочее/Все) (Для Контрагента дополнительно отдает уведомления по его Заявкам)."
+        description="Фильтр по теме Уведомлений (Контрагент/Заявка/Заявки на КП/Прочее/Все) (Для Контрагента дополнительно отдает уведомления по его Заявкам)."
     ),
     subject_uuid: Optional[str] = Query(
         None,
@@ -214,7 +214,7 @@ async def get_notifications(
             requester_user_privilege=user_data["privilege_id"],
             
             for_admin=for_admin,
-            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Предварительный расчет" if subject == "Preliminary_calculation" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
+            subject="Заявка" if subject == "Application" else "Контрагент" if subject == "Counterparty" else "Заявка на КП" if subject == "CommercialProposal" else "Прочее" if subject == "Other" else "Все",  # TODO тут надо предусмотреть предварительные расчеты (!)
             subject_uuid=subject_uuid if subject == "Application" else subject_uuid if subject == "Counterparty" else None,
             initiator_user_uuid=initiator_user_uuid,
             recipient_user_uuid=recipient_user_uuid,
@@ -307,9 +307,9 @@ async def get_count_notifications(
         "Yes",
         description="Только непрочитанные? ('Yes'/'No')"
     ),
-    notification_subject: Literal["Application", "Counterparty", "Other", "Preliminary_calculation", "All"] = Query(
+    notification_subject: Literal["Application", "Counterparty", "Other", "CommercialProposal", "All"] = Query(
         "All",
-        description="Категория по которой получаем количество Уведомлений. (Контрагент/Заявки/Прочие/Все)"
+        description="Категория по которой получаем количество Уведомлений. (Контрагент/Заявки/Прочие/Заявки на КП/Все)"
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),

@@ -135,7 +135,7 @@ async def websocket_chat(
 @limiter.limit("30/second")
 async def send_message(
     request: Request,
-    chat_subject: Literal["Application", "Legal entity"] = Query(
+    chat_subject: Literal["Application", "Counterparty", "CommercialProposal"] = Query(
         ...,
         description="В какой Чат отправляем сообщение? (В Чат для Заявки или для Контрагента)"
     ),
@@ -164,7 +164,7 @@ async def send_message(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент",
+            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент" if chat_subject == "Counterparty" else "Заявка на КП",
             subject_uuid=subject_uuid,
             message=message.get("msg"),
         )
@@ -213,7 +213,7 @@ async def send_message(
 @limiter.limit("30/second")
 async def get_messages(
     request: Request,
-    chat_subject: Literal["Application", "Counterparty"] = Query(
+    chat_subject: Literal["Application", "Counterparty", "CommercialProposal"] = Query(
         ...,
         description="Из какого Чата достаем сообщения? (Из Чата для Заявки или для Контрагента)"
     ),
@@ -257,7 +257,7 @@ async def get_messages(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
-            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент",
+            chat_subject="Заявка" if chat_subject == "Application" else "Контрагент" if chat_subject == "Counterparty" else "Заявка на КП",
             subject_uuid=subject_uuid,
             
             page=page,
