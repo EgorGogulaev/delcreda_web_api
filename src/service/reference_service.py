@@ -23,7 +23,7 @@ class ReferenceService:
         requester_user_privilege: int,
         
         uuid: str,
-        object: Literal["User", "Directory", "Document", "Notification", "Legal entity", "Application",]
+        object: Literal["User", "Directory", "Document", "Notification", "Counterparty", "Application", "CommercialProposal"]
     ) -> bool:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не являетесь Администратором!")
@@ -57,7 +57,7 @@ class ReferenceService:
                     uuid=uuid,
                     object_type="Notification",
                 )
-            case "Legal entity":
+            case "Counterparty":
                 return await ReferenceQueryAndStatementManager.check_uuid(
                     session=session,
                     
@@ -70,6 +70,13 @@ class ReferenceService:
                     
                     uuid=uuid,
                     object_type="Application",
+                )
+            case "CommercialProposal":
+                return await ReferenceQueryAndStatementManager.check_uuid(
+                    session=session,
+                    
+                    uuid=uuid,
+                    object_type="CommercialProposal"
                 )
             case _:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать корректный объект для проверки UUID!")
@@ -84,7 +91,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Literal["Заявка", "Контрагент", "Документ", "Пользователь",],
+        subject: Literal["Заявка", "Контрагент", "Документ", "Пользователь", "Заявка на КП"],
         subject_uuid: str,
         title: str,
         data: Optional[str]=None,
@@ -109,7 +116,7 @@ class ReferenceService:
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
                 uuid=subject_uuid,
-                object="Legal entity",
+                object="Counterparty",
             )
         elif subject == "Документ":
             is_exist: bool = cls.check_uuid(
@@ -121,6 +128,15 @@ class ReferenceService:
                 object="Document",
             )
         elif subject == "Пользователь":
+            is_exist: bool = cls.check_uuid(
+                session=session,
+                
+                requester_user_uuid=requester_user_uuid,
+                requester_user_privilege=requester_user_privilege,
+                uuid=subject_uuid,
+                object="User",
+            )
+        elif subject == "Заявка на КП":
             is_exist: bool = cls.check_uuid(
                 session=session,
                 
@@ -156,7 +172,7 @@ class ReferenceService:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        subject: Optional[Literal["Заявка", "Контрагент", "Документ", "Пользователь"]],
+        subject: Optional[Literal["Заявка", "Контрагент", "Документ", "Пользователь", "Заявка на КП"]],
         subject_uuid: Optional[str],
         
         page: Optional[int] = None,

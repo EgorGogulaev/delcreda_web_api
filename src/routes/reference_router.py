@@ -204,6 +204,7 @@ async def get_service_notes(
         "Контрагент",
         "Документ",
         "Пользователь",
+        "Заявка на КП",
     ]] = Query(
         None,
         description="(Опционально) Фильтр по тому, к чему прикреплены служебные заметки.",
@@ -271,6 +272,7 @@ async def get_service_notes(
         )
         
         for service_note_object in service_notes_objects["data"]:
+            service_note_object: ServiceNote = service_note_object
             service_note = ServiceNoteData(
                 id=service_note_object.id,
                 subject={v:k for k,v in SERVICE_NOTE_SUBJECT_MAPPING.items()}[service_note_object.subject_id] if service_note_object.subject_id else None,
@@ -416,6 +418,7 @@ async def delete_service_notes(
         "Контрагент",
         "Документ",
         "Пользователь",
+        "Заявка на КП",
     ]] = Query(
         None,
         description="(Опционально) Фильтр по тому, к чему прикреплены служебные заметки.",

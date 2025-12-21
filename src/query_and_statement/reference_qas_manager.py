@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import APP_LOGIN, APP_PASSWORD
 from connection_module import async_session_maker
+from src.models.commercial_proposal_models import CommercialProposal
 from src.schemas.reference_schema import FiltersServiceNote, OrdersServiceNote
 from src.models.counterparty.counterparty_models import Counterparty
 from src.models.application.application_models import Application
@@ -30,7 +31,7 @@ class ReferenceQueryAndStatementManager:
         session: AsyncSession,
         
         uuid: str,
-        object_type: Literal["Directory", "Document", "Notification", "Counterparty", "Application",]
+        object_type: Literal["Directory", "Document", "Notification", "Counterparty", "Application", "CommercialProposal"],
     ) -> bool:
         """Проверка наличия uuid для Файла/Директории/Уведомления/Контрагент/Заявки. Возвращает Fasle если uuid свободен."""
         match object_type:
@@ -44,6 +45,9 @@ class ReferenceQueryAndStatementManager:
                 table = Counterparty
             case "Application":
                 table = Application
+            case "CommercialProposal":
+                table = CommercialProposal
+        
         query = (
             select(table.id)
             .filter(table.uuid == uuid)
