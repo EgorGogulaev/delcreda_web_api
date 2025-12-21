@@ -127,6 +127,8 @@ async def upload_file(
     commercial_proposal_uuid: Optional[str] = Query(
         None,
         description="UUID заявки по КП к которому прикрепиться документ.",
+        min_length=36,
+        max_length=36
     ),
     
     file: UploadFile = File(..., description="Документ."),
