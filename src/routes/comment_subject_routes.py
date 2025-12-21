@@ -34,7 +34,7 @@ router = APIRouter(
 @limiter.limit("30/second")
 async def create_comment_subject(
     request: Request,
-    comment_subject: Literal["Application", "Counterparty"] = Query(
+    comment_subject: Literal["Application", "Counterparty", "CommercialProposal",] = Query(
         ...,
         description="К чему будет прикреплен Коммент (Контрагент/Заявка)."
     ),
@@ -64,13 +64,13 @@ async def create_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"] if comment_subject == "Counterparty" else COMMENT_SUBJECT_MAPPING["Заявка на КП"],
             subject_uuid=subject_uuid,
             
             data=data,
         )
         
-        return JSONResponse(content={"msg": f'Комментарий для {"Заявки" if comment_subject == "Application" else "Контрагента"} успешно создан.'})
+        return JSONResponse(content={"msg": f'Комментарий для {"Заявки" if comment_subject == "Application" else "Контрагента" if comment_subject == "Counterparty" else "Заявки на КП"} успешно создан.'})
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -113,7 +113,7 @@ async def create_comment_subject(
 @limiter.limit("30/second")
 async def get_comment_subject(
     request: Request,
-    comment_subject: Literal["Application", "Counterparty"] = Query(
+    comment_subject: Literal["Application", "Counterparty", "CommercialProposal",] = Query(
         ...,
         description="К чему прикреплен Коммент (Контрагент/Заявка)."
     ),
@@ -147,7 +147,7 @@ async def get_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "application" else COMMENT_SUBJECT_MAPPING["Контрагент"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"] if comment_subject == "Counterparty" else COMMENT_SUBJECT_MAPPING["Заявка на КП"],
             subject_uuid=subject_uuid,
         )
         if comments:
@@ -212,7 +212,7 @@ async def get_comment_subject(
 @limiter.limit("30/second")
 async def update_comment_subject(
     request: Request,
-    comment_subject: Literal["Application", "Counterparty"] = Query(
+    comment_subject: Literal["Application", "Counterparty", "CommercialProposal",] = Query(
         ...,
         description="К чему прикреплен Комментарий, в котором планируется обновление (Контрагент/Заявка)."
     ),
@@ -238,7 +238,7 @@ async def update_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"] if comment_subject == "Counterparty" else COMMENT_SUBJECT_MAPPING["Заявка на КП"],
             subject_uuid=subject_uuid,
             
             new_data=new_data
@@ -286,7 +286,7 @@ async def update_comment_subject(
 @limiter.limit("30/second")
 async def delete_comment_subject(
     request: Request,
-    comment_subject: Literal["Application", "Counterparty"] = Query(
+    comment_subject: Literal["Application", "Counterparty", "CommercialProposal",] = Query(
         ...,
         description="К чему прикреплен Комментарий, который планируется удалить (Контрагент/Заявка)."
     ),
@@ -310,7 +310,7 @@ async def delete_comment_subject(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"],
+            subject_id=COMMENT_SUBJECT_MAPPING["Заявка"] if comment_subject == "Application" else COMMENT_SUBJECT_MAPPING["Контрагент"] if comment_subject == "Counterparty" else COMMENT_SUBJECT_MAPPING["Заявка на КП"],
             subject_uuid=subject_uuid,
         )
         
