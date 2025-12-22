@@ -37,7 +37,7 @@ class CommercialProposalService:
     ) -> str:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             if target_user_uuid != requester_user_uuid:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать заявку по КП для другого Пользователя!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создать Заявку на КП для другого Пользователя!")
         
         counterparty_check_access_response_object: Optional[Tuple[int, int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
             session=session,
@@ -47,7 +47,7 @@ class CommercialProposalService:
             counterparty_uuid=counterparty_uuid,
         )
         if counterparty_check_access_response_object is None:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создавать заявку по КП, по данному UUID-Контрагента!")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создавать Заявку на КП, по данному UUID-Контрагента!")
         
         if application_uuid:
             application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
@@ -58,7 +58,7 @@ class CommercialProposalService:
                 application_uuid=application_uuid,
             )
             if application_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создавать заявку по КП, по данному UUID-Заявки!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете создавать Заявку на КП, по данному UUID-Заявки!")
         
         user_id: int = await UserQueryAndStatementManager.get_user_id_by_uuid(
             session=session,
@@ -95,7 +95,7 @@ class CommercialProposalService:
             requester_user_privilege=requester_user_privilege,
             owner_s3_login=user_s3_login,
             owner_user_uuid=target_user_uuid,
-            directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки по КП"],
+            directory_type=DIRECTORY_TYPE_MAPPING["Директория заявки на КП"],
             new_directory_uuid=None,
             parent_directory_uuid=parent_directory_uuid,
         )
@@ -264,7 +264,7 @@ class CommercialProposalService:
         commercial_proposal_uuids: Optional[List[str]] = None,
     ) -> None:
         if not commercial_proposal_uuids:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления заявок на КП, нужно указать хотя бы 1 UUID!")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления Заявок на КП, нужно указать хотя бы 1 UUID!")
         
         commercial_proposal_id_and_dir_uuid: List[Tuple[int, str]] = []
         for commercial_proposal_uuid in commercial_proposal_uuids:
@@ -276,7 +276,7 @@ class CommercialProposalService:
                 for_update_or_delete_commercial_proposal=True,
             )
             if commercial_proposal_check_access_response_object is None:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять заявки по КП других Пользователей!")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете удалять Заявки на КП других Пользователей!")
             
             commercial_proposal_id_and_dir_uuid.append(commercial_proposal_check_access_response_object)
         

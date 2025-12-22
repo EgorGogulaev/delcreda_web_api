@@ -126,7 +126,7 @@ async def upload_file(
     ),
     commercial_proposal_uuid: Optional[str] = Query(
         None,
-        description="UUID заявки по КП к которому прикрепиться документ.",
+        description="UUID Заявки на КП к которому прикрепиться документ.",
         min_length=36,
         max_length=36
     ),
@@ -190,7 +190,7 @@ async def upload_file(
                 subject=subject,
                 subject_uuid=subject_uuid,
                 for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-                data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).' if subject == "Контрагент" else f' в заявку по КП "commercial_proposal" ({subject_uuid}).'),
+                data=f'Пользователь "<user>" загрузил Документ "<file>" ({new_file_uuid}) в Директорию "{directory_uuid}".' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор загрузил новый Документ "<file>" ({new_file_uuid}).' + (f' в Заявку "<application>" ({subject_uuid}).' if subject == "Поручение" else f' в карточку Контрагента "<counterparty>" ({subject_uuid}).' if subject == "Контрагент" else f' в Заявку на КП "commercial_proposal" ({subject_uuid}).'),
                 recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else owner_user_uuid,
                 
                 is_important=True,

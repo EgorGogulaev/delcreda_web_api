@@ -1,6 +1,4 @@
-from typing import List
-
-from sqlalchemy import Tuple
+from typing import List, Tuple
 
 
 COMMERCIAL_PROPOSAL_TYPE: List[Tuple] = [

@@ -106,6 +106,7 @@ async def create_commercial_proposal(
         }
         if application_uuid:
             request_options.update({"<application>": {"uuid": application_uuid}})
+        
         await NotificationService.notify(
             session=session,
             requester_user_id=user_data["user_id"],
@@ -115,10 +116,25 @@ async def create_commercial_proposal(
             subject="Заявка на КП",
             subject_uuid=new_commercial_proposal_uuid,
             for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=(f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую заявку по КП - "<commercial_proposal>" ({new_commercial_proposal_uuid})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новую заявку на КП "<commercial_proposal>" ({new_commercial_proposal_uuid}), ') + (f'которая относится к Заявке <application> (контрагент - "<counterparty>")' if application_uuid else f'которая относится к Контрагенту - "<counterparty>"'),
+            data=(f'Пользователь "<user>" ({user_data["user_uuid"]}) создал новую заявку на КП - "<commercial_proposal>" ({new_commercial_proposal_uuid})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else f'Администратор создал новую заявку на КП "<commercial_proposal>" ({new_commercial_proposal_uuid}), ') + (f'которая относится к Заявке <application> (контрагент - "<counterparty>")' if application_uuid else f'которая относится к Контрагенту - "<counterparty>"'),
             recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else target_user_uuid,
             request_options=request_options,
         )
+        
+        if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"]:  # FIXME (стоит протестировать, будет ли отправлено уведомление самому себе (???))
+            await NotificationService.notify(
+                session=session,
+                requester_user_id=user_data["user_id"],
+                requester_user_uuid=user_data["user_uuid"],
+                requester_user_privilege=user_data["privilege_id"],
+                
+                subject="Заявка на КП",
+                subject_uuid=new_commercial_proposal_uuid,
+                for_admin=False,
+                data=f'Заявка на получение коммерческого предложения ("<commercial_proposal>") отправлена на рассмотрение, ожидайте ответа. (Контрагент - "<counterparty_uuid>"' + ', заявка - "<application>")' if application_uuid else ")",
+                recipient_user_uuid=user_data["user_uuid"],
+                request_options=request_options,
+            )
         
         response_content = {"msg": "Заявка на КП успешно создана."}
         return JSONResponse(content=response_content)
@@ -158,7 +174,7 @@ async def create_commercial_proposal(
 @router.post(
     "/get_commercial_proposals",
     description="""
-    Получение заявок по КП
+    Получение заявок на КП
     
     filter: FiltersCommercialProposals
     order: OrdersCommercialProposals

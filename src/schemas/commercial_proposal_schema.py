@@ -60,7 +60,7 @@ class CommercialProposal(BaseModel):
     document_uuid: Optional[str] = Field(None, description="UUID Документа КП.")
     status: int = Field(..., description="ID статуса КП")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем? (true - да/false - нет)")
-    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления заявки по КП (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
+    updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления Заявки на КП (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
     created_at: Optional[str] = Field(None, description="Дата-время создания записи (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")
 
 class ResponseGetCommercialProposals(BaseModel):

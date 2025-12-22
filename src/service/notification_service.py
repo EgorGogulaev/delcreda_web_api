@@ -76,7 +76,7 @@ class NotificationService:
                     commercial_proposal_uuid=subject_uuid,
                 )
                 if commercial_proposal_check_access_response_object is None:
-                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Заявки по КП!")
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете делать Уведомления по данному UUID-Заявки на КП!")
         
         recipient_user_id = None
         if recipient_user_uuid:
