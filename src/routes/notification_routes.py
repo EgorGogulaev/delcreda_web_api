@@ -144,7 +144,7 @@ async def notify(
     """,
     dependencies=[Depends(check_app_auth)],
 )
-@limiter.limit("30/second")
+@limiter.limit("60/second")
 async def get_notifications(
     request: Request,
     for_admin: bool = Query(

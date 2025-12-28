@@ -23,7 +23,7 @@ from src.schemas.file_store_schema import (
 from src.service.notification_service import NotificationService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
 from src.service.file_store_service import FileStoreService
-from src.utils.reference_mapping_data.file_store.mapping import DOCUMENT_TYPE_MAPPING, FILE_STORE_SUBJECT_MAPPING
+from src.utils.reference_mapping_data.file_store.mapping import FILE_STORE_SUBJECT_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING 
 
 
@@ -105,30 +105,40 @@ async def upload_file(
         ...,
         description="UUID Директории, куда будет загружен Документ.",
         min_length=36,
-        max_length=36
+        max_length=36,
     ),
-    # TODO Это нужно отредактировать
-    file_type: Optional[str] = Query(
-        None,
-        description="Тип Документа."
-    ),
+    
     new_file_uuid: Optional[str] = Query(
         None,
         description="(Опиционально) Ручное выставление нового UUID для Документа. (нужно для интеграции в другие системы)",
         min_length=36,
-        max_length=36
+        max_length=36,
     ),
     owner_user_uuid: Optional[str] = Query(
         None,
         description="UUID владельца Документа.",
         min_length=36,
-        max_length=36
+        max_length=36,
     ),
+    
     commercial_proposal_uuid: Optional[str] = Query(
         None,
-        description="UUID Заявки на КП к которому прикрепиться документ.",
+        description="(Если документ является КП) UUID Заявки на КП к которому прикрепиться документ.",
         min_length=36,
-        max_length=36
+        max_length=36,
+    ),
+    
+    # TODO РЕАЛИЗОВАТЬ ЛОГИКУ СОЗДАНИЯ КАРТОЧКИ ДОГОВОРА
+    is_contract: bool = Query(
+        False,
+        description="Документ является Договором? (true-да/false-нет)",
+    ),
+    contract_type: Optional[Literal[
+        "MT",
+        # TODO тут будут другие типы Договоров
+    ]] = Query(
+        None,
+        description="(Если is_contract=true) Тип Договора.",
     ),
     
     file: UploadFile = File(..., description="Документ."),
@@ -139,6 +149,7 @@ async def upload_file(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
+        file_type = None  # FIXME (будет удалено, если не потребуется в дальнейшем тип Документов)
         new_file_uuid: str = await FileStoreService.upload(
             session=session,
             

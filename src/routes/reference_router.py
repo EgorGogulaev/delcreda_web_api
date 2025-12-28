@@ -492,6 +492,15 @@ async def get_countries(
         content=COUNTRY_MAPPING_RUSSIA
     )
 
+@router.get("/healthcheck", dependencies=[Depends(check_app_auth)],)
+@limiter.limit("1/second")
+async def healthcheck(
+    request: Request,
+) -> JSONResponse:
+    response_content: Dict[str, bool] = await ReferenceService.healthcheck()
+    
+    return JSONResponse(content=response_content)
+
 @router.get("/test", dependencies=[Depends(check_app_auth)],)
 @limiter.limit("1/second")
 async def test(

@@ -2,10 +2,12 @@ from typing import Dict, List, Literal, Optional
 
 from fastapi import HTTPException
 from fastapi import status
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import IS_PROD, TG_CHAT_ID
+from connection_module import RedisConnector, async_session_maker
 from src.schemas.reference_schema import FiltersServiceNote, OrdersServiceNote
 from src.models.reference_models import ServiceNote
 from src.query_and_statement.reference_qas_manager import ReferenceQueryAndStatementManager
@@ -286,6 +288,28 @@ class ReferenceService:
             )
         
         return log_id
+    
+    @staticmethod
+    async def healthcheck() -> Dict[str, bool]:
+        healthcheck_result = {}
+        
+        # Redis
+        try:
+            async with RedisConnector.get_async_redis_session() as redis_session:
+                await redis_session.ping()
+                healthcheck_result["redis"] = True
+        except:
+            healthcheck_result["redis"] = False
+        
+        # PostgreSQL  
+        try:
+            async with async_session_maker() as postgres_session:
+                await postgres_session.execute(text("SELECT 1"))
+                healthcheck_result["postgres"] = True
+        except:
+            healthcheck_result["postgres"] = False
+        
+        return healthcheck_result
     
     @staticmethod
     async def _test(

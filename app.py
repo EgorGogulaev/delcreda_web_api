@@ -27,7 +27,6 @@ from src.routes.application.application_routes import router as application_rout
 from src.routes.application.mt_application_routes import router as mt_application_router
 
 from src.routes.commercial_proposal_routes import router as commercial_proposal_router
-# TODO тут будет конкретное КП
 
 
 

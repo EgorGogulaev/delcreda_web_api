@@ -1,3 +1,7 @@
 from typing import List, Tuple
 
-# TODO Реализовать
+
+CONTRACT_TYPE: List[Tuple] = [
+    (1, "MT", "Договор на перевод денежных средств."),
+    # TODO
+]
