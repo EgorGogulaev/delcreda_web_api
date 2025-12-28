@@ -305,7 +305,7 @@ class ReferenceService:
         # PostgreSQL  
         try:
             async with async_session_maker() as postgres_session:
-                await asyncio.wait_for(await postgres_session.execute(text("SELECT 1")), timeout=15)
+                await asyncio.wait_for(postgres_session.execute(text("SELECT 1")), timeout=15)
                 healthcheck_result["postgres"] = True
         except:
             healthcheck_result["postgres"] = False
