@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, List, Literal, Optional
 
 from fastapi import HTTPException
@@ -296,7 +297,7 @@ class ReferenceService:
         # Redis
         try:
             async with RedisConnector.get_async_redis_session() as redis_session:
-                await redis_session.ping()
+                await asyncio.wait_for(redis_session.ping(), timeout=15)
                 healthcheck_result["redis"] = True
         except:
             healthcheck_result["redis"] = False
@@ -304,7 +305,7 @@ class ReferenceService:
         # PostgreSQL  
         try:
             async with async_session_maker() as postgres_session:
-                await postgres_session.execute(text("SELECT 1"))
+                await asyncio.wait_for(await postgres_session.execute(text("SELECT 1")), timeout=15)
                 healthcheck_result["postgres"] = True
         except:
             healthcheck_result["postgres"] = False
