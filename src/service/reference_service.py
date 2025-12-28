@@ -312,6 +312,7 @@ class ReferenceService:
         
         return healthcheck_result
     
+    
     @staticmethod
     async def _test(
         session: AsyncSession,
