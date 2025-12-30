@@ -83,6 +83,7 @@ class CreateMTApplicationDataSchema(BaseModel):
     spfs: Optional[str] = None  # Система передачи финансовых сообщений (СПФС)
     cips: Optional[str] = None  # CIPS (Система трансграничных межбанковских платежей в китайских юанях (RMB))
     recipient_bank_address: Optional[str] = None  # Адрес банка получателя
+    recipient_bank_correspondent_account: Optional[str] = None  # счет-корреспондент банка получателя
     
     sender_company_name_latin: Optional[str] = None  # Наименование компании - отправителя платежа в латинском написании
     sender_company_name_national: Optional[str] = None  # Наименование компании - отправителя платежа в национальном написании
@@ -175,6 +176,7 @@ class UpdateMTApplicationDataSchema(BaseModel):
     spfs: Optional[str] = "~"                                             #о1.1,  - ,о1.3,  - ,  - ,о2.1,  - ,  - ,  -            # Система передачи финансовых сообщений (СПФС) V
     cips: Optional[str] = "~"                                             #о1.1,  - ,о1.3,  - ,  - ,о2.1,  - ,  - ,  -            # CIPS (Система трансграничных межбанковских платежей в китайских юанях (RMB)) V
     recipient_bank_address: Optional[str] = "~"                           # 1.1,  - , 1.3,  - ,  - , 2.1,  - ,  - ,  -            # Адрес банка получателя V
+    recipient_bank_correspondent_account: Optional[str] = "~"             #о1.1,  - ,о1.3,  - ,  - ,о2.1,  - ,  - ,  -            # счет-корреспондент банка получателя
     
     sender_company_name_latin: Optional[str] = "~"                        #  - , 1.2,  - , 1.4,  - ,  - , 2.2,  - ,  -            # Наименование компании - отправителя платежа в латинском написании V
     sender_company_name_national: Optional[str] = "~"                     #  - , 1.2,  - , 1.4,  - ,  - , 2.2,  - ,  -            # Наименование компании - отправителя платежа в национальном написании V

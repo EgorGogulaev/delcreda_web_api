@@ -79,6 +79,7 @@ class MTApplicationData(Base):
     spfs = Column(String, comment="Система передачи финансовых сообщений (СПФС)")
     cips = Column(String, comment="CIPS (Система трансграничных межбанковских платежей в китайских юанях (RMB))")
     recipient_bank_address = Column(String, comment="Адрес банка получателя")
+    recipient_bank_correspondent_account = Column(String, comment="Корреспондентский счет банка получателя")
     
     sender_company_name_latin = Column(String, comment="Наименование компании - отправителя платежа в латинском написании")
     sender_company_name_national = Column(String, comment="Наименование компании - отправителя платежа в национальном написании")

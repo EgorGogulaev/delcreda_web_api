@@ -148,6 +148,7 @@ async def create_application(
             spfs=application_data.spfs,
             cips=application_data.cips,
             recipient_bank_address=application_data.recipient_bank_address,
+            recipient_bank_correspondent_account=application_data.recipient_bank_correspondent_account,
             
             sender_company_name_latin=application_data.sender_company_name_latin,
             sender_company_name_national=application_data.sender_company_name_national,
@@ -544,6 +545,7 @@ async def get_applications_data(
                 "spfs": application_data.spfs,
                 "cips": application_data.cips,
                 "recipient_bank_address": application_data.recipient_bank_address,
+                "recipient_bank_correspondent_account": application_data.recipient_bank_correspondent_account,
                 
                 "sender_company_name_latin": application_data.sender_company_name_latin,
                 "sender_company_name_national": application_data.sender_company_name_national,
@@ -681,6 +683,7 @@ async def update_application_data(
             spfs=data_for_update.spfs,
             cips=data_for_update.cips,
             recipient_bank_address=data_for_update.recipient_bank_address,
+            recipient_bank_correspondent_account=data_for_update.recipient_bank_correspondent_account,
             sender_company_name_latin=data_for_update.sender_company_name_latin,
             sender_company_name_national=data_for_update.sender_company_name_national,
             sender_company_legal_form=data_for_update.sender_company_legal_form,
