@@ -359,7 +359,7 @@ async def get_applications(
                             "Отклонено": "Rejected",
                             "Требует внимания заказчика": "Requires_customer_attention",
                             "Завершен успешно": "Completed_successfully",
-                            "Завершен не успешно": "Completed_unsuccessfully",
+                            "Завершен неуспешно": "Completed_unsuccessfully",
                         }[{v:k for k, v in APPLICATION_STATUS_MAPPING.items()}[application["application"].status]] if application["application"].status else application["application"].status,
                         data_id=application["application"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application["application"].can_be_updated_by_user,
@@ -385,7 +385,7 @@ async def get_applications(
                             "Отклонено": "Rejected",
                             "Требует внимания заказчика": "Requires_customer_attention",
                             "Завершен успешно": "Completed_successfully",
-                            "Завершен не успешно": "Completed_unsuccessfully",
+                            "Завершен неуспешно": "Completed_unsuccessfully",
                         }[{v:k for k, v in APPLICATION_STATUS_MAPPING.items()}[application.status]] if application.status else application.status,
                         data_id=application.data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application.can_be_updated_by_user,

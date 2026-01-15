@@ -65,7 +65,7 @@ class ApplicationService:
             "Rejected": "Отклонено",
             "Requires_customer_attention": "Требует внимания заказчика",
             "Completed_successfully": "Завершен успешно",
-            "Completed_unsuccessfully": "Завершен не успешно",
+            "Completed_unsuccessfully": "Завершен неуспешно",
         }
         await ApplicationQueryAndStatementManager.change_applications_status(
             session=session,
