@@ -65,22 +65,8 @@ class CommercialProposalService:
             
             uuid=target_user_uuid,
         )
-        user_dirs: Dict[str, Any] = await FileStoreService.get_dir_info_from_db(
-            session=session,
-            
-            requester_user_uuid=requester_user_uuid,
-            requester_user_privilege=requester_user_privilege,
-            owner_user_uuid=target_user_uuid,
-            visible=True,
-        )
-        if not user_dirs["count"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не найдена ни одна директория по указанным данным Пользователя!")
-        parent_directory_uuid = None
-        for dir_id in user_dirs["data"]:
-            if user_dirs["data"][dir_id]["type"] == DIRECTORY_TYPE_MAPPING["Пользовательская директория"]:
-                parent_directory_uuid = user_dirs["data"][dir_id]["uuid"]
-        if not parent_directory_uuid:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="У Пользователя нет пользовательской Директории!")
+        
+        parent_directory_uuid: str = application_check_access_response_object[2]
         
         user_s3_login: str = await UserQueryAndStatementManager.get_user_s3_login(
             session=session,
@@ -127,6 +113,7 @@ class CommercialProposalService:
             chat_subject="Заявка на КП",
             subject_uuid=new_commercial_proposal_uuid,
         )
+        
         return new_commercial_proposal_uuid
     
     @staticmethod

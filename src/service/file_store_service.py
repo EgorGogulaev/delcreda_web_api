@@ -1,7 +1,7 @@
 import os
 import posixpath
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 import urllib.parse
 
 from fastapi import status
@@ -273,6 +273,8 @@ class FileStoreService:
             else:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о файле с UUID - "{file_uuid}"!')
     
+    
+    # TODO РЕАЛИЗОВАТЬ ЛОГИКУ ОБРАБОТКИ СЦЕНАРИЕВ СОЗДАНИЯ КАРТОЧЕК ДОГОВОРОВ. + ИНВАРИАНТЫ
     @classmethod
     async def upload(
         cls,
@@ -288,6 +290,13 @@ class FileStoreService:
         file_type: Optional[str] = None,
         
         commercial_proposal_uuid: Optional[str] = None,
+        
+        # TODO РЕАЛИЗОВАТЬ ЛОГИКУ СОЗДАНИЯ КАРТОЧКИ ДОГОВОРА
+        is_contract: Optional[bool] = False,
+        contract_type: Optional[Literal[
+            "MT",
+            # TODO тут будут другие типы Договоров
+        ]] = None,
     ) -> str:
         if not directory_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать uuid директории для загрузки!")
@@ -296,6 +305,8 @@ class FileStoreService:
             raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Файл должен быть менее 20 мб!")
         
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:  # Проверка если Пользователь не Админ
+            if is_contract:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл Договора!")
             if owner_user_uuid:
                 if owner_user_uuid != requester_user_uuid:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете загружать Файл для другого Пользователя!")
@@ -391,6 +402,9 @@ class FileStoreService:
                     commercial_proposal_uuid=commercial_proposal_uuid,
                     document_uuid=new_file_uuid,
                 )
+            
+            if is_contract:
+                ...  # TODO Релазиовать создание карточки Договора
             
         else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
             if dir_data["count"] == 0:

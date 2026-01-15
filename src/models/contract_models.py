@@ -18,6 +18,10 @@ class Contract(Base):
     name = Column(String, nullable=True)  # Название берется из прикрепленного Документа
     type = Column(SmallInteger, ForeignKey("contract_type.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     
+    # Пользователь к кому относится КП
+    user_id = Column(Integer, ForeignKey("user_account.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
+    user_uuid = Column(String(length=36), nullable=False)
+    
     # к чему привязка? Если только к Контрагенту - Договор "верхнеуровневый"...
     counterparty_id = Column(Integer, ForeignKey("counterparty.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=True)
     counterparty_uuid = Column(String(length=36), nullable=True)

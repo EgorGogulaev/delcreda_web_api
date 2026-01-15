@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     
     redis_conns = aioredis.create_connection(RedisConnector.DSN_CONN)
     
-    for idx, (table, referense) in enumerate(
+    for idx, (table, reference) in enumerate(
         zip(
             [
                 UserPrivilege, Token, UserAccount,
@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
     ):
         prepare_reference(
             table=table,
-            reference_data=referense,
+            reference_data=reference,
             first_iteration=True if idx == 0 else False,
         )
     

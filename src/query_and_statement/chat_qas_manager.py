@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
 from connection_module import async_session_maker
+from src.models.contract_models import Contract
 from src.models.commercial_proposal_models import CommercialProposal
 from src.models.chat_models import Chat, Message
 from src.models.counterparty.counterparty_models import Counterparty
@@ -36,11 +37,11 @@ class ChatQueryAndStatementManager:
         requester_user_uuid: str,
         requester_user_privilege: int,
         
-        chat_subject: Literal["Заявка", "Контрагент", "Заявка на КП"],
+        chat_subject: Literal["Заявка", "Контрагент", "Заявка на КП", "Договор",],
         subject_uuid: str,
     ) -> Optional[int]:
         async def __do(session: AsyncSession):
-            subject_table = Counterparty if chat_subject == "Контрагент" else Application if chat_subject == "Заявка" else CommercialProposal
+            subject_table = Counterparty if chat_subject == "Контрагент" else Application if chat_subject == "Заявка" else CommercialProposal if chat_subject == "Заявка на КП" else Contract
             
             _filters = [subject_table.uuid == subject_uuid]
             

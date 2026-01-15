@@ -38,9 +38,7 @@ class CommercialProposalQueryAndStatementManager:
         directory_uuid: str,
         
         document_uuid: Optional[str],
-        
     ) -> None:
-        
         stmt = (
             insert(CommercialProposal)
             .values(

@@ -90,7 +90,6 @@ async def download_file(
     finally:
         await session.rollback()
 
-# TODO НУЖНО РЕАЛИЗОВАТЬ ЛОГИКУ СМЕНЫ ЦЕЛЕВОГО ДОКУМЕНТА ДЛЯ КП(!!!) СМ. ПАРАМЕТР commercial_proposal_uuid
 @router.put(
     "/upload",
     description="""
@@ -128,7 +127,6 @@ async def upload_file(
         max_length=36,
     ),
     
-    # TODO РЕАЛИЗОВАТЬ ЛОГИКУ СОЗДАНИЯ КАРТОЧКИ ДОГОВОРА
     is_contract: bool = Query(
         False,
         description="Документ является Договором? (true-да/false-нет)",
@@ -139,6 +137,15 @@ async def upload_file(
     ]] = Query(
         None,
         description="(Если is_contract=true) Тип Договора.",
+    ),
+    # TODO УЧЕСТЬ ЭТИ ДВА ПАРАМЕТРА ДЛЯ ДОГОВОРОВ!
+    start_date: Optional[str] = Query(
+        None,
+        description="(Если подгружаем Договор) Дата, когда Договор вступает в действие. (Формат: 'dd.mm.YYYY')",
+    ),
+    expiration_date: Optional[str] = Query(
+        None,
+        description="(Если подгружаем Договор) Дата, когда действие Договора истекает. (Формат: 'dd.mm.YYYY')",
     ),
     
     file: UploadFile = File(..., description="Документ."),
@@ -162,6 +169,9 @@ async def upload_file(
             file_type=file_type if file_type else None,
             
             commercial_proposal_uuid=commercial_proposal_uuid,
+            
+            is_contract=is_contract,
+            contract_type=contract_type,
         )
         
         subject_id, subject_uuid = await FileStoreQueryAndStatementManager.get_subject_info_by_directory_uuid(

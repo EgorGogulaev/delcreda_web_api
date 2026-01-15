@@ -7,6 +7,7 @@ DIRECTORY_TYPE_MAPPING: Dict[str, int] = {
     "Директория контрагента": 2,  # FIXME надо поменять в БД
     "Директория заявки": 3,
     "Директория заявки на КП": 4,
+    "Директория карточки договора": 5,
 }
 
 DIRECTORY_TYPE_FOR_KEYS:  List[int] = list(range(1, 4))

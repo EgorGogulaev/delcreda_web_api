@@ -353,7 +353,14 @@ async def get_applications(
                         directory_id=application["application"].directory_id,
                         directory_uuid=application["application"].directory_uuid,
                         type="MT",
-                        status=list(APPLICATION_STATUS_MAPPING)[list(APPLICATION_STATUS_MAPPING.values()).index(application["application"].status)] if application["application"].status else application["application"].status,
+                        status={
+                            "Запрошен": "Requested",
+                            "В работе": "In_progress",
+                            "Отклонено": "Rejected",
+                            "Требует внимания заказчика": "Requires_customer_attention",
+                            "Завершен успешно": "Completed_successfully",
+                            "Завершен не успешно": "Completed_unsuccessfully",
+                        }[{v:k for k, v in APPLICATION_STATUS_MAPPING.items()}[application["application"].status]] if application["application"].status else application["application"].status,
                         data_id=application["application"].data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application["application"].can_be_updated_by_user,
                         updated_at=convert_tz(application["application"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application["application"].updated_at else None,
@@ -372,7 +379,14 @@ async def get_applications(
                         directory_id=application.directory_id,
                         directory_uuid=application.directory_uuid,
                         type="MT",
-                        status=list(APPLICATION_STATUS_MAPPING)[list(APPLICATION_STATUS_MAPPING.values()).index(application.status)] if application.status else application.status,
+                        status={
+                            "Запрошен": "Requested",
+                            "В работе": "In_progress",
+                            "Отклонено": "Rejected",
+                            "Требует внимания заказчика": "Requires_customer_attention",
+                            "Завершен успешно": "Completed_successfully",
+                            "Завершен не успешно": "Completed_unsuccessfully",
+                        }[{v:k for k, v in APPLICATION_STATUS_MAPPING.items()}[application.status]] if application.status else application.status,
                         data_id=application.data_id,  # FIXME это возможно не стоит возвращать
                         can_be_updated_by_user=application.can_be_updated_by_user,
                         updated_at=convert_tz(application.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application.updated_at else None,
