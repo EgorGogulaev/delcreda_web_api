@@ -9,7 +9,7 @@ APPLICATION_STATUS_MAPPING: Dict[str, int] = {  # TODO нужно прогово
     "Требует внимания заказчика": 4,
     "В очереди": 5,
     "Завершен успешно": 6,
-    "Завершен не успешно": 7,
+    "Завершен неуспешно": 7,
 }
 
 APPLICATION_STATUS_FOR_KEYS: List[int] = list(range(1, 8))
