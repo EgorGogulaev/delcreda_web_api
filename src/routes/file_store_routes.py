@@ -172,6 +172,8 @@ async def upload_file(
             
             is_contract=is_contract,
             contract_type=contract_type,
+            start_date=start_date,
+            expiration_date=expiration_date,
         )
         
         subject_id, subject_uuid = await FileStoreQueryAndStatementManager.get_subject_info_by_directory_uuid(

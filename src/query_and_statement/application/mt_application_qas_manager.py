@@ -233,6 +233,16 @@ class MTApplicationQueryAndStatementManager:
         if filter is not None and filter.filters:
             for filter_item in filter.filters:
                 column = getattr(Application, filter_item.field)
+                if column == "status":
+                    filter_item.value = {
+                        "Запрошен": 1,
+                        "В работе": 2,
+                        "Отклонено": 3,
+                        "Требует внимания заказчика": 4,
+                        "Завершен успешно": 5,
+                        "Завершен неуспешно": 6,
+                    }[filter_item.value]
+                
                 if filter_item.operator == "eq":
                     cond = column == filter_item.value
                 elif filter_item.operator == "ne":

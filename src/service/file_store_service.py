@@ -297,6 +297,8 @@ class FileStoreService:
             "MT",
             # TODO тут будут другие типы Договоров
         ]] = None,
+        start_date: Optional[str] = None,
+        expiration_date: Optional[str] = None,
     ) -> str:
         if not directory_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно указать uuid директории для загрузки!")
