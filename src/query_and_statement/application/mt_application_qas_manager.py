@@ -234,7 +234,15 @@ class MTApplicationQueryAndStatementManager:
             for filter_item in filter.filters:
                 column = getattr(Application, filter_item.field)
                 if filter_item.field == "status":
-                    value = APPLICATION_STATUS_MAPPING[filter_item.value]
+                    value = {
+                        "Requested": 1,
+                        "In_progress": 2,
+                        "Rejected": 3,
+                        "Requires_customer_attention": 4,
+                        "In_queue": 5,
+                        "Completed_successfully": 6,
+                        "Completed_unsuccessfully": 7,
+                    }[filter_item.value]
                 else:
                     value = filter_item.value
                 
