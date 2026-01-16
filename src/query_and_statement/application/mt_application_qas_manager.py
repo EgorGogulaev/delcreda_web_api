@@ -233,8 +233,8 @@ class MTApplicationQueryAndStatementManager:
         if filter is not None and filter.filters:
             for filter_item in filter.filters:
                 column = getattr(Application, filter_item.field)
-                if column == "status":
-                    filter_item.value = {
+                if filter_item.field == "status":
+                    value = {
                         "Запрошен": 1,
                         "В работе": 2,
                         "Отклонено": 3,
@@ -242,27 +242,29 @@ class MTApplicationQueryAndStatementManager:
                         "Завершен успешно": 5,
                         "Завершен неуспешно": 6,
                     }[filter_item.value]
+                else:
+                    value = filter_item.value
                 
                 if filter_item.operator == "eq":
-                    cond = column == filter_item.value
+                    cond = column == value
                 elif filter_item.operator == "ne":
-                    cond = column != filter_item.value
+                    cond = column != value
                 elif filter_item.operator == "gt":
-                    cond = column > filter_item.value
+                    cond = column > value
                 elif filter_item.operator == "lt":
-                    cond = column < filter_item.value
+                    cond = column < value
                 elif filter_item.operator == "ge":
-                    cond = column >= filter_item.value
+                    cond = column >= value
                 elif filter_item.operator == "le":
-                    cond = column <= filter_item.value
+                    cond = column <= value
                 elif filter_item.operator == "like":
-                    value = f"%{filter_item.value}%"
+                    value = f"%{value}%"
                     cond = column.ilike(value)
                 elif filter_item.operator == "in":
-                    if isinstance(filter_item.value, str):
-                        values = [v.strip() for v in filter_item.value.split(",")]
+                    if isinstance(value, str):
+                        values = [v.strip() for v in value.split(",")]
                     else:
-                        values = filter_item.value
+                        values = value
                     cond = column.in_(values)
                 else:
                     continue
