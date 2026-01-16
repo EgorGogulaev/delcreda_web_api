@@ -16,7 +16,7 @@ APPLICATION_STATUS_FOR_KEYS: List[int] = list(range(1, 8))
 # ______________________________________________________________________
 
 # ______________________________________________________________________
-APPLICATION_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ С ЧЕЛОВЕКОМ ОТ 
+APPLICATION_TYPE_MAPPING: Dict[str, int] = {  # TODO ДОРАБОТАТЬ С ЧЕЛОВЕКОМ ОТ Starting pgAdmin 4...
     "MT": 1,
 }
 

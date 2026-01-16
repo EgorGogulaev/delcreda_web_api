@@ -234,14 +234,7 @@ class MTApplicationQueryAndStatementManager:
             for filter_item in filter.filters:
                 column = getattr(Application, filter_item.field)
                 if filter_item.field == "status":
-                    value = {
-                        "Запрошен": 1,
-                        "В работе": 2,
-                        "Отклонено": 3,
-                        "Требует внимания заказчика": 4,
-                        "Завершен успешно": 5,
-                        "Завершен неуспешно": 6,
-                    }[filter_item.value]
+                    value = APPLICATION_STATUS_MAPPING[filter_item.value]
                 else:
                     value = filter_item.value
                 
