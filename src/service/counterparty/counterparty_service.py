@@ -425,11 +425,12 @@ class CounterpartyService:
             if application_access_list_id is not None:
                 applications_access_lists_ids.append(application_access_list_id)
             
-            counterparty_applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationService.get_applications(
+            counterparty_applications: Dict[str, List[Optional[Application]]|Optional[int]] = await ApplicationService.get_applications(
                 session=session,
                 
                 requester_user_uuid=requester_user_uuid,
                 requester_user_privilege=requester_user_privilege,
+                
                 user_uuid=requester_user_uuid if requester_user_privilege != PRIVILEGE_MAPPING["Admin"] else None,
                 counterparty_uuid=counterparty_uuid,
             )

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
+from service.application.application_service import ApplicationService
 from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
 from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
@@ -303,11 +304,13 @@ async def get_applications(
             )
         client_state_data: Dict[str, Any] = client_state.model_dump()["data"]
         
-        applications: Dict[str, List[Optional[Application]]|Optional[int]] = await MTApplicationService.get_applications(
+        applications: Dict[str, List[Optional[Application]]|Optional[int]] = await ApplicationService.get_applications(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            
+            application_type="MT",
             user_uuid=user_uuid,
             counterparty_uuid=counterparty_uuid,
             

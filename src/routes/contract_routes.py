@@ -1,5 +1,5 @@
 import traceback
-from typing import Dict, Literal, Optional
+from typing import Dict, Literal, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
+from src.service.notification_service import NotificationService
 from src.service.contract_service import ContractService
 from src.service.reference_service import ReferenceService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
@@ -57,7 +58,7 @@ async def create_contract(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        await ContractService.create_contract(
+        counterparty_uuid, application_uuid, new_contract_uuid, owner_user_uuid, contract_name = Tuple[str, Optional[str], str, str, str] = await ContractService.create_contract(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],
@@ -70,10 +71,35 @@ async def create_contract(
             expiration_date=expiration_date,
         )
         
-        # TODO нужно уведомление
+        request_options = {
+            "<counterparty>": {
+                "uuid": counterparty_uuid,
+            },
+        }
+        if application_uuid:
+            request_options.update({"<application>": {"uuid": application_uuid}})
+        
+        await NotificationService.notify(
+            session=session,
+            requester_user_id=user_data["user_id"],
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            
+            subject="Договор",
+            subject_uuid=new_contract_uuid,
+            for_admin=False,
+            data=(
+                f'Администратор прикрепил карточку Договора "{contract_name}" к Заявке на ПР - <application> (UUID: "{application_uuid}"), которая относится к карточке Контрагента - <counterparty> (UUID: "{counterparty_uuid}").'
+                if application_uuid is not None else
+                f'Администратор прикрепил карточку Договора "{contract_name}" к карточке Контрагента - <counterparty> (UUID: "{counterparty_uuid}").'
+            ),
+            recipient_user_uuid=owner_user_uuid,
+            request_options=request_options,
+        )
         
         response_content = {"msg": f'На основании документа с UUID: "{document_uuid}" создана карточка Договора с типом "{type}".'}
         return JSONResponse(content=response_content)
+    
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()

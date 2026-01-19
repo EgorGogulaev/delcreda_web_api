@@ -1,11 +1,12 @@
 # TODO Реализовать
 
-from typing import Optional
-from sqlalchemy import insert
+from typing import Optional, Tuple
+from sqlalchemy import and_, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.contract_models import Contract
 from src.utils.reference_mapping_data.contract.mapping import CONTRACT_TYPE_MAPPING
+from utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 
 
 class ContractQueryAndStatementManager:
@@ -50,6 +51,33 @@ class ContractQueryAndStatementManager:
     @staticmethod
     async def get_contracts():
         ...  # TODO
+    
+    @staticmethod
+    async def check_access(
+        session: AsyncSession,
+        
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        
+        contract_uuid: str,
+    ) -> Optional[Tuple[int, str]]:
+        _filters = [Contract.uuid == contract_uuid]
+        
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            _filters.append(Contract.user_uuid == requester_user_uuid)
+        
+        query = (
+            select(Contract.id, Contract.uuid)
+            .filter(
+                and_(
+                    *_filters
+                )
+            )
+        )
+        response = await session.execute(query)
+        result = response.one_or_none()
+        
+        return result
     
     @staticmethod
     async def update_contract():

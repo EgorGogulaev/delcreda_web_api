@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, List, Literal, Optional, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
@@ -114,7 +115,74 @@ class CounterpartyQueryAndStatementManager:
         return result
     
     @staticmethod
-    async def get_counterparties(  # FIXME
+    async def get_counterparty_identifiers_by_application_identifier(
+        session: AsyncSession,
+        
+        application_id: Optional[int] = None,
+        application_uuid: Optional[str] = None,
+    ) -> Tuple[Optional[int], Optional[str]]:
+        if not any([application_id, application_uuid]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указан идентификатор заявки на ПР при поиске карточки Контрагента!")
+        
+        _filters = []
+        
+        query = (
+            select(Counterparty.id, Counterparty.uuid)
+            .outerjoin(Application, Application.counterparty_id == Counterparty.id)
+        )
+        if application_id:
+            _filters.append(Application.id == application_id)
+        if application_uuid:
+            _filters.append(Application.uuid == application_uuid)
+        
+        query = query.filter(
+            and_(
+                *_filters
+            )
+        )
+        
+        response = await session.execute(query)
+        data = response.fetchall()
+        if data:
+            result = [(item[0], item[1]) for item in data][0]
+        else:
+            result = (None, None)
+        
+        return result
+    
+    @staticmethod
+    async def get_counterparty_identifiers_by_directory_identifier(
+        session: AsyncSession,
+        
+        directory_id: Optional[int] = None,
+        directory_uuid: Optional[str] = None,
+    ) -> Tuple[Optional[int], Optional[str]]:
+        _filters = []
+        
+        if directory_id:
+            _filters.append(Counterparty.directory_id == directory_id)
+        if directory_uuid:
+            _filters.append(Counterparty.directory_uuid == directory_uuid)
+        
+        query = (
+            select(Counterparty.id, Counterparty.uuid)
+            .filter(
+                and_(
+                    *_filters
+                )
+            )
+        )
+        response = await session.execute(query)
+        data = response.fetchall()
+        if data:
+            result = [(item[0], item[1]) for item in data][0]
+        else:
+            result = (None, None)
+        
+        return result
+    
+    @staticmethod
+    async def get_counterparties(  # FIXME ФЛ
         session: AsyncSession,
         
         counterparty_type: Optional[Literal["ЮЛ", "ФЛ"]],

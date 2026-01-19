@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 
 from connection_module import SignalConnector
+from service.contract_service import ContractService
+from service.notification_service import NotificationService
 from src.query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.schemas.file_store_schema import FiltersUserDirsInfo, FiltersUserFilesInfo, OrdersUserDirsInfo, OrdersUserFilesInfo
 from src.models.file_store_models import Directory, Document
@@ -283,7 +285,10 @@ class FileStoreService:
         
         file_object: UploadFile,
         directory_uuid: str,
-        requester_user_uuid: str, requester_user_privilege: int,
+        
+        requester_user_id: int,
+        requester_user_uuid: str,
+        requester_user_privilege: int,
         
         owner_user_uuid: Optional[str] = None,
         new_file_uuid: Optional[str] = None,
@@ -291,7 +296,6 @@ class FileStoreService:
         
         commercial_proposal_uuid: Optional[str] = None,
         
-        # TODO РЕАЛИЗОВАТЬ ЛОГИКУ СОЗДАНИЯ КАРТОЧКИ ДОГОВОРА
         is_contract: Optional[bool] = False,
         contract_type: Optional[Literal[
             "MT",
@@ -406,7 +410,44 @@ class FileStoreService:
                 )
             
             if is_contract:
-                ...  # TODO Релазиовать создание карточки Договора
+                counterparty_uuid, application_uuid, new_contract_uuid, owner_user_uuid, contract_name = Tuple[str, Optional[str], str, str, str] = await ContractService.create_contract(
+                    session=session,
+                    
+                    requester_user_uuid=requester_user_uuid,
+                    requester_user_privilege=requester_user_privilege,
+                    
+                    document_uuid=new_file_uuid,
+                    type=contract_type,
+                    
+                    start_date=start_date,
+                    expiration_date=expiration_date,
+                )
+                
+                request_options = {
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
+                    },
+                }
+                if application_uuid:
+                    request_options.update({"<application>": {"uuid": application_uuid}})
+                
+                await NotificationService.notify(
+                    session=session,
+                    requester_user_id=requester_user_id,
+                    requester_user_uuid=requester_user_uuid,
+                    requester_user_privilege=requester_user_privilege,
+                    
+                    subject="Договор",
+                    subject_uuid=new_contract_uuid,
+                    for_admin=False,
+                    data=(
+                        f'Администратор прикрепил карточку Договора "{contract_name}" к Заявке на ПР - <application> (UUID: "{application_uuid}"), которая относится к карточке Контрагента - <counterparty> (UUID: "{counterparty_uuid}").'
+                        if application_uuid is not None else
+                        f'Администратор прикрепил карточку Договора "{contract_name}" к карточке Контрагента - <counterparty> (UUID: "{counterparty_uuid}").'
+                    ),
+                    recipient_user_uuid=owner_user_uuid,
+                    request_options=request_options,
+                )
             
         else:  # Если родительская директория (для записи) не найдена или нарушена целостность данных и записей о данной папке в БД более 1
             if dir_data["count"] == 0:

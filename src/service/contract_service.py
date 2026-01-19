@@ -1,10 +1,13 @@
 # TODO Реализовать
 
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
+from query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.service.chat_service import ChatService
 from src.query_and_statement.contract_qas_manager import ContractQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
@@ -25,7 +28,7 @@ class ContractService:
         
         start_date: Optional[str] = None,
         expiration_date: Optional[str] = None,
-    ) -> None:
+    ) -> Tuple[str, Optional[str], str, str, str]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для создания карточки Договора!")
         
@@ -40,30 +43,49 @@ class ContractService:
             file_uuids=[document_uuid],
             visible=True,
         )
-        data_from_ab_about_document: Dict[int, Any] = data_from_db_about_document_response["data"][list(data_from_db_about_document_response["data"])[0]]
+        data_from_db_about_document: Dict[int, Any] = data_from_db_about_document_response["data"][list(data_from_db_about_document_response["data"])[0]]
         
-        owner_user_id: int = data_from_ab_about_document.get("owner_user_id")
-        owner_user_uuid: str = data_from_ab_about_document.get("owner_user_uuid")
-        parent_directory_uuid: str = data_from_ab_about_document.get("directory_uuid")
+        owner_user_id: int = data_from_db_about_document.get("owner_user_id")
+        owner_user_uuid: str = data_from_db_about_document.get("owner_user_uuid")
+        directory_id: int = data_from_db_about_document.get("directory_id")
+        name: str = data_from_db_about_document.get("name")
+        
         if owner_user_id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось извлечь ID-владельца Документа из БД!")
-        if parent_directory_uuid is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось извлечь UUID-Директории, в которой хранится Документ!")
         
-        user_s3_login: str = await UserQueryAndStatementManager.get_user_s3_login(
+        counterparty_id, counterparty_uuid = await CounterpartyQueryAndStatementManager.get_counterparty_identifiers_by_directory_identifier(
             session=session,
             
-            user_id=owner_user_id,
+            directory_id=directory_id,
         )
+        
+        if counterparty_id is None:
+            application_id, application_uuid = await ApplicationQueryAndStatementManager.get_application_identifiers_by_directory_identifier(
+                session=session,
+                
+                directory_id=directory_id,
+            )
+            
+            counterparty_id, counterparty_uuid = await CounterpartyQueryAndStatementManager.get_counterparty_identifiers_by_application_identifier(
+                session=session,
+                
+                application_id=application_id,
+                application_uuid=application_uuid,
+            )
+        
+        else:
+            application_id, application_uuid = (None, None)
+        
+        if not counterparty_id or not counterparty_uuid:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'При поиске принадлежности Документа, не нашлась карточка Контрагента(ID Директории - "{directory_id}")!')
         
         new_contract_uuid_coro = await SignalConnector.generate_identifiers(target="Договор", count=1)
         new_contract_uuid = new_contract_uuid_coro[0]
         
-        # TODO
         await ContractQueryAndStatementManager.create_contract(
             session=session,
             
-            new_uuid=uuid,
+            new_uuid=new_contract_uuid,
             name=name,
             type=type,
             user_id=owner_user_id,
@@ -84,4 +106,4 @@ class ContractService:
             subject_uuid=new_contract_uuid,
         )
         
-    ...  # TODO
+        return counterparty_uuid, application_uuid, new_contract_uuid, owner_user_uuid, Path(name if name else "-").stem

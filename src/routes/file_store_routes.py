@@ -162,6 +162,7 @@ async def upload_file(
             
             file_object=file,
             directory_uuid=directory_uuid,
+            requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             owner_user_uuid=owner_user_uuid,
@@ -287,6 +288,7 @@ async def upload_file(
 @limiter.limit("30/second")
 async def get_user_files_info(
     request: Request,
+    
     visible: Literal["visible", "invisible", "all"] = Query(
         "all",
         description="Фильтр по статусу видимости."
@@ -453,6 +455,7 @@ async def get_user_files_info(
 @limiter.limit("30/second")
 async def get_user_dirs_info(
     request: Request,
+    
     visible: Literal["visible", "invisible", "all"] = Query(
         "all",
         description="Фильтр по статусу видимости."
@@ -605,6 +608,7 @@ async def get_user_dirs_info(
 @limiter.limit("30/second")
 async def change_visibility(
     request: Request,
+    
     visibility_status: bool = Query(
         False,
         description="Значение, которое будет выставлено в статусе видимости."
@@ -679,6 +683,7 @@ async def change_visibility(
 @limiter.limit("30/second")
 async def delete_doc_or_dir(
     request: Request,
+    
     uuid: str = Query(
         ...,
         description="UUID Документа/Директории.",
