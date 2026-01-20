@@ -68,8 +68,8 @@ class UserContact(Base):
     
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     
-    email = Column(String, unique=True, nullable=True)
+    email = Column(String, nullable=True)
     email_notification = Column(Boolean, server_default="false", nullable=False)
     
-    telegram = Column(String, unique=True, nullable=True)
+    telegram = Column(String, nullable=True)
     telegram_notification = Column(Boolean, server_default="false", nullable=False)
