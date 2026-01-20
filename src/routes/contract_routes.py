@@ -8,10 +8,12 @@ from fastapi.responses import JSONResponse
 from connection_module import get_async_session
 from lifespan import limiter
 from security import check_app_auth
+from src.schemas.contract_schema import Contract, FiltersContracts, OrdersContracts, ResponseGetContracts
 from src.service.notification_service import NotificationService
 from src.service.contract_service import ContractService
 from src.service.reference_service import ReferenceService
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager as UserQaSM
+from src.utils.tz_converter import convert_tz
 
 
 
@@ -22,6 +24,7 @@ router = APIRouter(
 @router.post(
     "/create_contract",
     description="""
+    Создание карточки Договора
     """,
     dependencies=[Depends(check_app_auth)],
 )
@@ -31,7 +34,7 @@ async def create_contract(
     
     document_uuid: str = Query(
         str,
-        description="UUID документа Договора (Используется, если в системе уже есть Документ КП, иначе использовать null).",
+        description="UUID документа Договора.",
         min_length=36,
         max_length=36,
     ),
@@ -132,6 +135,11 @@ async def create_contract(
 @router.post(
     "/get_contracts",
     description="""
+    Получение карточек Договоров
+    
+    filter: FiltersContracts
+    order: OrdersContracts
+    output: ResponseGetContracts
     """,
     dependencies=[Depends(check_app_auth)],
 )
@@ -139,9 +147,125 @@ async def create_contract(
 async def get_contracts(
     request: Request,
     
+    user_uuid: Optional[str] = Query(
+        None,
+        description="(Опционально) Фильтр по UUID Пользователя (точное совпадение).",
+        min_length=36,
+        max_length=36
+    ),
+    
+    page: Optional[int] = Query(
+        None,
+        description="Пагинация (По умолчанию - 1).",
+        example=1
+    ),
+    page_size: Optional[int] = Query(
+        None,
+        description="Размер страницы (По умолчанию - 50).",
+        example=50
+    ),
+    
+    filter: Optional[FiltersContracts] = None,
+    order: Optional[OrdersContracts] = None,
+    
     token: str = Depends(UserQaSM.get_current_user_data),
     session: AsyncSession = Depends(get_async_session),
-):  # TODO тут нужен свой класс с типизацией
+) -> ResponseGetContracts:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        contracts = await ContractService.get_contracts(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            
+            user_uuid=user_uuid,
+            
+            page=page,
+            page_size=page_size,
+            
+            filter=filter,
+            order=order,
+        )
+        
+        response_content = ResponseGetContracts(
+            data=[],
+            count=0,
+            total_records=None,
+            total_pages=None,
+        )
+        for contract in contracts["data"]:
+            response_content.data.append(
+                Contract(
+                    uuid=contract.uuid,
+                    name=contract.name,
+                    type=contract.type,
+                    user_id=contract.user_id,
+                    user_uuid=contract.user_uuid,
+                    counterparty_id=contract.counterparty_id,
+                    counterparty_uuid=contract.counterparty_uuid,
+                    application_id=contract.application_id,
+                    application_uuid=contract.application_uuid,
+                    document_uuid=contract.document_uuid,
+                    start_date=contract.start_date.strftime("%d.%m.%Y") if contract.start_date else None,
+                    expiration_date=contract.expiration_date.strftime("%d.%m.%Y") if contract.expiration_date else None,
+                    updated_at=convert_tz(contract.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC")) if contract.updated_at else None,
+                    created_at=convert_tz(contract.created_at.strftime("%d.%m.%Y %H:%M:%S UTC")) if contract.created_at else None,
+                )
+            )
+            response_content.count += 1
+        
+        response_content.total_records = contract["total_records"]
+        response_content.total_pages = contract["total_pages"]
+        
+        return response_content
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="get_contracts",
+                params={
+                    "user_uuid": user_uuid,
+                    "page": page,
+                    "page_size": page_size,
+                    "filter": filter.model_dump() if filter else filter,
+                    "order": order.model_dump() if order else order,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+    finally:
+        await session.rollback()
+
+
+@router.put(
+    "/update_contract_date_range",
+    description="""
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("30/second")
+async def update_contract(
+    request: Request,
+    # TODO
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         ...  # TODO
@@ -161,7 +285,7 @@ async def get_contracts(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="get_contracts",
+                endpoint="update_contract_date_range",
                 params={
                     # TODO
                 },
@@ -174,14 +298,9 @@ async def get_contracts(
     finally:
         await session.rollback()
 
-@router.put(
-    "/update_contract",
-    description="""
-    """,
-    dependencies=[Depends(check_app_auth)],
-)
+@router.put("/change_contract_document_uuid")
 @limiter.limit("30/second")
-async def update_contract(
+async def change_contract_document_uuid(
     request: Request,
     
     token: str = Depends(UserQaSM.get_current_user_data),
@@ -206,7 +325,7 @@ async def update_contract(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="update_contract",
+                endpoint="change_contract_document_uuid",
                 params={
                     # TODO
                 },
@@ -218,6 +337,7 @@ async def update_contract(
             return JSONResponse(content=response_content)
     finally:
         await session.rollback()
+
 
 @router.delete(
     "/delete_contracts",

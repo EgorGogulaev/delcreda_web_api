@@ -716,31 +716,31 @@ async def update_application_data(
                 
                 application_uuid=application_uuid,
             )
-        await NotificationService.notify(
-            session=session,
-            
-            requester_user_id=user_data["user_id"],
-            requester_user_uuid=user_data["user_uuid"],
-            requester_user_privilege=user_data["privilege_id"],
-            
-            subject="Заявка",
-            subject_uuid=application_uuid,
-            for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' внес изменения в данные о Заявке "<application>" ({application_uuid}).',
-            recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
-            request_options={
-                "<user>": {
-                    "uuid": user_data["user_uuid"],
+            await NotificationService.notify(
+                session=session,
+                
+                requester_user_id=user_data["user_id"],
+                requester_user_uuid=user_data["user_uuid"],
+                requester_user_privilege=user_data["privilege_id"],
+                
+                subject="Заявка",
+                subject_uuid=application_uuid,
+                for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
+                data=(f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор") + f' внес изменения в данные о Заявке "<application>" ({application_uuid}).',
+                recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<application>": {
+                        "uuid": application_uuid,
+                    },
+                } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                    "<application>": {
+                        "uuid": application_uuid,
+                    },
                 },
-                "<application>": {
-                    "uuid": application_uuid,
-                },
-            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<application>": {
-                    "uuid": application_uuid,
-                },
-            },
-        )
+            )
         
         return JSONResponse(content={"msg": "Данные Заявки успешно обновлены."})
     except AssertionError as e:

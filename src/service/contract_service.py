@@ -1,19 +1,18 @@
 # TODO Реализовать
-
+import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
-from query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
-from query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
+from src.query_and_statement.application.application_qas_manager import ApplicationQueryAndStatementManager
+from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
+from src.schemas.contract_schema import Contract, FiltersContracts, OrdersContracts
 from src.service.chat_service import ChatService
 from src.query_and_statement.contract_qas_manager import ContractQueryAndStatementManager
-from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
 from src.service.file_store_service import FileStoreService
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
-from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 
 
 class ContractService:
@@ -29,6 +28,12 @@ class ContractService:
         start_date: Optional[str] = None,
         expiration_date: Optional[str] = None,
     ) -> Tuple[str, Optional[str], str, str, str]:
+        start_date_obj: datetime.date = datetime.datetime.strptime(start_date, "%d.%m.%Y").date() if start_date else None
+        expiration_date_obj: datetime.date = datetime.datetime.strptime(expiration_date, "%d.%m.%Y").date() if expiration_date else None
+        if start_date_obj and expiration_date_obj:
+            if start_date_obj > expiration_date_obj:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Дата начала действия Договора не может превышать дату окончания его действия!")
+        
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для создания карточки Договора!")
         
@@ -77,7 +82,7 @@ class ContractService:
             application_id, application_uuid = (None, None)
         
         if not counterparty_id or not counterparty_uuid:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'При поиске принадлежности Документа, не нашлась карточка Контрагента(ID Директории - "{directory_id}")!')
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'При поиске принадлежности Документа, не нашлась карточка Контрагента (ID-Директории - "{directory_id}")!')
         
         new_contract_uuid_coro = await SignalConnector.generate_identifiers(target="Договор", count=1)
         new_contract_uuid = new_contract_uuid_coro[0]
@@ -107,3 +112,51 @@ class ContractService:
         )
         
         return counterparty_uuid, application_uuid, new_contract_uuid, owner_user_uuid, Path(name if name else "-").stem
+    
+    @staticmethod
+    async def get_contracts(
+        session: AsyncSession,
+        
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        
+        user_uuid: Optional[str],
+        
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        
+        filter: Optional[FiltersContracts] = None,
+        order: Optional[OrdersContracts] = None,
+    ) -> Dict[str, List[Optional[Contract]]]:
+        if page or page_size:
+            if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
+        
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            if not user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть все Договоры - всех Пользователей!")
+            if user_uuid != requester_user_uuid:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы не можете просмотреть Договоры других Пользователей!")
+        
+        contracts: Dict[str, List[Optional[Contract]]] = await ContractQueryAndStatementManager.get_contracts(
+            session=session,
+            user_uuid=user_uuid,
+            page=page,
+            page_size=page_size,
+            filter=filter,
+            order=order,
+        )
+        
+        return contracts
+    
+    @staticmethod
+    async def update_contract_date_range():
+        ...  # TODO
+    
+    @staticmethod
+    async def change_contract_document_uuid():
+        ...  # TODO
+    
+    @staticmethod
+    async def delete_contracts():
+        ...  # TODO

@@ -276,7 +276,6 @@ class FileStoreService:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Целостность данных нарушена, существует более 1 записи о файле с UUID - "{file_uuid}"!')
     
     
-    # TODO РЕАЛИЗОВАТЬ ЛОГИКУ ОБРАБОТКИ СЦЕНАРИЕВ СОЗДАНИЯ КАРТОЧЕК ДОГОВОРОВ. + ИНВАРИАНТЫ
     @classmethod
     async def upload(
         cls,

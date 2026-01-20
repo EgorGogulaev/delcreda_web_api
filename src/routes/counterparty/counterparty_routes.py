@@ -492,31 +492,31 @@ async def update_counterparty(
                 
                 counterparty_uuid=counterparty_uuid,
             )
-        await NotificationService.notify(
-            session=session,
-            
-            requester_user_id=user_data["user_id"],
-            requester_user_uuid=user_data["user_uuid"],
-            requester_user_privilege=user_data["privilege_id"],
-            
-            subject="Контрагент",
-            subject_uuid=counterparty_uuid,
-            for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
-            data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о Контрагенте "<counterparty>" ({counterparty_uuid}).',
-            recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
-            request_options={
-                "<user>": {
-                    "uuid": user_data["user_uuid"],
+            await NotificationService.notify(
+                session=session,
+                
+                requester_user_id=user_data["user_id"],
+                requester_user_uuid=user_data["user_uuid"],
+                requester_user_privilege=user_data["privilege_id"],
+                
+                subject="Контрагент",
+                subject_uuid=counterparty_uuid,
+                for_admin=True if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else False,
+                data=f'Пользователь "<user>" ({user_data["user_uuid"]})' if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else "Администратор" + f' внес изменения в основную информацию о Контрагенте "<counterparty>" ({counterparty_uuid}).',
+                recipient_user_uuid=None if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else recipient_user_uuid,
+                request_options={
+                    "<user>": {
+                        "uuid": user_data["user_uuid"],
+                    },
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
+                    },
+                } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
+                    "<counterparty>": {
+                        "uuid": counterparty_uuid,
+                    },
                 },
-                "<counterparty>": {
-                    "uuid": counterparty_uuid,
-                },
-            } if user_data["privilege_id"] != PRIVILEGE_MAPPING["Admin"] else {
-                "<counterparty>": {
-                    "uuid": counterparty_uuid,
-                },
-            },
-        )
+            )
         
         return JSONResponse(content={"msg": "Основная информация о Контрагенте успешно обновлена."})
     except AssertionError as e:

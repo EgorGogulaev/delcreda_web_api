@@ -178,7 +178,7 @@ async def create_commercial_proposal(
     
     filter: FiltersCommercialProposals
     order: OrdersCommercialProposals
-    output: ResponseGetCommercialProposal
+    output: ResponseGetCommercialProposals
     """,
     dependencies=[Depends(check_app_auth)],
 )
