@@ -31,7 +31,7 @@ class CommercialProposalService:
         counterparty_uuid: str,
         application_uuid: Optional[str],
         
-        document_uuid: Optional[str],
+        file_uuid: Optional[str],
         
         commercial_proposal_name: Optional[str] = None,
     ) -> str:
@@ -105,7 +105,7 @@ class CommercialProposalService:
             directory_id=new_commercial_proposal_dir_data["id"],
             directory_uuid=new_commercial_proposal_dir_data["uuid"],
             
-            document_uuid=document_uuid,
+            file_uuid=file_uuid,
         )
         await ChatService.create_chat(
             session=session,
@@ -130,7 +130,7 @@ class CommercialProposalService:
         
         filter: Optional[FiltersCommercialProposals] = None,
         order: Optional[OrdersCommercialProposals] = None,
-    ) -> Dict[str, List[Optional[CommercialProposal]]]:
+    ) -> Dict[str, List[Optional[CommercialProposal]]|int]:
         if page or page_size:
             if (isinstance(page, int) and page <= 0) or (isinstance(page_size, int) and page_size <= 0):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не корректное разделение на страницы, запрошенных данных!")
@@ -180,20 +180,20 @@ class CommercialProposalService:
         )
     
     @staticmethod
-    async def change_commercial_proposal_document_uuid(
+    async def change_commercial_proposal_file(
         session: AsyncSession,
         
         requester_user_uuid: str,
         requester_user_privilege: int,
         
         commercial_proposal_uuid: str,
-        document_uuid: str,
+        new_file_uuid: str,
     ) -> Tuple[str, str, str]:
         if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав для изменения документа КП (в заявке на КП)!")
         if not commercial_proposal_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID заявки на КП!")
-        if not document_uuid:
+        if not new_file_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Должен быть указан UUID документа для прикрепление к заявке на КП!")
         
         commercial_proposal: Dict[str, List[Optional[CommercialProposal]]] = await CommercialProposalQueryAndStatementManager.get_commercial_proposals(
@@ -209,10 +209,10 @@ class CommercialProposalService:
         counterparty_uuid: str = commercial_proposal_data[0].counterparty_uuid
         application_uuid: str = commercial_proposal_data[0].application_uuid
         
-        await CommercialProposalQueryAndStatementManager.change_commercial_proposal_document_uuid(
+        await CommercialProposalQueryAndStatementManager.change_commercial_proposal_file(
             session=session,
             commercial_proposal_uuid=commercial_proposal_uuid,
-            document_uuid=document_uuid,
+            new_file_uuid=new_file_uuid,
         )
         
         return user_uuid, counterparty_uuid, application_uuid

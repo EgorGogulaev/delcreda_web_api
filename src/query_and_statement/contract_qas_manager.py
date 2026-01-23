@@ -1,12 +1,16 @@
 # TODO Реализовать
+import datetime
 from typing import Dict, List, Optional, Tuple
-from sqlalchemy import and_, func, insert, select
+from fastapi import HTTPException, status
+from sqlalchemy import and_, delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.chat_models import Chat, Message
 from src.schemas.contract_schema import FiltersContracts, OrdersContracts
 from src.models.contract_models import Contract
 from src.utils.reference_mapping_data.contract.mapping import CONTRACT_TYPE_MAPPING
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
+from utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 class ContractQueryAndStatementManager:
@@ -23,7 +27,7 @@ class ContractQueryAndStatementManager:
         counterparty_uuid: str,
         application_id: Optional[int],
         application_uuid: Optional[str],
-        document_uuid: str,
+        file_uuid: str,
         start_date: Optional[str],
         expiration_date: Optional[str],
     ) -> None:
@@ -39,7 +43,7 @@ class ContractQueryAndStatementManager:
                 counterparty_uuid=counterparty_uuid,
                 application_id=application_id,
                 application_uuid=application_uuid,
-                document_uuid=document_uuid,
+                file_uuid=file_uuid,
                 start_date=start_date,
                 expiration_date=expiration_date,
             )
@@ -61,7 +65,7 @@ class ContractQueryAndStatementManager:
         
         filter: Optional[FiltersContracts] = None,
         order: Optional[OrdersContracts] = None,
-    ) -> Dict[str, List[Optional[Contract]]]:
+    ) -> Dict[str, List[Optional[Contract]]|int]:
         _filters = []
         
         if user_uuid:
@@ -177,9 +181,116 @@ class ContractQueryAndStatementManager:
         return result
     
     @staticmethod
-    async def update_contract():
-        ...  # TODO
+    async def update_contract_date_range(
+        session: AsyncSession,
+        
+        contract_uuid: str,
+        new_start_date: Optional[str] = "~",
+        new_expiration_date: Optional[str] = "~",
+    ) -> None:
+        values_for_update = {
+            "startt_date": new_start_date,
+            "expiration_date": new_expiration_date,
+            
+            "updated_at": datetime.datetime.now(tz=datetime.timezone.utc),
+        }
+        
+        new_values = {k: v for k, v in values_for_update.items() if v != "~"}
+        stmt = (
+            update(Contract)
+            .filter(Contract.uuid == contract_uuid)
+            .values(**new_values)
+        )
+        
+        await session.execute(stmt)
+        await session.commit()
     
     @staticmethod
-    async def delete_contracts():
-        ...  # TODO
+    async def change_contract_file(
+        session: AsyncSession,
+        
+        contract_uuid: str,
+        new_file_uuid: str,
+    ) -> None:
+        stmt = (
+            update(Contract)
+            .filter(Contract.uuid == contract_uuid)
+            .values({"file_uuid": new_file_uuid})
+        )
+        
+        await session.execute()
+        await session.commit()
+    
+    @staticmethod
+    async def delete_contracts(
+        session: AsyncSession,
+        
+        contract_uuids: Optional[List[str]] = None,
+        contract_ids: Optional[List[int]] = None,
+        
+        counterparty_uuid: Optional[str] = None,
+        application_uuid: Optional[str] = None,
+    ) -> None:
+        if not contract_uuids and not contract_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для удаления должны быть указаны либо массив UUID, либо массив ID заявок на КП!")
+        
+        if not contract_uuids:
+            query_c = (select(Contract.uuid)
+                .filter(Contract.id.in_(contract_ids))
+            )
+            response_c = await session.execute(query_c)
+            contract_uuids = [item[0] for item in response_c.all()]
+        
+        query_chat = (
+            select(Chat.id)
+            .filter(
+                and_(
+                    Chat.chat_subject_id == CHAT_SUBJECT_MAPPING["Договор"],
+                    Chat.subject_uuid.in_(contract_uuids)
+                )
+            )
+        )
+        
+        response_chat = await session.execute(query_chat)
+        chat_ids = [item[0] for item in response_chat.all()]
+        
+        query_msg = (
+            select(Message.id)
+            .filter(Message.chat_id.in_(chat_ids))
+        )
+        response_msg = await session.execute(query_msg)
+        msg_ids = [item[0] for item in response_msg.all()]
+        
+        stmt_del_msgs = (
+            delete(Message)
+            .filter(Message.id.in_(msg_ids))
+        )
+        stmt_del_chats = (
+            delete(Chat)
+            .filter(Chat.id.in_(chat_ids))
+        )
+        _filters = []
+        
+        if contract_uuids:
+            _filters.append(Contract.uuid.in_(contract_uuids))
+        
+        if counterparty_uuid:
+            _filters.append(Contract.counterparty_uuid == counterparty_uuid)
+        
+        if application_uuid:
+            _filters.append(Contract.application_uuid == application_uuid)
+        
+        stmt_del_cs = (
+            delete(Contract)
+            .filter(
+                and_(
+                    *_filters
+                )
+            )
+        )
+        
+        await session.execute(stmt_del_msgs)
+        await session.execute(stmt_del_chats)
+        await session.execute(stmt_del_cs)
+        
+        await session.commit()

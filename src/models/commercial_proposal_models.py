@@ -35,7 +35,7 @@ class CommercialProposal(Base):
     directory_uuid = Column(String(length=36), nullable=False)
     
     # Сам документ КП
-    document_uuid = Column(String(length=36), nullable=True)
+    file_uuid = Column(String(length=36), nullable=True)
     
     status = Column(SmallInteger, ForeignKey("application_status.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
     

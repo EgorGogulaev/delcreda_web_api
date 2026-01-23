@@ -213,7 +213,7 @@ async def get_commercial_proposals(
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
         
-        commercial_proposals = await CommercialProposalService.get_commercial_proposals(
+        commercial_proposals: Dict[str, List[Optional[CommercialProposal]]|int] = await CommercialProposalService.get_commercial_proposals(
             session=session,
             
             requester_user_uuid=user_data["user_uuid"],

@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, SmallInteger, func, ForeignKey, Index,
+    Column, Integer, SmallInteger, func, ForeignKey, Index, CheckConstraint,
     BigInteger,
     String, Text,
     Date, DateTime,
@@ -29,13 +29,17 @@ class Contract(Base):
     application_id = Column(BigInteger, ForeignKey("application.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=True)
     application_uuid = Column(String(length=36), nullable=True)
     
-    document_uuid = Column(String(length=36))
+    file_uuid = Column(String(length=36))
     
     start_date = Column(Date)
     expiration_date = Column(Date)
     
     updated_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)
+    
+    __table_args__ = (
+        CheckConstraint('expiration_date >= start_date', name='check_dates_contract'),
+    )
 
 class ContractType(Base):
     __tablename__ = "contract_type"

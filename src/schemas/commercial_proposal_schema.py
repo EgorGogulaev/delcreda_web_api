@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class FilterCommercialProposals(BaseModel):
     field: Literal[
-        "id", "uuid", "appliaction_name", "commercial_proposal_name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "directory_id", "directory_uuid", "document_uuid", "status", "can_be_updated_by_user", "updated_at", "created_at",
+        "id", "uuid", "appliaction_name", "commercial_proposal_name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "directory_id", "directory_uuid", "file_uuid", "status", "can_be_updated_by_user", "updated_at", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
     operator: Literal["eq", "ne", "gt", "lt", "ge", "le", "like", "in"] = Field(
         ...,
@@ -27,7 +27,7 @@ class FiltersCommercialProposals(BaseModel):
 
 class OrderCommercialProposals(BaseModel):
     field: Literal[
-        "id", "uuid", "appliaction_name", "commercial_proposal_name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "directory_id", "directory_uuid", "document_uuid", "status", "can_be_updated_by_user", "updated_at", "created_at",
+        "id", "uuid", "appliaction_name", "commercial_proposal_name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "directory_id", "directory_uuid", "file_uuid", "status", "can_be_updated_by_user", "updated_at", "created_at",
     ] = Field(
         ...,
         description="Поля по которым можно сортировать записи."
@@ -57,7 +57,7 @@ class CommercialProposal(BaseModel):
     application_uuid: Optional[str] = Field(None, description="UUID Заявки на ПР (если заявка на КП будет прекреплена к Заявке на ПР).")
     directory_id: int = Field(..., description="ID Директории для Документов по данной заявке на КП.")
     directory_uuid: str = Field(..., description="UUID Директории для Документов по данной заявке на КП.")
-    document_uuid: Optional[str] = Field(None, description="UUID Документа КП.")
+    file_uuid: Optional[str] = Field(None, description="UUID Документа КП.")
     status: int = Field(..., description="ID статуса КП")
     can_be_updated_by_user: bool = Field(..., description="Может ли запись редактироваться Пользователем? (true - да/false - нет)")
     updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления Заявки на КП (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")

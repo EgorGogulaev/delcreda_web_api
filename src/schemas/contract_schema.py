@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class FilterContracts(BaseModel):
     field: Literal[
-        "id", "uuid", "name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "document_uuid", "start_date" "expiration_date" "updated_at", "created_at",
+        "id", "uuid", "name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "file_uuid", "start_date" "expiration_date" "updated_at", "created_at",
     ] = Field(..., description="Поля доступные для фильтрации.")
     operator: Literal["eq", "ne", "gt", "lt", "ge", "le", "like", "in"] = Field(
         ...,
@@ -28,7 +28,7 @@ class FiltersContracts(BaseModel):
 
 class OrderContracts(BaseModel):
     field: Literal[
-        "id", "uuid", "name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "document_uuid", "start_date" "expiration_date" "updated_at", "created_at",
+        "id", "uuid", "name", "type", "user_id", "user_uuid", "counterparty_id", "counterparty_uuid", "application_id", "application_uuid", "file_uuid", "start_date" "expiration_date" "updated_at", "created_at",
     ] = Field(
         ...,
         description="Поля по которым можно сортировать записи."
@@ -55,7 +55,7 @@ class Contract(BaseModel):
     counterparty_uuid: str = Field(..., description="UUID карточки Контрагента к которому будет прикреплен Договор (если не указана Заявка на ПР).")
     application_id: Optional[int] = Field(None, description="ID Заявки на ПР (если Договор будет прекреплен к Заявке на ПР).")
     application_uuid: Optional[str] = Field(None, description="UUID Заявки на ПР (если Договор будет прекреплен к Заявке на ПР).")
-    document_uuid: Optional[str] = Field(None, description="UUID Документа - для карточки Договора.")
+    file_uuid: Optional[str] = Field(None, description="UUID Документа - для карточки Договора.")
     start_date: Optional[str] = Field(None, description="Дата начала действия Договора. (Формат: 'dd.mm.YYYY')")
     expiration_date: Optional[str] = Field(None, description="Дата окончания действия Договора. (Формат: 'dd.mm.YYYY')")
     updated_at: Optional[str] = Field(None, description="Дата-время последнего обновления карточки Договора (Формат: 'dd.mm.YYYY HH:MM:SS UTC').")

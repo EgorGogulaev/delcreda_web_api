@@ -37,7 +37,7 @@ class CommercialProposalQueryAndStatementManager:
         directory_id: int,
         directory_uuid: str,
         
-        document_uuid: Optional[str],
+        file_uuid: Optional[str],
     ) -> None:
         stmt = (
             insert(CommercialProposal)
@@ -54,7 +54,7 @@ class CommercialProposalQueryAndStatementManager:
                 application_uuid=application_uuid,
                 directory_id=directory_id,
                 directory_uuid=directory_uuid,
-                document_uuid=document_uuid,
+                file_uuid=file_uuid,
                 status=COMMERCIAL_PROPOSAL_STATUS_MAPPING["На рассмотрении сторон"],
             )
         )
@@ -189,15 +189,15 @@ class CommercialProposalQueryAndStatementManager:
         await session.commit()
     
     @staticmethod
-    async def change_commercial_proposal_document_uuid(
+    async def change_commercial_proposal_file(
         session: AsyncSession,
         
         commercial_proposal_uuid: str,
-        document_uuid: str,
+        new_file_uuid: str,
     ) -> None:
         query = (
             select(Document.name)
-            .filter(Document.uuid == document_uuid)
+            .filter(Document.uuid == new_file_uuid)
         )
         response = await session.execute(query)
         file_name = response.scalar()
@@ -209,7 +209,7 @@ class CommercialProposalQueryAndStatementManager:
             update(CommercialProposal)
             .filter(CommercialProposal.uuid == commercial_proposal_uuid)
             .values(
-                document_uuid=document_uuid,
+                file_uuid=new_file_uuid,
                 commercial_proposal_name=Path(file_name).stem,
             )
         )

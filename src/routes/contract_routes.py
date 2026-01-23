@@ -32,7 +32,7 @@ router = APIRouter(
 async def create_contract(
     request: Request,
     
-    document_uuid: str = Query(
+    file_uuid: str = Query(
         str,
         description="UUID документа Договора.",
         min_length=36,
@@ -67,7 +67,7 @@ async def create_contract(
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
             
-            document_uuid=document_uuid,
+            file_uuid=file_uuid,
             type=type,
             
             start_date=start_date,
@@ -100,7 +100,7 @@ async def create_contract(
             request_options=request_options,
         )
         
-        response_content = {"msg": f'На основании документа с UUID: "{document_uuid}" создана карточка Договора с типом "{type}".'}
+        response_content = {"msg": f'На основании документа с UUID: "{file_uuid}" создана карточка Договора с типом "{type}".'}
         return JSONResponse(content=response_content)
     
     except AssertionError as e:
@@ -120,7 +120,10 @@ async def create_contract(
             log_id = await ReferenceService.create_errlog(
                 endpoint="create_contract",
                 params={
-                    # TODO
+                    "file_uuid": file_uuid,
+                    "type": type,
+                    "start_date": start_date,
+                    "expiration_date": expiration_date,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -151,7 +154,7 @@ async def get_contracts(
         None,
         description="(Опционально) Фильтр по UUID Пользователя (точное совпадение).",
         min_length=36,
-        max_length=36
+        max_length=36,
     ),
     
     page: Optional[int] = Query(
@@ -207,7 +210,7 @@ async def get_contracts(
                     counterparty_uuid=contract.counterparty_uuid,
                     application_id=contract.application_id,
                     application_uuid=contract.application_uuid,
-                    document_uuid=contract.document_uuid,
+                    file_uuid=contract.file_uuid,
                     start_date=contract.start_date.strftime("%d.%m.%Y") if contract.start_date else None,
                     expiration_date=contract.expiration_date.strftime("%d.%m.%Y") if contract.expiration_date else None,
                     updated_at=convert_tz(contract.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC")) if contract.updated_at else None,
@@ -256,20 +259,47 @@ async def get_contracts(
 @router.put(
     "/update_contract_date_range",
     description="""
+    Обновление диапазона действия контракта
     """,
     dependencies=[Depends(check_app_auth)],
 )
 @limiter.limit("30/second")
-async def update_contract(
+async def update_contract_date_range(
     request: Request,
-    # TODO
+    
+    contract_uuid: str = Query(
+        ...,
+        description="Карточка Договора к редактированию.",
+        min_length=36,
+        max_length=36,
+    ),
+    
+    new_start_date: Optional[str] = Query(
+        "~",
+        description="Новая дата, когда Договор вступает в действие ('~' - оставляет текущее значение). (Формат: 'dd.mm.YYYY')",
+    ),
+    new_expiration_date: Optional[str] = Query(
+        "~",
+        description="Новая дата, когда действие Договора истекает ('~' - оставляет текущее значение). (Формат: 'dd.mm.YYYY')",
+    ),
+    
     token: str = Depends(UserQaSM.get_current_user_data),
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
-        ...  # TODO
         
+        await ContractService.update_contract_date_range(
+            session=session,
+            
+            contract_uuid=contract_uuid,
+            new_start_date=new_start_date,
+            new_expiration_date=new_expiration_date,
+        )
+        
+        response_content = {"msg": f'Временной диапазон действия Договра ("{contract_uuid}") успешно изменен'}
+        return response_content
+    
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -287,7 +317,9 @@ async def update_contract(
             log_id = await ReferenceService.create_errlog(
                 endpoint="update_contract_date_range",
                 params={
-                    # TODO
+                    "contract_uuid": contract_uuid,
+                    "new_start_date": new_start_date,
+                    "new_expiration_date": new_expiration_date,
                 },
                 msg=f"{error_message}\n{formatted_traceback}",
                 user_uuid=user_data["user_uuid"],
@@ -298,18 +330,45 @@ async def update_contract(
     finally:
         await session.rollback()
 
-@router.put("/change_contract_document_uuid")
+@router.put(
+    "/change_contract_file",
+    description="""
+    Прикрепление нового Документа к карточке Договора
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
 @limiter.limit("30/second")
-async def change_contract_document_uuid(
+async def change_contract_file(
     request: Request,
+    
+    contract_uuid: str = Query(
+        ...,
+        description="Карточка Договора к которой будет прикреплен новый Документ.",
+        min_length=36,
+        max_length=36,
+    ),
+    new_file_uuid: str = Query(
+        ...,
+        description="Новый Документ Договора к прикреплению.",
+        min_length=36,
+        max_length=36,
+    ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
         user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
-        ...  # TODO
         
+        await ContractService.change_contract_file(
+            session=session,
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            contract_uuid=contract_uuid,
+            new_file_uuid=new_file_uuid,
+        )
+        
+        return JSONResponse(content=f'Новый Документ "{new_file_uuid}" усешно прикреплен к карточке Договора "{contract_uuid}".')
     except AssertionError as e:
         error_message = str(e)
         formatted_traceback = traceback.format_exc()
@@ -325,7 +384,7 @@ async def change_contract_document_uuid(
             formatted_traceback = traceback.format_exc()
             
             log_id = await ReferenceService.create_errlog(
-                endpoint="change_contract_document_uuid",
+                endpoint="change_contract_file",
                 params={
                     # TODO
                 },
@@ -342,6 +401,7 @@ async def change_contract_document_uuid(
 @router.delete(
     "/delete_contracts",
     description="""
+    Удаление карточек Договоров
     """,
     dependencies=[Depends(check_app_auth)],
 )
