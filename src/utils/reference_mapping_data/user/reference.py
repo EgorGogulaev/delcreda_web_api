@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from config import ADMIN_LOGIN, ADMIN_PASSWORD, ADMIN_TOKEN as token, ADMIN_UUID
 
@@ -30,4 +30,20 @@ SERVICE_NOTE_SUBJECT: List[Tuple] = [
     (3, "Документ", "Служебная заметка связанная с Документом"),
     (4, "Пользователь", "Служебная заметка связанная с Пользователем"),
     (5, "Заявка на КП", "Служебная заметка связанная с заявкой на КП"),
+]
+
+USER_GROUP: List[Tuple] = [
+    (1, "SuperUser", "Группа Администраторов, которые имеют абсолютный доступ"),
+]
+
+USER_GROUP_MEMBERSHIP: List[Tuple] = [
+    (1, 1, 1, True),
+]
+
+INFORMATION_TYPE: List[Tuple] = [
+    (1, "Counterparty", "Информация о Контрагенте"),
+    (2, "Application", "Информация о Заявке на ПР"),
+    (3, "BankDetails", "Информация о Реквизитах"),
+    (4, "Directory", "Информация о Документах"),
+    (5, "Chat", "Информация о Чате"),
 ]

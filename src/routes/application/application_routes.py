@@ -29,6 +29,7 @@ router = APIRouter(
 @limiter.limit("30/second")
 async def change_applications_status(
     request: Request,
+    
     status: Literal[
         "Requested",
         "In_progress",
@@ -44,7 +45,6 @@ async def change_applications_status(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -55,6 +55,7 @@ async def change_applications_status(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             status_=status,
             application_uuids=application_uuids,
@@ -104,6 +105,7 @@ async def change_applications_status(
 @limiter.limit("30/second")
 async def change_applications_edit_status(
     request: Request,
+    
     application_uuids: List[str] = Query(
         [],
         description="Массив UUID-Заявок к изменению возможности редактировать Заявок Пользователем."
@@ -116,7 +118,6 @@ async def change_applications_edit_status(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -127,6 +128,7 @@ async def change_applications_edit_status(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             application_uuids=application_uuids,
             edit_status=edit_status,
@@ -193,6 +195,7 @@ async def delete_applications(  # TODO Нужно предусмотреть п�
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             applications_uuids=applications_uuids,
         )

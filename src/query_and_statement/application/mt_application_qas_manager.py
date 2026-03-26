@@ -2,14 +2,13 @@ import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Literal
 
-from sqlalchemy import and_, func, or_, select, update
+from fastapi import HTTPException, status
+from sqlalchemy import and_, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.user_models import UserAccount
-from src.models.counterparty.counterparty_models import Counterparty, LegalEntityData
-from src.schemas.application.application_schema import FiltersApplications, OrdersApplications
+from src.models.user_models import UserGroup
 from src.models.application.application_models import Application
-from src.models.application.mt_models import MTApplicationData
+from src.models.application.mt_models import MTApplicationData, MTApplicationSubagentRelation
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING, CURRENCY_MAPPING
 from src.utils.reference_mapping_data.application.mapping import APPLICATION_STATUS_MAPPING, APPLICATION_TYPE_MAPPING
 from src.utils.bool_converter import bool_converter
@@ -384,6 +383,48 @@ class MTApplicationQueryAndStatementManager:
             .filter(MTApplicationData.id == application_data_id)
             .values(**new_values)
         )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def set_subagent_for_mt_application(
+        session: AsyncSession,
+        
+        application_id: int,
+        group_name: str,
+    ) -> None:
+        query_group_id = (
+            select(UserGroup.id)
+            .filter(UserGroup.name == group_name)
+        )
+        response_group_id = await session.execute(query_group_id)
+        group_id = response_group_id.scalar_one_or_none()
+        if group_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа с указанным названием не найдена!")
+        
+        query_order_subagent_relation_id = (
+            select(MTApplicationSubagentRelation.id)
+            .filter(MTApplicationSubagentRelation.application == application_id)
+        )
+        response_application_subagent_relation_id = await session.execute(query_order_subagent_relation_id)
+        application_subagent_relation_id = response_application_subagent_relation_id.scalar_one_or_none()
+        if application_subagent_relation_id:
+            stmt =  (
+                update(MTApplicationSubagentRelation)
+                .filter(MTApplicationSubagentRelation.id == application_subagent_relation_id)
+                .values({"subagent": group_id})
+            )
+        else:
+            stmt =  (
+                insert(MTApplicationSubagentRelation)
+                .values(
+                    {
+                        "application": application_id,
+                        "subagent": group_id,
+                    }
+                )
+            )
         
         await session.execute(stmt)
         await session.commit()

@@ -14,3 +14,15 @@ SERVICE_NOTE_SUBJECT_MAPPING: Dict[str, int] = {
     "Пользователь": 4,
     "Заявка на КП": 5,
 }
+
+USER_GROUP_MAPPING: Dict[str, int] = {
+    "SuperUser": 1,
+}
+
+INFORMATION_TYPE_MAPPING: Dict[str, int] = {
+    "Counterparty":1,
+    "Application": 2,
+    "BankDetails": 3,
+    "Directory": 4,
+    "Chat": 5,
+}

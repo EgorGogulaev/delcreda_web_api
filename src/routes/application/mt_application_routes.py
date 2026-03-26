@@ -14,8 +14,8 @@ from src.query_and_statement.application.application_qas_manager import Applicat
 from src.schemas.user_schema import ClientState
 from src.service.user_service import UserService
 from src.service.reference_service import ReferenceService
-from src.schemas.application.application_schema import BaseApplication, FiltersApplications, OrdersApplications
-from src.schemas.application.mt_application_schema import ResponseGetMTApplications
+from src.schemas.application.application_schema import FiltersApplications, OrdersApplications
+from src.schemas.application.mt_application_schema import BaseMTApplication, ResponseGetMTApplications
 from src.schemas.application.mt_application_schema import ExtendedMTApplication,  CreateMTApplicationDataSchema,  UpdateMTApplicationDataSchema
 from src.service.notification_service import NotificationService
 from src.models.application.application_models import Application
@@ -46,6 +46,7 @@ router = APIRouter(
 @limiter.limit("30/second")
 async def create_application(
     request: Request,
+    
     application_data: CreateMTApplicationDataSchema,
     counterparty_uuid: str = Query(
         ...,
@@ -67,7 +68,6 @@ async def create_application(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -78,6 +78,7 @@ async def create_application(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             user_uuid=user_uuid,
             counterparty_uuid=counterparty_uuid,
@@ -165,6 +166,7 @@ async def create_application(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             subject="Заявка",
             subject_uuid=new_application_with_data[0][0].uuid,
@@ -245,6 +247,7 @@ async def create_application(
 @limiter.limit("30/second")
 async def get_applications(
     request: Request,
+    
     counterparty_uuid: Optional[str] = Query(
         None,
         description="(Опционально) Фильтр по UUID Контрагента, по которому будут искаться Заявки (точное совпадение).",
@@ -288,7 +291,6 @@ async def get_applications(
     order: Optional[OrdersApplications] = None,
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
     
     client_state: Optional[ClientState] = None,
@@ -309,6 +311,7 @@ async def get_applications(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][:-1],
             
             application_type="MT",
             user_uuid=user_uuid,
@@ -369,11 +372,13 @@ async def get_applications(
                         can_be_updated_by_user=application["application"].can_be_updated_by_user,
                         updated_at=convert_tz(application["application"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application["application"].updated_at else None,
                         created_at=convert_tz(application["application"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application["application"].created_at else None,
+                        subagent_name=application["subagent"],
                     )
                 )
+            
             else:
                 response_content.data.append(
-                    BaseApplication(
+                    BaseMTApplication(
                         uuid=application.uuid,
                         name=application.name,
                         user_id=application.user_id,
@@ -396,6 +401,7 @@ async def get_applications(
                         can_be_updated_by_user=application.can_be_updated_by_user,
                         updated_at=convert_tz(application.updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application.updated_at else None,
                         created_at=convert_tz(application.created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if application.created_at else None,
+                        subagent_name=application[-1],
                     )
                 )
             response_content.count += 1
@@ -484,6 +490,7 @@ async def get_applications_data(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][:-1],
             
             application_uuid_list=application_uuid_list,
             counterparty_uuid=counterparty_uuid,
@@ -638,6 +645,7 @@ async def update_application_data(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             application_uuid=application_uuid,
             
@@ -722,6 +730,7 @@ async def update_application_data(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Заявка",
                 subject_uuid=application_uuid,
@@ -771,3 +780,72 @@ async def update_application_data(
             return JSONResponse(content=response_content)
     finally:
         await session.rollback()
+
+
+@router.post(
+    "/set_subagent_for_mt_application",
+    description="""
+    Прикрепление Субагент(Группы) к Заявке на ПР(МТ).
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("3/second")
+async def set_subagent_for_mt_application(
+    request: Request,
+    
+    mt_application_uuid: str = Query(
+        ...,
+        description="UUID-Заявки на ПР, которой будет задан Субгент(Группа).",
+        min_length=36,
+        max_length=36,
+    ),
+    group_name: str = Query(
+        ...,
+        description="Название Группы(которая буде выступать Субагентом в данной Заявке на ПР(МТ))."
+    ),
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        await MTApplicationService.set_subagent_for_mt_application(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
+            
+            application_uuid=mt_application_uuid,
+            group_name=group_name,
+        )
+        
+        response_content = {"msg": f'Субагент "{group_name}" для Заявки на ПР(МТ) "{mt_application_uuid}" успешно установлен.'}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="set_subagent_for_mt_application",
+                params={
+                    "mt_application_uuid": mt_application_uuid,
+                    "group_name": group_name,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)

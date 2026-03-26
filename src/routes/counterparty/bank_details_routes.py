@@ -36,10 +36,10 @@ router = APIRouter(
 @limiter.limit("30/second")
 async def create_banks_details(
     request: Request,
+    
     new_banks_details: CreateBanksDetailsSchema,
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -49,6 +49,7 @@ async def create_banks_details(
             session=session,
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             new_banks_details=new_banks_details,
         )
@@ -62,6 +63,7 @@ async def create_banks_details(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Контрагент",
                 subject_uuid=new_banks_details.new_banks_details[0].counterparty_uuid,
@@ -119,6 +121,7 @@ async def create_banks_details(
 @limiter.limit("30/second")
 async def get_banks_details(
     request: Request,
+    
     counterparty_uuid: Optional[str] = Query(
         None,
         description="(Опционально) Фильтр по UUID Контрагента к которому прикреплены реквизиты (точное совпадение)."
@@ -129,7 +132,6 @@ async def get_banks_details(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
     
     client_state: Optional[ClientState] = None,
@@ -150,6 +152,7 @@ async def get_banks_details(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuid=counterparty_uuid,
             user_uuid=user_uuid,
@@ -229,6 +232,7 @@ async def get_banks_details(
 @limiter.limit("30/second")
 async def update_bank_details(
     request: Request,
+    
     data_for_update: UpdateBankDetailsSchema,
     
     bank_details_id: int = Query(
@@ -237,7 +241,6 @@ async def update_bank_details(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -248,6 +251,7 @@ async def update_bank_details(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             bank_details_id=bank_details_id,
             user_uuid=data_for_update.user_uuid,
@@ -316,7 +320,6 @@ async def delete_bank_details(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -327,6 +330,7 @@ async def delete_bank_details(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             bank_details_ids=bank_details_ids,
         )

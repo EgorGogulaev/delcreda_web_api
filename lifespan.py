@@ -13,10 +13,10 @@ from src.models.chat_models import ChatSubject
 from src.models.notification_models import NotificationSubject
 from src.models.file_store_models import Directory, DirectoryType, DocumentType
 from src.models.reference_models import Country, Currency, ServiceNoteSubject
-from src.models.user_models import Token, UserAccount, UserPrivilege
+from src.models.user_models import InformationType, Token, UserAccount, UserGroup, UserGroupMembership, UserPrivilege
 from src.utils.preparer_reference_information import prepare_reference
 from src.utils.reference_mapping_data.app.app_reference_data import COUNTRY, CURRENCY
-from src.utils.reference_mapping_data.user.reference import ADMIN, ADMIN_DIRECTORY, ADMIN_TOKEN, PRIVILEGE, SERVICE_NOTE_SUBJECT
+from src.utils.reference_mapping_data.user.reference import ADMIN, ADMIN_DIRECTORY, ADMIN_TOKEN, INFORMATION_TYPE, PRIVILEGE, SERVICE_NOTE_SUBJECT, USER_GROUP, USER_GROUP_MEMBERSHIP
 from src.utils.reference_mapping_data.file_store.reference import DIRECTORY_TYPE
 from src.utils.reference_mapping_data.chat.reference import CHAT_SUBJECT
 from src.utils.reference_mapping_data.notification.reference import NOTIFICATION_SUBJECT
@@ -57,6 +57,11 @@ async def lifespan(app: FastAPI):
                 CommercialProposalStatus,
                 
                 ServiceNoteSubject,
+                
+                UserGroup,
+                UserGroupMembership,
+                
+                InformationType,
             ],
             [
                 PRIVILEGE, ADMIN_TOKEN, ADMIN,
@@ -76,6 +81,11 @@ async def lifespan(app: FastAPI):
                 COMMERCIAL_PROPOSAL_STATUS,
                 
                 SERVICE_NOTE_SUBJECT,
+                
+                USER_GROUP,
+                USER_GROUP_MEMBERSHIP,
+                
+                INFORMATION_TYPE,
             ],
         )
     ):

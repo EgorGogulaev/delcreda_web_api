@@ -102,6 +102,32 @@ class ChatQueryAndStatementManager:
                 return await __do(session=session)
     
     @staticmethod
+    async def get_chat_id(
+        session: AsyncSession,
+        
+        chat_subject_ids: Optional[List[int]] = None,
+        subject_uuids: Optional[List[int]] = None,
+    ) -> List[Optional[int]]:
+        _filters = []
+        
+        if chat_subject_ids:
+            _filters.append(Chat.chat_subject_id.in_(chat_subject_ids))
+        if subject_uuids:
+            _filters.append(Chat.subject_uuid.in_(subject_uuids))
+        
+        query = (
+            select(Chat.id)
+            .filter(
+                and_(
+                    *_filters
+                )
+            )
+        )
+        response = await session.execute(query)
+        data = response.scalars().all()
+        return data if data else []
+    
+    @staticmethod
     async def get_messages(
         session: AsyncSession,
         

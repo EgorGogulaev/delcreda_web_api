@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Numeric, SmallInteger, String, Text, UniqueConstraint
 
 from connection_module import Base
 
@@ -97,3 +97,15 @@ class MTApplicationType(Base):
     
     name = Column(String)
     description = Column(Text)
+
+class MTApplicationSubagentRelation(Base):
+    __tablename__ = "mt_application_subagent_relation"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    application = Column(SmallInteger, ForeignKey("application.id", ondelete="CASCADE", onupdate="CASCADE"), unique=True)
+    subagent = Column(SmallInteger, ForeignKey("user_group.id", ondelete="NO ACTION", onupdate="CASCADE"))
+    
+    __table_args__ = (
+        UniqueConstraint('application', 'subagent', name='uq_mt_application_subagent'),
+    )

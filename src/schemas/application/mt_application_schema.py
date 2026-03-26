@@ -185,8 +185,10 @@ class UpdateMTApplicationDataSchema(BaseModel):
     
     comment: Optional[str] = "~"                                          # 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 3.1, 3.2           # Особенности проведения заявки V
 
+class BaseMTApplication(BaseApplication):
+    subagent_name: Optional[str] = Field(None, description="Какая Группа является Субагентом для данной Заявки на ПР.")
 
-class ExtendedMTApplication(BaseApplication):  # FIXME
+class ExtendedMTApplication(BaseMTApplication):  # FIXME
     mt_type: Optional[str] = Field(None, description="Тип заявки по MT.")
     priority: Optional[str] = Field(None, description="Приоритет заявки.")
     user_login: Optional[str] = Field(None, description="Логин Пользователя, который создал Заявку.")
@@ -196,7 +198,7 @@ class ExtendedMTApplication(BaseApplication):  # FIXME
     order_name: Optional[str] = Field(None, description="Номер Поручения.")
 
 class ResponseGetMTApplications(BaseModel):
-    data: List[Optional[Union[BaseApplication, ExtendedMTApplication]]] = Field([], description="Массив Заявок по MT.")
+    data: List[Optional[Union[BaseMTApplication, ExtendedMTApplication]]] = Field([], description="Массив Заявок по MT.")
     count: int = Field(0, description="Количество записей по текущей фильтрации (с учетом пагинации).")
     total_records: Optional[int] = Field(None, description="Всего записей (нужно для реализации пагинации в таблице).")
     total_pages: Optional[int] = Field(None, description="Всего страниц, с текущим размером страницы(page_size).")

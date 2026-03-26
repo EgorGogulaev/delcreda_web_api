@@ -341,8 +341,8 @@ async def register(
         min_length=36,
         max_length=36,
     ),
-    token: str = Depends(UserQaSM.get_current_user_data),
     
+    token: str = Depends(UserQaSM.get_current_user_data),
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -353,6 +353,7 @@ async def register(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"],
             login=login,
             password=password,
             privilege=PRIVILEGE_MAPPING[privilege],
@@ -401,6 +402,7 @@ async def register(
 @limiter.limit("30/second")
 async def auth(  # TODO этот метод будет использоваться при работе с шифрованием, шифровать будем только токен (???)
     request: Request,
+
     data: AuthData,
     
     session: AsyncSession = Depends(get_async_session),
@@ -441,6 +443,7 @@ async def auth(  # TODO этот метод будет использовать�
 @limiter.limit("30/second")
 async def auth_v2(
     request: Request,
+    
     data: AuthData,
     
     session: AsyncSession = Depends(get_async_session),
@@ -481,6 +484,7 @@ async def auth_v2(
 @limiter.limit("30/second")
 async def get_users_info(
     request: Request,
+    
     privilege: Literal["Client", "Сounterparty", "Admin", "all"] = Query(
         "all",
         description="Фильтр для поиска по Правам пользователей.",
@@ -544,6 +548,8 @@ async def get_users_info(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
+            
             privilege=PRIVILEGE_MAPPING[privilege] if privilege != "all" else None,
             login=login,
             user_token=user_token,
@@ -700,7 +706,6 @@ async def update_user_info(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -711,6 +716,7 @@ async def update_user_info(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             target_token=target_token,
             target_user_uuid=target_user_uuid,
@@ -767,6 +773,7 @@ async def update_user_info(
 @limiter.limit("30/minute")
 async def delete_users(
     request: Request,
+    
     tokens: List[str] = Query(
         [],
         description="Массив токенов-пользователей к удалению."
@@ -794,6 +801,7 @@ async def delete_users(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             with_documents=with_documents,
             
@@ -971,6 +979,7 @@ async def update_user_contact(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             new_user_contact_data=new_user_contact_data,
             user_uuid=user_uuid,
@@ -1005,3 +1014,177 @@ async def update_user_contact(
             return JSONResponse(content=response_content)
     finally:
         await session.rollback()
+
+
+@router.post(
+    "/create_user_group",
+    description="""
+    Создание новой Группы.
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("3/second")
+async def create_user_group(
+    request: Request,
+    
+    name: str = Query(
+        ...,
+        description="Название новой Группы",
+    ),
+    description: Optional[str] = Query(
+        None,
+        description="Описание новой Группы",
+    ),
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        await UserService.create_user_group(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
+            
+            name=name,
+            description=description,
+        )
+        
+        response_content = {"msg": "Новая Группа успешно создана."}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="create_user_group",
+                params={
+                    "name": name,
+                    "description": description,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.get(
+    "/get_user_groups",
+    description="""
+    Запрос перечня пользовательских Групп (отвечающих за доступ к информации)
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("15/second")
+async def get_user_groups(
+    request: Request,
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        response_content: List[str] = await UserService.get_user_groups(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+        )
+        
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="get_user_groups",
+                params={},
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)
+
+@router.delete(
+    "/delete_user_group",
+    description="""
+    Удаление Группы (получится, если в Группе нет участников).
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("3/second")
+async def delete_user_group(
+    request: Request,
+    
+    name: str = Query(
+        ...,
+        description="Название Группы к удалению"
+    ),
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        await UserService.delete_user_group(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
+        )
+        
+        response_content = {"msg": "Группа успешно удалена."}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="delete_user_group",
+                params={
+                    "name": name,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)

@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -7,6 +7,8 @@ class UserSchema(BaseModel):
     user_uuid: Optional[str] = Field(None, description="UUID пользователя.")
     user_dir_uuid: Optional[str] = Field(None, description="UUID Директории пользователя.")
     privilege_id: Optional[int] = Field(None, description="ID Прав пользователя.")
+    groups: List[Optional[int]| List[Optional[int]]] = Field([], description="ID Групп, в которых состоит пользователь (доступ на чтение) + массив под индексом -1 с основными Группами (право на редактирование).")
+    groups_names: Dict[str, str] = Field({}, description="Наименование Групп, в которых состоит пользователь.")
 
 class AuthData(BaseModel):
     login: str = Field(..., description="Логин пользователя.", min_length=4, max_length=255)
@@ -64,6 +66,9 @@ class ResponseAuth(BaseModel):
     user_uuid: str = Field(..., description="UUID пользователя в системе.")
     user_dir_uuid: str = Field(..., description="UUID Директории пользователя.")
     privilege: str = Field(..., description="Права пользователя.")
+    groups: List[Optional[int] | List[Optional[int]]] = Field([], description="ID Групп, в которых состоит пользователь (доступ на чтение) + массив под индексом -1 с основными Группами (право на редактирование).")
+    groups_names: Dict[str, Any] = Field({}, description="Наименование Групп, в которых состоит пользователь.")
+
 
 # user info
 class UserInfo(BaseModel):

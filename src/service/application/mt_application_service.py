@@ -27,6 +27,7 @@ class MTApplicationService:
         # requester_user_id: int,
         requester_user_uuid: str,
         requester_user_privilege: int,
+        requester_groups: List[Optional[int]],
         
         user_uuid: str,
         counterparty_uuid: str,
@@ -556,4 +557,36 @@ class MTApplicationService:
             sender_company_legal_form=sender_company_legal_form,
             sender_country=sender_country,
             comment=comment,
+        )
+    
+    @staticmethod
+    async def set_subagent_for_mt_application(
+        session: AsyncSession,
+        
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        requester_groups: List[Optional[int]],
+        
+        mt_application_uuid: str,
+        group_name: str,
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав!")
+        
+        application_check_access_response_object: Optional[Tuple[int, int, str]] = await ApplicationQueryAndStatementManager.check_access(
+            session=session,
+            
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            requester_groups=requester_groups,
+            
+            application_uuid=mt_application_uuid,
+        )
+        if application_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас недостаточно прав (ограничение Группы)!")
+        
+        await MTApplicationQueryAndStatementManager.set_subagent_for_mt_application(
+            session=session,
+            application_id=application_check_access_response_object[0],
+            group_name=group_name,
         )

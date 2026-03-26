@@ -111,3 +111,15 @@ class Person(Base):
     
     updated_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.current_timestamp()), nullable=False)
+
+class CounterpartyAgentRelation(Base):
+    __tablename__ = "counterparty_agent_relation"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    counterparty = Column(SmallInteger, ForeignKey("counterparty.id", ondelete="CASCADE", onupdate="CASCADE"))
+    agent = Column(SmallInteger, ForeignKey("user_group.id", ondelete="NO ACTION", onupdate="CASCADE"))
+    
+    __table_args__ = (
+        UniqueConstraint('counterparty', 'agent', name='uq_counterparty_agent'),
+    )

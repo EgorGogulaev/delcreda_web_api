@@ -15,7 +15,7 @@ from src.service.counterparty.counterparty_service import CounterpartyService
 from src.schemas.user_schema import ClientState, FiltersUsersInfo, OrdersUsersInfo, ResponseAuth, ResponseGetUsersInfo, UpdateUserContactData, UserInfo, UserSchema
 from src.models.user_models import UserAccount
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
-from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
+from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING, USER_GROUP_MAPPING
 from src.service.file_store_service import FileStoreService
 from src.utils.tz_converter import convert_tz
 from src.utils.sanitazer_s3_username import sanitize_s3_username
@@ -275,6 +275,8 @@ class UserService:
                 user_uuid=user_data.user_uuid,
                 user_dir_uuid=user_data.user_dir_uuid,
                 privilege={v:k for k, v in PRIVILEGE_MAPPING.items()}[user_data.privilege_id],
+                groups=user_data.groups,
+                groups_names=user_data.groups_names,
             )
         
         return data
@@ -714,3 +716,88 @@ class UserService:
             user_contact_id=user_contact_id,
             new_user_contact_data=new_user_contact_data,
         )
+    
+    @staticmethod
+    async def get_user_groups(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int,
+    ) -> List[str]:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+        
+        data: List[str] = await UserQueryAndStatementManager.get_user_groups(
+            session=session,
+        )
+        return data
+    
+    @staticmethod
+    async def create_user_group(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int, requester_groups: List[Optional[int]],
+        
+        name: str,
+        description: Optional[str],
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав!")
+        
+        if requester_user_privilege == PRIVILEGE_MAPPING["Admin"] and USER_GROUP_MAPPING["SuperUser"] not in requester_groups:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав (правило Группы)!")
+        
+        await UserQueryAndStatementManager.create_user_group(
+            session=session,
+            
+            name=name,
+            description=description,
+        )
+    
+    @staticmethod
+    async def delete_user_group(
+        session: AsyncSession,
+        
+        requester_user_uuid: str, requester_user_privilege: int, requester_groups: List[Optional[int]],
+        
+        name: str,
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав!")
+        
+        if requester_user_privilege == PRIVILEGE_MAPPING["Admin"] and USER_GROUP_MAPPING["SuperUser"] not in requester_groups:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав (правило Группы)!")
+        
+        await UserQueryAndStatementManager.delete_user_group(
+            session=session,
+            
+            name=name,
+        )
+    
+    @staticmethod
+    async def set_user_group_information_access(
+        session: AsyncSession,
+        
+        requester_user_privilege: int,
+        
+        info_ids: List[int],
+        information_type: Literal[
+            "LegalEntity",
+            "Order",
+            "BankDetails",
+            "Directory",
+            "Chat",
+        ]
+    ) -> None:
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав!")
+        
+        if not info_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Для устновки доступа к информации в Группе - нужно указать ID-информации!")
+        
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            info_ids=info_ids,
+            information_type=information_type,
+        )
+        ...  # TODO Реализовать

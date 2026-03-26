@@ -5,6 +5,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from connection_module import SignalConnector
+from models.counterparty.bank_details_models import BankDetails
+from query_and_statement.chat_qas_manager import ChatQueryAndStatementManager
+from query_and_statement.counterparty.bank_details_qas_manager import BankDetailsQueryAndStatementManager
+from query_and_statement.file_store_qas_manager import FileStoreQueryAndStatementManager
 from src.query_and_statement.commercial_proposal_qas_manager import CommercialProposalQueryAndStatementManager
 from src.service.application.application_service import ApplicationService
 from src.models.application.application_models import Application
@@ -15,9 +19,10 @@ from src.service.file_store_service import FileStoreService
 from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, Person
 from src.query_and_statement.counterparty.counterparty_qas_manager import CounterpartyQueryAndStatementManager
 from src.query_and_statement.user_qas_manager import UserQueryAndStatementManager
-from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
+from src.utils.reference_mapping_data.user.mapping import INFORMATION_TYPE_MAPPING, PRIVILEGE_MAPPING, USER_GROUP_MAPPING
 from src.utils.reference_mapping_data.file_store.mapping import DIRECTORY_TYPE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
+from utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 class CounterpartyService:
@@ -695,3 +700,133 @@ class CounterpartyService:
         )
         
         return counterparty_uuid_tuple[0] if counterparty_uuid_tuple else None
+    
+    # TODO тут нужно расширить функционал под КП и Договоры!!!
+    @staticmethod
+    async def set_agent_for_counterparty(
+        session: AsyncSession,
+        
+        requester_user_uuid: str,
+        requester_user_privilege: int,
+        requester_groups: List[Optional[int]],
+        
+        counterparty_uuid: str,
+        group_name: str,
+    ) -> None:
+        # TODO предусмотреть случай, когда уже задан агент для Контрагента
+        if requester_user_privilege != PRIVILEGE_MAPPING["Admin"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У Вас недостаточно прав!")
+        
+        counterparty_check_access_response_object: Optional[Tuple[int, int, str]] = await CounterpartyQueryAndStatementManager.check_access(
+            session=session,
+            
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            requester_groups=[USER_GROUP_MAPPING["SuperUser"]],
+            
+            counterparty_uuid=counterparty_uuid,
+        )
+        if counterparty_check_access_response_object is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас недостаточно прав (ограничение Группы)!")
+        
+        await CounterpartyQueryAndStatementManager.set_agent_for_legal_entity(
+            session=session,
+            legal_entity_id=counterparty_check_access_response_object[0],
+            group_name=group_name,
+        )
+        counterparty_uuids: List[Optional[str]] = await CounterpartyQueryAndStatementManager.get_counterparty_uuid_by_id(
+            session=session,
+            ids=[counterparty_check_access_response_object[0]]
+        )
+        
+        counterparty_chat_id: List[Optional[int]] = await ChatQueryAndStatementManager.get_chat_id(
+            session=session,
+            
+            chat_subject_ids=[CHAT_SUBJECT_MAPPING["Контрагент"]],
+            subject_uuids=counterparty_uuids,
+        )
+        
+        if not counterparty_chat_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="У карточки Контрагента отсутствует UUID!")
+        
+        counterparty_dir_id: Optional[int] = await FileStoreQueryAndStatementManager.get_dir_or_doc_id_by_uuid(
+            session=session,
+            
+            is_document=False,
+            uuid=counterparty_check_access_response_object[2],
+        )
+        
+        if not counterparty_chat_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="У карточки Контрагента отсутствует Чат!")
+        
+        applications: Dict[str, List[Optional[Application]]|Optional[int]] = await ApplicationService.get_applications(
+            session=session,
+            requester_user_uuid=requester_user_uuid,
+            requester_user_privilege=requester_user_privilege,
+            requester_groups=[USER_GROUP_MAPPING["SuperUser"]],
+            user_uuid=None,
+            counterparty_uuid=counterparty_uuid,
+        )
+        
+        application_ids: List[Optional[int]] = [application[0].id for application in applications["data"]]
+        
+        application_dir_ids: List[Optional[int]] = [application[0].directory_id for application in applications["data"]]
+        
+        application_chat_ids: List[Optional[int]] = await ChatQueryAndStatementManager.get_chat_id(
+            session=session,
+            
+            chat_subject_ids=[CHAT_SUBJECT_MAPPING["Поручение"]],
+            subject_uuids=[application[0].uuid for application in applications["data"]],
+        )
+        
+        bank_details_data: List[Optional[BankDetails]] = await BankDetailsQueryAndStatementManager.get_banks_details(
+            session=session,
+            
+            requester_user_privilege=requester_user_privilege,
+            requester_groups=[USER_GROUP_MAPPING["SuperUser"]],
+        )
+        
+        bank_details_ids = [bank_details.id for bank_details in bank_details_data]
+        
+        # TODO тут нужно расширить функционал под КП и Договоры!!!
+        
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            information_type=INFORMATION_TYPE_MAPPING["Counterparty"],
+            info_ids=[counterparty_check_access_response_object[0]],
+            
+            group_name=group_name,
+        )
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            information_type=INFORMATION_TYPE_MAPPING["Application"],
+            info_ids=application_ids,
+            
+            group_name=group_name,
+        )
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            information_type=INFORMATION_TYPE_MAPPING["BankDetails"],
+            info_ids=bank_details_ids,
+            
+            group_name=group_name,
+        )
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            information_type=INFORMATION_TYPE_MAPPING["Directory"],
+            info_ids=[*application_dir_ids, counterparty_dir_id],
+            
+            group_name=group_name,
+        )
+        await UserQueryAndStatementManager.set_user_group_information_access(
+            session=session,
+            
+            information_type=INFORMATION_TYPE_MAPPING["Chat"],
+            info_ids=[*application_chat_ids, counterparty_chat_id[0] if counterparty_chat_id else counterparty_chat_id],
+            
+            group_name=group_name,
+        )

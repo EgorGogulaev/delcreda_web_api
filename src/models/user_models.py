@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    BigInteger, Column, Integer, func, ForeignKey, Index,
+    BigInteger, Column, Integer, UniqueConstraint, func, ForeignKey, Index,
     SmallInteger,
     String, Text,
     Boolean,
@@ -73,3 +73,47 @@ class UserContact(Base):
     
     telegram = Column(String, nullable=True)
     telegram_notification = Column(Boolean, server_default="false", nullable=False)
+
+
+class UserGroup(Base):
+    __tablename__ = "user_group"
+    
+    id = Column(SmallInteger, primary_key=True, autoincrement=True)
+    
+    name = Column(String, nullable=False)
+    description = Column(Text)
+
+class UserGroupMembership(Base):
+    __tablename__ = "user_group_membership"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    user = Column(BigInteger, ForeignKey("user_account.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    group = Column(SmallInteger, ForeignKey("user_group.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
+    is_main = Column(Boolean, nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint('user', 'group', name='uq_user_group_membership'),
+    )
+
+class InformationType(Base):
+    __tablename__ = "information_type"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    name = Column(String, nullable=False)
+    description = Column(Text)
+
+class UserGroupInformationAccess(Base):
+    __tablename__ = "user_group_information_access"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    information_type = Column(SmallInteger, ForeignKey("information_type.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
+    info_id = Column(BigInteger, nullable=False)
+    
+    group = Column(SmallInteger, ForeignKey("user_group.id", ondelete="NO ACTION", onupdate="CASCADE"), nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint('information_type', 'info_id', 'group', name='uq_information_u_g_access'),
+    )

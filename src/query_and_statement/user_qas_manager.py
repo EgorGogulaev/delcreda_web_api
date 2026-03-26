@@ -12,8 +12,9 @@ from src.models.notification_models import Notification
 from src.models.chat_models import Message
 from src.models.counterparty.bank_details_models import BankDetails
 from src.models.file_store_models import Directory, Document
-from src.models.user_models import Token, UserAccount, UserContact, UserPrivilege
+from src.models.user_models import InformationType, Token, UserAccount, UserContact, UserGroup, UserGroupInformationAccess, UserGroupMembership, UserPrivilege
 from src.schemas.user_schema import ClientState, UpdateUserContactData, UserSchema, FiltersUsersInfo, OrdersUsersInfo
+from src.utils.reference_mapping_data.user.mapping import USER_GROUP_MAPPING
 
 
 
@@ -73,7 +74,7 @@ class UserQueryAndStatementManager:
     ) -> UserSchema:
         # TODO тут должно быть дешефрование token
         async with async_session_maker() as session:
-            query = (
+            query_user_data = (
                 select(Token, UserAccount, UserPrivilege.id, Directory.uuid)
                 .outerjoin(UserAccount, Token.id == UserAccount.token)
                 .outerjoin(UserPrivilege, UserAccount.privilege == UserPrivilege.id)
@@ -85,40 +86,54 @@ class UserQueryAndStatementManager:
                     )
                 )
             )
-            response = await session.execute(query)  # аутентификация пользователя
-            result = response.one_or_none()
+            response_user_data = await session.execute(query_user_data)  # аутентификация пользователя
+            result_user_data = response_user_data.one_or_none()
             
-            if not result:
+            if not result_user_data:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"Несуществующий токен или у пользователя отсутствует корневая Директория - {token}!"
                 )
-            if not result[0].is_active:
+            if not result_user_data[0].is_active:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"Неактивный токен - {token}!"
                 )
-            if not result[1].is_active:
+            if not result_user_data[1].is_active:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Неактивный пользователь!"
                 )
-            if not result[2]:
+            if not result_user_data[2]:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="У пользователя нет прав!"
                 )
-            if not result[3]:
+            if not result_user_data[3]:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="У пользователя нет своей Директории!"
                 )
             
+            query_user_groups = (
+                select(UserGroupMembership.group, UserGroupMembership.is_main, UserGroup.name)
+                .outerjoin(UserGroup, UserGroup.id == UserGroupMembership.group)
+                .filter(UserGroupMembership.user == result_user_data[1].id)
+            )
+            response_user_groups = await session.execute(query_user_groups)
+            user_groups: List[Tuple[int, bool]] = [group for group in response_user_groups.all()]
+            
             user_data = UserSchema()
-            user_data.user_id = result[1].id
-            user_data.user_uuid = result[1].uuid
-            user_data.user_dir_uuid = result[3]
-            user_data.privilege_id = result[2]
+            user_data.user_id = result_user_data[1].id
+            user_data.user_uuid = result_user_data[1].uuid
+            user_data.user_dir_uuid = result_user_data[3]
+            user_data.privilege_id = result_user_data[2]
+            user_data.groups = [g[0] for g in user_groups] if user_groups else []
+            user_data.groups.append([g[0] for g in user_groups if g[1] is True] if user_groups else [])
+            user_data.groups_names = {
+                "main_groups": [g[-1] for g in user_groups if g[1] is True] if user_groups else [],
+                "sub_groups": [[g[-1] for g in user_groups if g[1] is False] if user_groups else []]
+            }
             
             return user_data
     
@@ -549,4 +564,146 @@ class UserQueryAndStatementManager:
         )
         
         await session.execute(stmt)
+        await session.commit()
+    
+    
+    @staticmethod
+    async def get_group_available_info_ids(
+        session: AsyncSession,
+        
+        information_type: str,  # INFORMATION_TYPE_MAPPING
+        group_list: list[int],
+    ) -> Tuple[int, ...]:
+        if USER_GROUP_MAPPING["SuperUser"] in group_list:
+            return (-1,)
+        
+        query = (
+            select(UserGroupInformationAccess.info_id)
+            .filter(
+                and_(
+                    UserGroupInformationAccess.information_type == information_type,
+                    UserGroupInformationAccess.group.in_(group_list)
+                )
+            )
+        )
+        response = await session.execute(query)
+        data = response.scalars().all()
+        
+        return tuple(set(data)) if data else tuple()
+    
+    @staticmethod
+    async def get_user_groups(
+        session: AsyncSession,
+    ) -> List[str]:
+        query = (
+            select(UserGroup.name)
+            .filter(UserGroup.id != USER_GROUP_MAPPING["SuperUser"])
+        )
+        
+        response = await session.execute(query)
+        data = [item[0] for item in response.all()]
+        
+        return data
+    
+    @staticmethod
+    async def create_user_group(
+        session: AsyncSession,
+        
+        name: str,
+        description: Optional[str],
+    ) -> None:
+        stmt = (
+            insert(UserGroup)
+            .values(
+                {
+                    "name": name,
+                    "description": description,
+                }
+            )
+        )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def delete_user_group(
+        session: AsyncSession,
+        
+        name: str,
+    ) -> None:
+        stmt = (
+            delete(UserGroup)
+            .filter(UserGroup.name == name)
+        )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def set_user_group_information_access(
+        session: AsyncSession,
+        
+        information_type: int,
+        info_ids: List[Optional[int]],
+        
+        group_name: str,
+    ) -> None:
+        if not info_ids:
+            return
+        
+        query_group_exist = (
+            select(UserGroup.id)
+            .filter(UserGroup.name == group_name)
+        )
+        query_infromation_type_exist = (
+            select(InformationType)
+            .filter(InformationType.id == information_type)
+        )
+        
+        response_group_exist = await session.execute(query_group_exist)
+        group_id = response_group_exist.scalar_one_or_none()
+        if group_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа с указаным названием не найдена!")
+        
+        response_infromation_type_exist = await session.execute(query_infromation_type_exist)
+        information_type_id = response_infromation_type_exist.scalar_one_or_none()
+        if information_type_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="По указанному ID-типа информации не найдена запись!")
+        
+        stmt_update_group_info_access = (
+            update(UserGroupInformationAccess)
+            .filter(
+                and_(
+                    UserGroupInformationAccess.information_type == information_type,
+                    UserGroupInformationAccess.info_id.in_(info_ids),
+                )
+            )
+            .values(
+                {"group": group_id}
+            ).returning(UserGroupInformationAccess.info_id)
+        )
+        
+        response_update_group_info_access = await session.execute(stmt_update_group_info_access)
+        updated_group_info_ids = response_update_group_info_access.scalars().all()
+        
+        info_ids_for_creation = [info_id for info_id in info_ids if info_id not in updated_group_info_ids]
+        
+        inserion_data = []
+        
+        for info_id in info_ids_for_creation:
+            inserion_data.append(
+                {
+                    "information_type": information_type,
+                    "info_id": info_id,
+                    "group": group_id,
+                }
+            )
+        
+        if inserion_data:
+            stmt_create_ugia = (
+                insert(UserGroupInformationAccess)
+                .values(inserion_data)
+            )
+            await session.execute(stmt_create_ugia)
+        
         await session.commit()

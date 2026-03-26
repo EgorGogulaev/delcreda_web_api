@@ -83,7 +83,6 @@ async def create_counterparty(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -96,6 +95,7 @@ async def create_counterparty(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][:-1],
             
             owner_user_uuid=owner_user_uuid,
             new_directory_uuid=new_directory_uuid,
@@ -115,6 +115,7 @@ async def create_counterparty(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][:-1],
             
             subject="Контрагент",
             subject_uuid=new_counterparty_uuid,
@@ -232,7 +233,6 @@ async def get_counterparties(
     order: Optional[OrdersCounterparties] = None,
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
     
     client_state: Optional[ClientState] = None,
@@ -253,6 +253,7 @@ async def get_counterparties(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_type=counterparty_type,
             user_uuid=user_uuid,
@@ -302,6 +303,7 @@ async def get_counterparties(
                             application_access_list=counterparty["legal_entity"].application_access_list,
                             updated_at=convert_tz(counterparty["legal_entity"].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty["legal_entity"].updated_at else None,
                             created_at=convert_tz(counterparty["legal_entity"].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty["legal_entity"].created_at else None,
+                            agent_name=counterparty["agent"],
                         )
                     )
                 elif counterparty_type == "ФЛ":
@@ -329,6 +331,7 @@ async def get_counterparties(
                             application_access_list=counterparty[0].application_access_list,
                             updated_at=convert_tz(counterparty[0].updated_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty[0].updated_at else None,
                             created_at=convert_tz(counterparty[0].created_at.strftime("%d.%m.%Y %H:%M:%S UTC"), tz_city=client_state_data.get("tz")) if counterparty[0].created_at else None,
+                            agent_name=counterparty[-1],
                         )
                     )
                 elif counterparty_type == "ФЛ":
@@ -386,6 +389,7 @@ async def get_counterparties(
 @limiter.limit("30/second")
 async def change_counterparties_edit_status(
     request: Request,
+    
     counterparty_uuids: List[Optional[str]] = Query(
         [],
         description="Массив UUID'ов карточек Контрагента, у которых должен быть изменен статус возможности редактирования Пользователем."
@@ -398,7 +402,6 @@ async def change_counterparties_edit_status(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -409,6 +412,7 @@ async def change_counterparties_edit_status(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuids=counterparty_uuids,
             edit_status=edit_status,
@@ -469,7 +473,6 @@ async def update_counterparty(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -480,6 +483,7 @@ async def update_counterparty(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuid=counterparty_uuid,
             
@@ -498,6 +502,7 @@ async def update_counterparty(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Контрагент",
                 subject_uuid=counterparty_uuid,
@@ -578,6 +583,8 @@ async def update_application_access_list(
             session=session,
             
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
+            
             counterparty_uuid=counterparty_uuid,
             
             mt=data_for_update.mt,
@@ -641,7 +648,6 @@ async def get_counterparties_data(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
     
     client_state: Optional[ClientState] = None,
@@ -664,6 +670,7 @@ async def get_counterparties_data(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuid_list=counterparty_uuid_list,
             user_uuid=user_uuid,
@@ -707,6 +714,7 @@ async def get_counterparties_data(
             log_id = await ReferenceService.create_errlog(
                 endpoint="get_counterparties_data",
                 params={
+                    "counterparty_type": counterparty_type,
                     "counterparty_uuid_list": counterparty_uuid_list,
                     "user_uuid": user_uuid,
                 },
@@ -731,6 +739,7 @@ async def get_counterparties_data(
 @limiter.limit("30/second")
 async def update_counterparty_data(
     request: Request,
+    
     data_for_update: UpdateLegalEntityDataSchema | UpdateIndividualDataSchema,
     
     counterparty_uuid: str = Query(
@@ -741,7 +750,6 @@ async def update_counterparty_data(
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -752,6 +760,7 @@ async def update_counterparty_data(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuid=counterparty_uuid,
             
@@ -770,6 +779,7 @@ async def update_counterparty_data(
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             subject="Контрагент",
             subject_uuid=counterparty_uuid,
@@ -830,13 +840,13 @@ async def update_counterparty_data(
 @limiter.limit("30/second")
 async def delete_counterparties(  # TODO Нужно предусмотреть параметр для удаления из хранилища Директорий и Документов (ЮЛ и ПР)
     request: Request,
+    
     counterparty_uuids: List[str] = Query(
         [],
         description="Массив UUID карточек Контрагента к удалению."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -848,6 +858,7 @@ async def delete_counterparties(  # TODO Нужно предусмотреть �
             requester_user_id=user_data["user_id"],
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuids=counterparty_uuids,
         )
@@ -909,6 +920,7 @@ async def create_persons(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             new_persons=new_persons,
         )
@@ -924,6 +936,7 @@ async def create_persons(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Контрагент",
                 subject_uuid=counterparty_uuid,
@@ -1032,6 +1045,7 @@ async def get_persons(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             counterparty_uuid=counterparty_uuid,
             
@@ -1112,11 +1126,11 @@ async def get_persons(
 @limiter.limit("30/second")
 async def update_person(
     request: Request,
+    
     person_id: int,
     data_for_update: UpdatePerson,
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -1127,6 +1141,7 @@ async def update_person(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             person_id=person_id,
             surname=data_for_update.surname,
@@ -1152,6 +1167,7 @@ async def update_person(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Контрагент",
                 subject_uuid=counterparty_uuid,
@@ -1208,13 +1224,13 @@ async def update_person(
 @limiter.limit("30/second")
 async def delete_persons(
     request: Request,
+    
     person_ids: List[Optional[int]] = Query(
         [],
         description="Массив ID ФЛ к удалению."
     ),
     
     token: str = Depends(UserQaSM.get_current_user_data),
-    
     session: AsyncSession = Depends(get_async_session),
 ) -> JSONResponse:
     try:
@@ -1225,6 +1241,7 @@ async def delete_persons(
             
             requester_user_uuid=user_data["user_uuid"],
             requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][-1],
             
             person_ids=person_ids,
         )
@@ -1238,6 +1255,7 @@ async def delete_persons(
                 requester_user_id=user_data["user_id"],
                 requester_user_uuid=user_data["user_uuid"],
                 requester_user_privilege=user_data["privilege_id"],
+                requester_groups=user_data["groups"][-1],
                 
                 subject="Контрагент",
                 subject_uuid=counterparty_uuid,
@@ -1282,3 +1300,71 @@ async def delete_persons(
             return JSONResponse(content=response_content)
     finally:
         await session.rollback()
+
+@router.post(
+    "/set_agent_for_counterparty",
+    description="""
+    Закрепление Агента(Группы) за ЮЛ
+    """,
+    dependencies=[Depends(check_app_auth)],
+)
+@limiter.limit("3/second")
+async def set_agent_for_counterparty(
+    request: Request,
+    
+    counterparty_uuid: str = Query(
+        ...,
+        description="UUID-Конрагента, которому будет задан Агент(Группа).",
+        min_length=36,
+        max_length=36,
+    ),
+    group_name: str = Query(
+        ...,
+        description="Название Группы(которая буде выступать Агенто в данном ЮЛ)."
+    ),
+    
+    token: str = Depends(UserQaSM.get_current_user_data),
+    session: AsyncSession = Depends(get_async_session),
+) -> JSONResponse:
+    try:
+        user_data: Dict[str, str|int] = token.model_dump()   # Парсинг данных пользователя
+        
+        await CounterpartyService.set_agent_for_counterparty(
+            session=session,
+            
+            requester_user_uuid=user_data["user_uuid"],
+            requester_user_privilege=user_data["privilege_id"],
+            requester_groups=user_data["groups"][:-1],
+            
+            counterparty_uuid=counterparty_uuid,
+            group_name=group_name,
+        )
+        
+        response_content = {"msg": f'Агент "{group_name}" для Контрагента "{counterparty_uuid}" успешно установлен.'}
+        return JSONResponse(content=response_content)
+    except AssertionError as e:
+        error_message = str(e)
+        formatted_traceback = traceback.format_exc()
+        
+        response_content = {"msg": f"{error_message}\n{formatted_traceback}"}
+        return JSONResponse(content=response_content)
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            error_message = str(e)
+            formatted_traceback = traceback.format_exc()
+            
+            log_id = await ReferenceService.create_errlog(
+                endpoint="set_subagent_for_order",
+                params={
+                    "counterparty_uuid": counterparty_uuid,
+                    "group_name": group_name,
+                },
+                msg=f"{error_message}\n{formatted_traceback}",
+                user_uuid=user_data["user_uuid"],
+            )
+            
+            response_content = {"msg": f"ОШИБКА! #{log_id}"}
+            return JSONResponse(content=response_content)

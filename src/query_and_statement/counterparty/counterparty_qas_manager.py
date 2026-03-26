@@ -6,12 +6,13 @@ from sqlalchemy import and_, func, or_, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
+from models.user_models import UserGroup
 from src.models.chat_models import Chat, Message
 from src.models.application.mt_models import MTApplicationData
 from src.models.application.application_models import Application
 from src.schemas.counterparty.counterparty_schema import CreateIndividualDataSchema, CreateLegalEntityDataSchema, FiltersCounterparties, OrdersCounterparties, FiltersPersons, OrdersPersons, CreatePersonsSchema, UpdateCounterpartySchema, UpdateIndividualDataSchema, UpdateLegalEntityDataSchema
 from src.models.counterparty.bank_details_models import BankDetails
-from src.models.counterparty.counterparty_models import Counterparty, IndividualData, LegalEntityData, ApplicationAccessList, Person
+from src.models.counterparty.counterparty_models import Counterparty, CounterpartyAgentRelation, IndividualData, LegalEntityData, ApplicationAccessList, Person
 from src.utils.reference_mapping_data.user.mapping import PRIVILEGE_MAPPING
 from src.utils.reference_mapping_data.app.app_mapping_data import COUNTRY_MAPPING
 from src.utils.reference_mapping_data.application.mapping import APPLICATION_TYPE_MAPPING
@@ -20,6 +21,22 @@ from src.utils.reference_mapping_data.chat.mapping import CHAT_SUBJECT_MAPPING
 
 
 class CounterpartyQueryAndStatementManager:
+    @staticmethod
+    async def get_counterparty_uuid_by_id(
+        session: AsyncSession,
+        
+        ids: List[Optional[int]],
+    ) -> List[str]:
+        query = (
+            select(Counterparty.uuid)
+            .filter(Counterparty.id.in_(ids))
+        )
+        
+        response = await session.execute(query)
+        data = [item[0] for item in response.all()]
+        
+        return data
+    
     @staticmethod
     async def create_counterparty(
         session: AsyncSession,
@@ -828,6 +845,48 @@ class CounterpartyQueryAndStatementManager:
             delete(Person)
             .filter(Person.id.in_(person_ids))
         )
+        
+        await session.execute(stmt)
+        await session.commit()
+    
+    @staticmethod
+    async def set_agent_for_counterparty(
+        session: AsyncSession,
+        
+        counterparty_id: int,
+        group_name: str,
+    ) -> None:
+        query_group_id = (
+            select(UserGroup.id)
+            .filter(UserGroup.name == group_name)
+        )
+        response_group_id = await session.execute(query_group_id)
+        group_id = response_group_id.scalar_one_or_none()
+        if group_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа с указанным названием не найдена!")
+        
+        query_counterparty_agent_relation_id = (
+            select(CounterpartyAgentRelation.id)
+            .filter(CounterpartyAgentRelation.counterparty == counterparty_id)
+        )
+        response_counterparty_agent_relation_id = await session.execute(query_counterparty_agent_relation_id)
+        counterparty_agent_relation_id = response_counterparty_agent_relation_id.scalar_one_or_none()
+        if counterparty_agent_relation_id:
+            stmt =  (
+                update(CounterpartyAgentRelation)
+                .filter(CounterpartyAgentRelation.id == counterparty_agent_relation_id)
+                .values({"agent": group_id,})
+            )
+        else:
+            stmt =  (
+                insert(CounterpartyAgentRelation)
+                .values(
+                    {
+                        "counterparty": counterparty_id,
+                        "agent": group_id,
+                    }
+                )
+            )
         
         await session.execute(stmt)
         await session.commit()
